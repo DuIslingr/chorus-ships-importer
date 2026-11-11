@@ -1,0 +1,12 @@
+{
+ "_comment": "Copy this file to config.json and change what you need. Every key is a command-line option without its dashes; the command line wins over this file.",
+ "game": "C:/Program Files (x86)/Steam/steamapps/common/Chorus",
+ "cue4parse": "../CUE4Parse",
+ "out": "chorus_ships",
+ "work": "chorus_work",
+ "dotnet": null,
+ "blender": null,
+ "key": null,
+ "flight_style": "chorus",
+ "fresh": false
+}

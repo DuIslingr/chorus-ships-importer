@@ -1,0 +1,10 @@
+# What the importer builds and exports (Chorus's models and textures: never commit or share them)
+chorus_ships/
+chorus_work/
+*.zip
+# Your own settings (paths on your computer)
+config.json
+# Build output
+exporter/bin/
+exporter/obj/
+__pycache__/
