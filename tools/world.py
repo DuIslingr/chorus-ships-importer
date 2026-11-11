@@ -9,7 +9,7 @@ locations). The Enclave, Helios, Eos, Nimika's ring station and Tarris's big sta
 """
 import json, math, os, random
 import numpy as np
-from . import gate as chorus_gate, glb, npcs, planets, rocks, sky, stations as chorus_stations
+from . import factions, gate as chorus_gate, glb, npcs, planets, rocks, sky, stations as chorus_stations
 
 MOD = 'chorus_ships'
 GATE_FROM = 18   # Pescal Inartu (Terran, security 1): the cluster's way in
@@ -138,7 +138,7 @@ def build(export, mod, resolver, run, ships=None):
     systems = []
     for sid, name, pos, sec, visible, sky_key, gates in SYSTEMS:
         e = {'id': sid, 'name': name, 'race': 0, 'security': sec, 'visible': visible, 'position': pos, 'sky': 4,
-             'gates': gates, 'gateStation': f'{MOD}:{GATE_STATIONS[sid]}'}
+             'gates': gates, 'gateStation': f'{MOD}:{GATE_STATIONS[sid]}', 'raiders': factions.RAIDERS}
         if sky_key in skies: e['skybox'] = skies[sky_key]
         if gate: e['jumpgate'] = gate   # (Chorus's own; Pescal Inartu's side of the route keeps the game's)
         systems.append(e)

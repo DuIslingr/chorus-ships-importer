@@ -230,6 +230,11 @@ world part is large (about 1 GB, most of it the five stations).
   frame) in all four systems, its origin in the ring (systems.json jumpgate `"centre": false`), 50 000 units long, with
   Chorus's FTL portal in the ring (the Theia gate's card and glow, M_FTL_Portal / M_FTL_PortalGlow as material
   `"portal"` blocks: veins scrolling out in polar coordinates, the scene behind bent through it).
+- **Factions** (`tools/factions.py`): the Circle and the Omen as the remake's hostile mod races (`races.json`): their
+  fighters fly for them as well as for the game's pirates and the Void, their capital ships for them, the Chorus systems
+  name both as raiders, and a rift stage can be theirs. Chorus's bosses join the remake's rift runs (`encounters.json`
+  `rift` `bosses`): the Omen's elite fortress and the Circle's dreadnought, destroyer and warship as capital bosses, the
+  Omen fortress, the Prophet, Sav, Ree and Aryana as fighter bosses with Chorus's guns.
 - **Wrecks:** Nimika Prime's, Stega Belt's and the Tarris Wormhole's wreck fields use the mod's own Chorus freighters and
   frigates as hulks.
 
