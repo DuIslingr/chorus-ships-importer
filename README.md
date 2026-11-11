@@ -185,7 +185,8 @@ The gun models are on the Forsaken's mounts through its ship kit (above).
 ## The Chorus systems
 
 `tools/world.py` writes `systems.json` and `stations.json`: four systems (one jumpgate from Pescal Inartu into Stega, the
-four linked among themselves) and seven stations, named from Chorus's own text. The game's systems are unchanged.
+four linked among themselves) and seven stations, named from Chorus's own text. The game's systems are unchanged. The
+world part is large (about 1 GB, most of it the five stations).
 
 - **Skies** (`tools/sky.py`): each region's sky material (MI_Skybox_Loc*) as the remake's `skybox` "chorus" block, drawn
   live by the remake's port of Chorus's sky shader (Options > Graphics "Live mod skies", on from Medium), and the same
@@ -196,14 +197,18 @@ four linked among themselves) and seven stations, named from Chorus's own text. 
 - **Planets** (`tools/planets.py`): each station's planet as a `planetSphere` with `"look": "chorus"`: M_Planet03 (tiled
   terrain, macro height, water, flow-mapped clouds, the atmosphere's rim) or M_Planet_SurfaceCheap (diffuse, night lights,
   clouds, two rims), with its atmosphere shell where Chorus has one; their colour curves baked from the CA_Planets atlas.
-- **Stations** (`tools/stations.py`): The Enclave (Stega), Helios and Eos (Amarok) rebuilt from their levels' merged
+- **Stations** (`tools/stations.py`): The Enclave (Stega), Helios and Eos (Amarok), Nimika's ring station (Nimika Prime)
+  and Tarris's big station (Achunal Labs) rebuilt from their levels' merged
   meshes (Maps/<region>/<level>_GeoLOD/SM_MERGED_*: Chorus's HLOD proxies, placed in the level's space; the cooked
   prefabs hold no actors), their materials converted as the ships' (Chorus's layers drawn by the remake). Every LOD is
-  exported (`export <list> <out> all`) and the largest meshes step down until a station fits 350 000 triangles. The
-  other stations look like an original one until theirs come in.
+  exported (`export <list> <out> all`) and the largest meshes step down until a station fits 350 000 triangles. Stega
+  Belt and the Tarris Wormhole look like an original station.
 - **Asteroids** (`tools/rocks.py`): the field asteroids as the orbits' asteroid fields (mined like the game's), the giant
   rocks and split rocks as props, their M_MaskBlend_Placeholder material (two tiled rock layers blended by a mesh mask,
-  the mesh's normal map under the layers' by Unreal's angle-corrected blend) baked per rock over its own UVs.
+  the mesh's normal map under the layers' by Unreal's angle-corrected blend) baked per rock over its own UVs. The magma
+  rocks (M_Asteroid_Master: its albedo curve, its blackbody glow by temperature, masked by the vertex colours) baked
+  over each rock's unique layout; Chorus's destroyed moon put back together at Nimika Prime (its three shell pieces at
+  one place and scale, its loose rocks round it).
 - **Wrecks:** Nimika Prime's, Stega Belt's and the Tarris Wormhole's wreck fields use the mod's own Chorus freighters and
   frigates as hulks.
 

@@ -14,8 +14,11 @@ STATIONS = {
     'the_enclave': ('Maps/LocRSA/LocRSA02_GeoLOD', 'SM_MERGED_EnclavePartition'),
     'helios': ('Maps/LocTRN/LocTRN29_GeoLOD', 'SM_MERGED_Helios'),
     'eos': ('Maps/LocTRN/LocTRN31_GeoLOD', 'SM_MERGED_Eos'),
+    'nimika_prime': ('Maps/LocASP/LocASP06_GeoLOD', 'SM_MERGED_'),   # (Nimika's ring station)
+    'achunal_labs': ('Maps/LocMIF/LocMIF07_GeoLOD', 'SM_MERGED_'),   # (Tarris's big station, its tower and scaffolds)
 }
-SKIP = ('Decal', 'Interior', 'ForceField', 'Window')   # (decals, the insides no one flies into, glass and shields)
+SKIP = ('Decal', 'Interior', 'ForceField', 'Window', 'Traffic')   # (decals, the insides no one flies into, glass and
+# shields, the traffic ships merged into a level)
 # a station's triangles at most (Chorus's merged meshes are 2-4 million at LOD 0): the exporter writes every LOD
 # (`export <list> <out> all`: <name>_LOD1.glb ...) and the largest meshes step down until the station fits
 BUDGET = 350_000

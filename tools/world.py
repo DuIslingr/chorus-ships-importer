@@ -4,11 +4,12 @@ among themselves; each with its region's sky (tools/sky.py, live and baked) and 
 them (tools/planets.py). The game's systems stay as they are.
 
 Names from Chorus's own text (GameUI / Maps locres: MAP_Location_Stega / Amarok / NimikaPrime / Tarris, the map's
-locations). The Enclave, Helios and Eos are Chorus's own stations (tools/stations.py); the others look like an original
-station (looksLike) until theirs come in.
+locations). The Enclave, Helios, Eos, Nimika's ring station and Tarris's big station (Achunal Labs) are Chorus's own
+(tools/stations.py); Stega Belt and the Tarris Wormhole look like an original station (looksLike).
 """
 import json, math, os, random
-from . import npcs, planets, rocks, sky, stations as chorus_stations
+import numpy as np
+from . import glb, npcs, planets, rocks, sky, stations as chorus_stations
 
 MOD = 'chorus_ships'
 GATE_FROM = 18   # Pescal Inartu (Terran, security 1): the cluster's way in
@@ -37,14 +38,43 @@ DRESSING = {'the_enclave': (0, 3), 'stega_belt': (140, 6), 'helios': (60, 4), 'e
 # (tools/npcs.py) as the hulks; Nimika Prime's the largest, its planet broken by the Rift
 WRECKS = {'stega_belt': 10, 'nimika_prime': 16, 'tarris_wormhole': 8}
 WRECK_HULLS = ('civ_liner', 'atlas', 'atlas_mk3', 'frigate_mk2', 'dropship')
+# the destroyed moon (SM_Moon_Destroyed_*, about 6 km): its three shell pieces share one frame and go back together at one
+# place, turn and scale (each sized by its own extent: a prop is placed at its origin, fitted by its largest side); the
+# loose rocks round it at the same scale
+MOON_AT = {'nimika_prime': (90000, 4000, -60000)}
+MOON_SCALE = 10.0   # (game units per Chorus metre: 3 km here)
+MOON_SHELL = ('SM_Moon_Destroyed_01', 'SM_Moon_Destroyed_02', 'SM_Moon_Destroyed_03')
 GIANT_SIZE = (15000, 45000)
 GIANT_RING = (70000, 160000)   # (their distance from the station: clear of it, the gate and the arrival)
 # Chorus's stations' own models (tools/stations.py) and their size here in game units (the originals are 20 000 - 100 000)
-MODEL_SIZE = {'the_enclave': 100000, 'helios': 70000, 'eos': 60000}
+MODEL_SIZE = {'the_enclave': 100000, 'helios': 70000, 'eos': 60000, 'nimika_prime': 80000, 'achunal_labs': 80000}
 GATE_STATIONS = {'stega': 'the_enclave', 'amarok': 'helios', 'nimika': 'nimika_prime', 'tarris': 'achunal_labs'}
 
 
-def _dressing(tid, rock, hulls=None):
+def _extent(mod, rel):
+    g, b = glb.load(os.path.join(mod, rel))
+    lo = np.min([acc['min'] for acc in g['accessors'] if 'min' in acc and len(acc['min']) == 3], 0)
+    hi = np.max([acc['max'] for acc in g['accessors'] if 'max' in acc and len(acc['max']) == 3], 0)
+    return float((hi - lo).max())
+
+
+def _moon(tid, rock, mod, rnd):
+    models, mats = rock.get('moon', ([], []))
+    if tid not in MOON_AT or not models: return [], []
+    at = list(MOON_AT[tid]); turn = [round(rnd.uniform(0, 360)) for _ in range(3)]
+    props = []
+    for rel in models:
+        size = round(_extent(mod, rel) * MOON_SCALE)
+        if any(k in rel for k in MOON_SHELL):
+            props.append({'model': rel, 'at': at, 'rotation': turn, 'size': size})
+        else:
+            a = rnd.uniform(0, 6.283); d = rnd.uniform(45000, 80000)
+            props.append({'model': rel, 'at': [round(at[0] + math.cos(a) * d), round(at[1] + rnd.uniform(-20000, 20000)), round(at[2] + math.sin(a) * d)],
+                          'rotation': [round(rnd.uniform(0, 360)) for _ in range(3)], 'size': size})
+    return props, mats
+
+
+def _dressing(tid, rock, hulls=None, mod=None):
     """The orbit's asteroid field, giant rocks and wreck field (the same for every build: seeded by the station)."""
     count, giants = DRESSING.get(tid, (0, 0))
     rnd = random.Random(tid)
@@ -55,6 +85,9 @@ def _dressing(tid, rock, hulls=None):
         orbit['asteroids'] = {'count': count, 'centre': [round(math.cos(a) * d), round(rnd.uniform(-8000, 8000)), round(math.sin(a) * d)],
                               'spread': 130000, 'type': 'rock', 'models': field_models, 'materials': field_mats}
     giant_models, giant_mats = rock.get('giant', ([], []))
+    moon_props, moon_mats = _moon(tid, rock, mod, rnd) if mod else ([], [])
+    if moon_props:
+        orbit['props'] = moon_props; orbit['propMaterials'] = list(moon_mats)
     if giants and giant_models:
         props = []
         for k in range(giants):
@@ -62,8 +95,8 @@ def _dressing(tid, rock, hulls=None):
             props.append({'model': rnd.choice(giant_models), 'at': [round(math.cos(a) * d), round(h), round(math.sin(a) * d)],
                           'rotation': [round(rnd.uniform(0, 360)), round(rnd.uniform(0, 360)), round(rnd.uniform(0, 360))],
                           'size': round(rnd.uniform(*GIANT_SIZE))})
-        orbit['props'] = props
-        orbit['propMaterials'] = giant_mats
+        orbit['props'] = orbit.get('props', []) + props
+        orbit['propMaterials'] = orbit.get('propMaterials', []) + giant_mats
     if WRECKS.get(tid) and hulls:
         a = rnd.uniform(0, 6.283); d = rnd.uniform(40000, 70000)
         mats, seen = [], set()
@@ -111,7 +144,7 @@ def build(export, mod, resolver, run, ships=None):
         if planet in spheres: e['planetSphere'] = spheres[planet]
         if tid in models:
             e.update({'model': models[tid]['model'], 'materials': models[tid]['materials'], 'modelSize': MODEL_SIZE[tid]})
-        orbit = _dressing(tid, rock, [e for e in (ships or []) if e['id'] in WRECK_HULLS])
+        orbit = _dressing(tid, rock, [e for e in (ships or []) if e['id'] in WRECK_HULLS], mod)
         if orbit: e['orbit'] = orbit
         stations.append(e)
     json.dump(systems, open(os.path.join(mod, 'systems.json'), 'w', encoding='utf-8'), indent=1)

@@ -76,9 +76,9 @@ def _eval(keys, t):
     return float(keys[-1]['Value'])
 
 
-def _atlas_rows(resolver):
-    resolver.prefetch([CURVE_ATLAS])
-    atlas = json.load(open(resolver._file(CURVE_ATLAS), encoding='utf-8'))
+def _atlas_rows(resolver, atlas_path=CURVE_ATLAS):
+    resolver.prefetch([atlas_path])
+    atlas = json.load(open(resolver._file(atlas_path), encoding='utf-8'))
     curves = next(e['Properties']['GradientCurves'] for e in atlas if e.get('Type') == 'CurveLinearColorAtlas')
     return [c['ObjectPath'].rsplit('.', 1)[0] if c else None for c in curves]
 

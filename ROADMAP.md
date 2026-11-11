@@ -92,9 +92,9 @@ Next, roughly in order:
 10. **Level-placed parts and wrecks:** the capital ships' thrusters are placed by Chorus's levels (read the .umap actors
    that place them); the wreck skeletal meshes and their explosion anim blueprints (ships breaking apart) would need the
    remake to swap a destroyed mod ship for its wreck.
-12. **The Chorus systems, next areas:** the magma rocks (M_Asteroid_Master: SM_CapitalAsteroid_001-006, the destroyed
-    moon SM_Moon_Destroyed_*: blackbody glow by temperature, an albedo curve, vertex-colour masks; decode its compiled
-    pass), Nimika Prime's broken planet (SM_Planet_Destroyed_LocAST parts, M_Planet_Broken), the stations of Nimika and
-    Tarris (their GeoLOD merged meshes are unnamed: find which level holds a station), the rifts and portals, then the
-    bosses, wrecks and effects that need the remake. Check the skies', planets' and stations' brightness and size against
-    Chorus in the remake (Chorus's auto exposure isn't there).
+12. **The Chorus systems, next areas:** Nimika Prime's broken planet (SM_Planet_Destroyed_LocAST parts, M_Planet_Broken),
+    Stega Belt's and the Tarris Wormhole's own stations (or other levels' structures: LocASP03's military platform,
+    LocRSB14's antenna array), the rifts and portals, then the bosses, wrecks and effects that need the remake. Check
+    the skies', planets', stations' and rocks' brightness and size against Chorus in the remake (Chorus's auto exposure
+    isn't there; the magma rocks' Master Brightness makes them very dark). The stations are 80-120 MB each: a lower
+    triangle budget or quantised positions if the mod's size matters.
