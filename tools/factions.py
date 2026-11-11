@@ -8,7 +8,7 @@ remake's rift runs (encounters.json "rift" "bosses", Modding/README "Encounters"
   A rift stage can then be "the Circle's" or "the Omen's" (the remake picks among the hostile mod races with fighters).
 - The rift's boss pool: the Omen's elite fortress and the Circle's dreadnought, destroyer and warship as capital bosses
   (they park and fire their turrets), the Omen fortress, the Prophet, Sav, Ree and Aryana as fighter bosses with
-  Chorus's guns.
+  Chorus's guns; in the Chorus systems the run looks like Chorus's Rift (its "look", tools/rift.py).
 """
 MOD = 'chorus_ships'
 CIRCLE_ID, OMEN_ID = f'{MOD}:circle', f'{MOD}:omen'
@@ -52,8 +52,9 @@ def apply(enemies, capitals):
         if f: c['race'] = f; c['hostile'] = True
 
 
-def rift(enemies, items):
-    """encounters.json: the rift's Chorus bosses (those built, with the items that exist)."""
+def rift(enemies, items, look=None):
+    """encounters.json: the rift's Chorus bosses (those built, with the items that exist), and the Chorus systems' rift look
+    (tools/rift.py) when built."""
     ships, guns = {e['id'] for e in enemies}, {i['id'] for i in items}
     bosses = []
     for sid, raiders, race, gun, missiles in BOSSES:
@@ -62,4 +63,7 @@ def rift(enemies, items):
         if gun in guns: b['weapon'] = f'{MOD}:{gun}'
         if missiles in guns: b['secondary'] = f'{MOD}:{missiles}'
         bosses.append(b)
-    return [{'id': 'chorus_rift', 'kind': 'rift', 'bosses': bosses}] if bosses else []
+    if not bosses and not look: return []
+    e = {'id': 'chorus_rift', 'kind': 'rift', 'bosses': bosses}
+    if look: e['look'] = look
+    return [e]

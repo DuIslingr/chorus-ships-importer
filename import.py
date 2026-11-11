@@ -130,9 +130,10 @@ def main():
     items = weapons.build(fmod if not a.no_sounds else '', a.out, master)
     print("Converting Chorus's turrets...")
     items += turrets.build(export, a.out, resolver)   # (the capital ships' npcTurrets: npcs.CHORUS_TURRETS)
+    look = None
     if not a.no_world:
         print("Converting Chorus's regions (skies, planets) into the Chorus systems...")
-        world.build(export, a.out, resolver, run, ships=enemies)   # (its wreck fields' hulks: the NPC ships)
+        _, _, look = world.build(export, a.out, resolver, run, ships=enemies)   # (its wreck fields' hulks: the NPC ships)
     json.dump(items, open(os.path.join(a.out, 'items.json'), 'w', encoding='utf-8'), indent=1)
     json.dump(entries, open(os.path.join(a.out, 'ships.json'), 'w', encoding='utf-8'), indent=1)
     json.dump({'id': 'chorus_ships', 'name': 'Chorus Ships', 'version': '0.1', 'author': 'DuIslingr',
@@ -170,7 +171,7 @@ def main():
     # Chorus's factions (the Circle, the Omen) as mod races, and its bosses in the rift runs (tools/factions.py)
     factions.apply(enemies, capitals)
     json.dump(factions.RACES, open(os.path.join(a.out, 'races.json'), 'w', encoding='utf-8'), indent=1)
-    json.dump(factions.rift(enemies, items), open(os.path.join(a.out, 'encounters.json'), 'w', encoding='utf-8'), indent=1)
+    json.dump(factions.rift(enemies, items, look), open(os.path.join(a.out, 'encounters.json'), 'w', encoding='utf-8'), indent=1)
     json.dump(capitals, open(os.path.join(a.out, 'npcships.json'), 'w', encoding='utf-8'), indent=1)
     entries += enemies   # (no icons or sounds: only the traffic flies them)
     json.dump(entries, open(os.path.join(a.out, 'ships.json'), 'w', encoding='utf-8'), indent=1)

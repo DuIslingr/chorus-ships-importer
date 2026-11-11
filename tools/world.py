@@ -9,7 +9,7 @@ locations). The Enclave, Helios, Eos, Nimika's ring station and Tarris's big sta
 """
 import json, math, os, random
 import numpy as np
-from . import factions, gate as chorus_gate, glb, npcs, planets, rocks, sky, stations as chorus_stations
+from . import factions, gate as chorus_gate, glb, npcs, planets, rift, rocks, sky, stations as chorus_stations
 
 MOD = 'chorus_ships'
 GATE_FROM = 18   # Pescal Inartu (Terran, security 1): the cluster's way in
@@ -48,6 +48,9 @@ GIANT_SIZE = (15000, 45000)
 GIANT_RING = (70000, 160000)   # (their distance from the station: clear of it, the gate and the arrival)
 # Chorus's stations' own models (tools/stations.py) and their size here in game units (the originals are 20 000 - 100 000)
 MODEL_SIZE = {'the_enclave': 100000, 'helios': 70000, 'eos': 60000, 'nimika_prime': 80000, 'achunal_labs': 80000}
+# Nimika's dormant Rift (tools/rift.py: Chorus's vortex as LocAST's outside instance draws it) high over Nimika Prime, facing
+# the station: (where, game units across)
+DORMANT_RIFT = {'nimika_prime': ((-70000, 60000, 210000), 140000)}
 GATE_STATIONS = {'stega': 'the_enclave', 'amarok': 'helios', 'nimika': 'nimika_prime', 'tarris': 'achunal_labs'}
 
 
@@ -118,8 +121,9 @@ def _export(run, export, paths, quality=None):
 
 
 def build(export, mod, resolver, run, ships=None):
-    """Writes <mod>/systems.json and stations.json (with the skies', planets', asteroids' and stations' files)."""
-    _export(run, export, rocks.EXPORTS)
+    """Writes <mod>/systems.json and stations.json (with the skies', planets', asteroids' and stations' files). -> (systems,
+    stations, the Chorus systems' rift look for encounters.json or None)."""
+    _export(run, export, rocks.EXPORTS + rift.EXPORTS)
     station_paths = {k: v for k, v in chorus_stations.mesh_paths(run('list', 'SM_MERGED_', capture=True).split()).items() if k in MODEL_SIZE}
     _export(run, export, [p for v in station_paths.values() for p in v] + [chorus_gate.GATE], 'all')
     _export(run, export, chorus_gate.EXPORTS)
@@ -135,6 +139,8 @@ def build(export, mod, resolver, run, ships=None):
     rock = rocks.build(export, mod, resolver)
     print('  the planets...')
     spheres = planets.build(export, mod, resolver, keys={s[4] for s in STATIONS})
+    print('  the Rift...')
+    look, dormant = rift.build(run, export, mod, resolver, [f'{MOD}:{s[0]}' for s in SYSTEMS])
     systems = []
     for sid, name, pos, sec, visible, sky_key, gates in SYSTEMS:
         e = {'id': sid, 'name': name, 'race': 0, 'security': sec, 'visible': visible, 'position': pos, 'sky': 4,
@@ -149,9 +155,13 @@ def build(export, mod, resolver, run, ships=None):
         if tid in models:
             e.update({'model': models[tid]['model'], 'materials': models[tid]['materials'], 'modelSize': MODEL_SIZE[tid]})
         orbit = _dressing(tid, rock, [e for e in (ships or []) if e['id'] in WRECK_HULLS], mod)
+        if dormant and tid in DORMANT_RIFT:
+            at, size = DORMANT_RIFT[tid]
+            orbit['props'] = orbit.get('props', []) + [{'model': dormant[0], 'at': list(at), 'rotation': rift.facing(at), 'size': size}]
+            orbit['propMaterials'] = orbit.get('propMaterials', []) + [dormant[1]]
         if orbit: e['orbit'] = orbit
         stations.append(e)
     json.dump(systems, open(os.path.join(mod, 'systems.json'), 'w', encoding='utf-8'), indent=1)
     json.dump(stations, open(os.path.join(mod, 'stations.json'), 'w', encoding='utf-8'), indent=1)
     print(f'  {len(systems)} systems, {len(stations)} stations')
-    return systems, stations
+    return systems, stations, look

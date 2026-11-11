@@ -235,6 +235,12 @@ world part is large (about 1 GB, most of it the five stations).
   name both as raiders, and a rift stage can be theirs. Chorus's bosses join the remake's rift runs (`encounters.json`
   `rift` `bosses`): the Omen's elite fortress and the Circle's dreadnought, destroyer and warship as capital bosses, the
   Omen fortress, the Prophet, Sav, Ree and Aryana as fighter bosses with Chorus's guns.
+- **The Rift** (`tools/rift.py`): Chorus's rift vortex (SM_Rift_Vortex with M_PortalRift_2, Nimika's
+  MI_PortalRift_2_LocAST_Outside, as a material `"rift"` block: its swirl, red centre, lightning flipbooks and clouds,
+  added). In the Chorus systems a rift run looks like Chorus's Rift (the `encounters.json` rift entry's `"look"`): the
+  vortex at the run's centre, Chorus's FTL portal opening between its stages, and the inner Rift's sky
+  (T_Omen_InnerRift_Cubemap_Tex) while it lasts. The dormant Rift hangs over Nimika Prime (an orbit prop facing the
+  station).
 - **Wrecks:** Nimika Prime's, Stega Belt's and the Tarris Wormhole's wreck fields use the mod's own Chorus freighters and
   frigates as hulks.
 

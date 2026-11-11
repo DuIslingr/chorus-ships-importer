@@ -94,7 +94,9 @@ Next, roughly in order:
    remake to swap a destroyed mod ship for its wreck.
 12. **The Chorus systems, next areas:** Nimika Prime's broken planet (SM_Planet_Destroyed_LocAST parts, M_Planet_Broken),
     Stega Belt's and the Tarris Wormhole's own stations (or other levels' structures: LocASP03's military platform,
-    LocRSB14's antenna array), the rifts and portals, then the bosses, wrecks and effects that need the remake. Check
+    LocRSB14's antenna array), then the bosses, wrecks and effects that need the remake (the rift look and Nimika's dormant
+    Rift are done: tools/rift.py; the vortex's world position offset and the rift's own bottom material,
+    M_PortalRift_BOTTOM, are left out; its exposure 0.4 wants checking in the remake). Check
     the skies', planets', stations' and rocks' brightness and size against Chorus in the remake (Chorus's auto exposure
     isn't there; the magma rocks' Master Brightness makes them very dark). The stations are 80-120 MB each: a lower
     triangle budget or quantised positions if the mod's size matters.
