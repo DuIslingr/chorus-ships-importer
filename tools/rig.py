@@ -92,7 +92,24 @@ ANIMATIONS = {'idle': 'idle', 'drift': {'start': 'driftStart', 'loop': 'driftLoo
               'driftDodgeLeft': 'driftDodgeLeft', 'driftDodgeRight': 'driftDodgeRight'}
 # the Forsaken's gun mounts ride its weapon platforms (ships.json mounts "follow")
 FOLLOW = {'SM_Phoenix_wpnPlatform_01_l': 'BONE_SM_Phoenix_wpnPlatform_01_l', 'SM_Phoenix_wpnPlatform_01_r': 'BONE_SM_Phoenix_wpnPlatform_01_r'}
-EXPORTS = [p for p in list(CLIPS.values()) + list(POSES.values()) + [REFERENCE] if p]
+# NPC ships' own idles (npcs.py S(..., idle=...)): looped on the remake's NPC hulls (ships.json "animations": idle)
+_NPC = 'SpacePrototype/Content/UnleashedPrototype/NPC/Ships/'
+NPC_CLIPS = [_NPC + 'OmenSupport/Art/A_OmenSupport_Idle', _NPC + 'Guilt/Art/Anims/A_Guilt_Idle03']
+EXPORTS = [p for p in list(CLIPS.values()) + list(POSES.values()) + [REFERENCE] + NPC_CLIPS if p]
+
+
+def npc_clip(work, path):
+    """An NPC idle's exporter JSON (<work>/anims), or None."""
+    f = os.path.join(work, 'anims', path.rsplit('/', 1)[1] + '.json')
+    return json.load(open(f, encoding='utf-8')) if os.path.exists(f) else None
+
+
+def is_rigid(src, share=0.99):
+    """Whether the skinned mesh in src binds (nearly) every vertex wholly to one bone, as rigid_parts needs."""
+    g, b = glb.load(src)
+    if not g.get('skins'): return False
+    ws = [glb.read(g, b, p['attributes']['WEIGHTS_0']).astype(np.float64) for m in g['meshes'] for p in m['primitives'] if 'WEIGHTS_0' in p['attributes']]
+    return bool(ws) and float((np.concatenate(ws).max(1) > 0.99).mean()) >= share
 
 
 def load(folder):
@@ -177,8 +194,9 @@ def clips(anims, nodes, rest_only='idle', tolerance=(0.002, 0.001), poses=()):
     return out
 
 
-def save(path, nodes, roots, meshes, animations, name='hull'):
-    """Writes the node hierarchy, a mesh on each node of `meshes`, and the animations, as a .glb."""
+def save(path, nodes, roots, meshes, animations, name='hull', keep=None):
+    """Writes the node hierarchy, a mesh on each node of `meshes`, and the animations, as a .glb (`keep`: the attributes
+    written, glb.KEEP by default; Chorus's layers want UV sets 1 - 3 and the vertex colours)."""
     out = bytearray(); views = []; accs = []
 
     def add(arr, target, kind, comp, minmax=False):
@@ -202,7 +220,7 @@ def save(path, nodes, roots, meshes, animations, name='hull'):
         primitives = []
         for mat, attrs, idx in prims:
             a = {}
-            for k in glb.KEEP:
+            for k in (keep or glb.KEEP):
                 if k in attrs:
                     v = np.asarray(attrs[k], np.float32)
                     a[k] = add(v, 34962, {2: 'VEC2', 3: 'VEC3', 4: 'VEC4'}[v.shape[1]], 5126)
@@ -232,6 +250,81 @@ def save(path, nodes, roots, meshes, animations, name='hull'):
     while len(out) % 4: out.append(0)
     js = json.dumps(g, separators=(',', ':')).encode()
     js += b' ' * (-len(js) % 4)
+    with open(path, 'wb') as f:
+        f.write(struct.pack('<4sII', b'glTF', 2, 12 + 8 + len(js) + 8 + len(out)))
+        f.write(struct.pack('<I4s', len(js), b'JSON')); f.write(js)
+        f.write(struct.pack('<I4s', len(out), b'BIN\0')); f.write(out)
+
+
+SKIN_KEEP = ('POSITION', 'NORMAL', 'TANGENT', 'TEXCOORD_0', 'COLOR_0', 'JOINTS_0', 'WEIGHTS_0')
+
+
+def save_skinned(path, src, materials, anims, name='hull'):
+    """A soft-skinned mesh kept skinned (the remake's ships.json "skinned": Guilt's arms bend): src's skeleton and skin as
+    exported, its primitives (only those whose material is in `materials`, renamed by it: {source name: name}) with their
+    joints and weights, and the clips (anims {name: the exporter's anim JSON}) as the joints' node animations."""
+    g, b = glb.load(src)
+    skin = g['skins'][0]
+    nodes = []
+    for i, n in enumerate(g['nodes']):
+        e = {'name': n.get('name', f'node_{i}')}
+        for k in ('translation', 'rotation', 'scale', 'matrix', 'children'):
+            if k in n: e[k] = n[k]
+        nodes.append(e)
+    mesh_node = next(i for i, n in enumerate(g['nodes']) if 'mesh' in n)
+    out = bytearray(); views = []; accs = []
+
+    def add(arr, target, kind, comp, minmax=False):
+        arr = np.ascontiguousarray(arr)
+        while len(out) % 4: out.append(0)
+        data = arr.tobytes()
+        v = {'buffer': 0, 'byteOffset': len(out), 'byteLength': len(data)}
+        if target: v['target'] = target
+        views.append(v); out.extend(data)
+        acc = {'bufferView': len(views) - 1, 'componentType': comp, 'count': int(arr.shape[0]), 'type': kind}
+        if (kind == 'VEC3' and target == 34962) or minmax:
+            a2 = arr.reshape(arr.shape[0], -1); acc['min'] = [float(x) for x in a2.min(0)]; acc['max'] = [float(x) for x in a2.max(0)]
+        accs.append(acc)
+        return len(accs) - 1
+
+    mats, primitives = [], []
+    for mat, attrs, idx in glb.static_mesh(src, keep=SKIN_KEEP):
+        if mat not in materials: continue
+        mat = materials[mat]
+        a = {}
+        for k in SKIN_KEEP:
+            if k not in attrs: continue
+            if k == 'JOINTS_0':
+                a[k] = add(np.asarray(attrs[k]).round().astype(np.uint16), 34962, 'VEC4', 5123)
+            else:
+                v = np.asarray(attrs[k], np.float32)
+                a[k] = add(v, 34962, {2: 'VEC2', 3: 'VEC3', 4: 'VEC4'}[v.shape[1]], 5126)
+        small = int(idx.max()) < 65535
+        i = add(np.asarray(idx).astype(np.uint16 if small else np.uint32), 34963, 'SCALAR', 5123 if small else 5125)
+        if mat not in mats: mats.append(mat)
+        primitives.append({'attributes': a, 'indices': i, 'material': mats.index(mat)})
+    ibm = glb.read(g, b, skin['inverseBindMatrices']).astype(np.float32)
+    skin_out = {'joints': skin['joints'], 'inverseBindMatrices': add(ibm, None, 'MAT4', 5126)}
+    if 'skeleton' in skin: skin_out['skeleton'] = skin['skeleton']
+    nodes[mesh_node].update({'mesh': 0, 'skin': 0})
+    gl_anims = []
+    for aname, channels in clips(anims, nodes):
+        samplers, chans = [], []
+        for node, path_, times, values in channels:
+            ti = add(np.asarray(times, np.float32).reshape(-1, 1), None, 'SCALAR', 5126, minmax=True)
+            vi = add(np.asarray(values, np.float32), None, 'VEC4' if path_ == 'rotation' else 'VEC3', 5126)
+            samplers.append({'input': ti, 'output': vi, 'interpolation': 'LINEAR'})
+            chans.append({'sampler': len(samplers) - 1, 'target': {'node': node, 'path': path_}})
+        gl_anims.append({'name': aname, 'samplers': samplers, 'channels': chans})
+    roots = list(g['scenes'][g.get('scene', 0)]['nodes'])
+    nodes.append({'name': name, 'children': roots})
+    gj = {'asset': {'version': '2.0', 'generator': 'chorus_ships_importer'}, 'scene': 0, 'scenes': [{'nodes': [len(nodes) - 1]}],
+          'nodes': nodes, 'meshes': [{'name': name + '_mesh', 'primitives': primitives}], 'skins': [skin_out],
+          'materials': [{'name': m, 'pbrMetallicRoughness': {'metallicFactor': 0.0, 'roughnessFactor': 0.6}} for m in mats],
+          'accessors': accs, 'bufferViews': views, 'buffers': [{'byteLength': len(out)}]}
+    if gl_anims: gj['animations'] = gl_anims
+    while len(out) % 4: out.append(0)
+    js = json.dumps(gj, separators=(',', ':')).encode(); js += b' ' * (-len(js) % 4)
     with open(path, 'wb') as f:
         f.write(struct.pack('<4sII', b'glTF', 2, 12 + 8 + len(js) + 8 + len(out)))
         f.write(struct.pack('<I4s', len(js), b'JSON')); f.write(js)

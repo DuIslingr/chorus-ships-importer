@@ -14,8 +14,53 @@ def _uv_names(mat):
     return []
 
 
+def shell(nt, mat, c, img):
+    """A "shell" (Guilt's M_Guilt_Shell) at rest: black, half metal, cut by its dissolve with the noise unflowed and the
+    dither at its mean, ((mask.r + armsFade) x 0.5) x saturate(2 coverage - (1 - noise) x (1 - mask.g)^erode) >= 1/3; its
+    glow (the tiled mask - emissiveExponent) x emissiveColor x emissiveIntensity (the centre's falloff left out)."""
+    b = next((n for n in nt.nodes if n.type == 'BSDF_PRINCIPLED'), None)
+    if b is None or not c.get('mask'): return False
+    N, L = nt.nodes, nt.links
+    def math(op, a, bv=None, clamp=False):
+        m = N.new('ShaderNodeMath'); m.operation = op; m.use_clamp = clamp
+        for k, v in enumerate((a, bv)):
+            if v is None: continue
+            if isinstance(v, (int, float)): m.inputs[k].default_value = float(v)
+            else: L.new(v, m.inputs[k])
+        return m.outputs[0]
+    def tex(rel, scale=1.0, colour=False):
+        t = N.new('ShaderNodeTexImage'); t.image = img(rel, colour)
+        if scale != 1.0:
+            tc = N.new('ShaderNodeTexCoord'); vm = N.new('ShaderNodeVectorMath'); vm.operation = 'SCALE'; vm.inputs['Scale'].default_value = scale
+            L.new(tc.outputs['UV'], vm.inputs[0]); L.new(vm.outputs['Vector'], t.inputs['Vector'])
+        s_ = N.new('ShaderNodeSeparateColor'); L.new(t.outputs['Color'], s_.inputs['Color']); return s_.outputs
+    A = tex(c['mask']); n = tex(c['noise'], float(c.get('tiling', 1.0)))[0] if c.get('noise') else 0.5
+    erode = math('POWER', math('SUBTRACT', 1.0, A[1]), float(c.get('erode', 1.0)))
+    cover = math('SUBTRACT', 2.0 * float(c.get('coverage', 0.5)), math('MULTIPLY', math('SUBTRACT', 1.0, n), erode), clamp=True)
+    vis = math('MULTIPLY', math('MULTIPLY', math('ADD', A[0], float(c.get('armsFade', 1.0))), 0.5), cover)
+    vis = math('SUBTRACT', vis, 1.0 - float(c.get('masterAlpha', 1.0)))
+    L.new(math('GREATER_THAN', vis, 0.3333), b.inputs['Alpha'])
+    for attr, val in (('blend_method', 'CLIP'), ('surface_render_method', 'DITHERED')):
+        try: setattr(mat, attr, val)
+        except Exception: pass
+    for k in ('Base Color', 'Metallic', 'Roughness'):   # (the glTF import may have linked the vertex colours in)
+        for l_ in list(b.inputs[k].links): L.remove(l_)
+    b.inputs['Base Color'].default_value = [float(c.get('baseColor', 0.0))] * 3 + [1]
+    b.inputs['Metallic'].default_value = float(c.get('metal', 0.5)); b.inputs['Roughness'].default_value = float(c.get('roughness', 0.5))
+    k = float(c.get('emissiveIntensity', 0.0)) * float(c.get('emissionScale', 1.0))
+    if k > 0 and float(c.get('emissiveExponent', 1.0)) < 1.0:
+        At = tex(c['mask'], float(c.get('tiling', 1.0)))
+        g = math('MAXIMUM', math('SUBTRACT', At[0], float(c['emissiveExponent'])), 0.0)
+        col = c.get('emissiveColor') or [1, 0, 0]
+        b.inputs['Emission Color'].default_value = list(col[:3]) + [1]
+        L.new(math('MULTIPLY', g, k), b.inputs['Emission Strength'])
+    mat.use_backface_culling = False
+    return True
+
+
 def apply(nt, mat, spec, img):
     c = spec['chorus']
+    if c.get('kind') == 'shell': return shell(nt, mat, c, img)
     names = _uv_names(mat)
     if len(names) < 4 or not c.get('palette'): return False
     b = next((n for n in nt.nodes if n.type == 'BSDF_PRINCIPLED'), None)

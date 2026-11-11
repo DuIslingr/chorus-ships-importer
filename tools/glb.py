@@ -100,10 +100,11 @@ def joint_positions(path):
     return out
 
 
-def save(path, prims, name='hull', nodes=None, keep=KEEP):
+def save(path, prims, name='hull', nodes=None, keep=KEEP, split=False):
     """Writes the primitives as one mesh on one root node, de-interleaved, 16-bit indices where they fit; `nodes`
     {name: [x, y, z]} adds empty child nodes there (a weapon's "muzzle"); `keep` the attributes written (the Chorus
-    layers' hulls: UV sets 0 - 3 and the vertex colours too)."""
+    layers' hulls: UV sets 0 - 3 and the vertex colours too). `split`: the primitives grouped by their attribute sets,
+    each group its own mesh on a child node (a station's plain parts without the layers' four UV sets and colours)."""
     out = bytearray(); views = []; accs = []
 
     def add(arr, target, kind, comp):
@@ -118,7 +119,7 @@ def save(path, prims, name='hull', nodes=None, keep=KEEP):
         accs.append(acc)
         return len(accs) - 1
 
-    materials, primitives = [], []
+    materials, primitives, groups = [], [], {}
     for mat, attrs, idx in prims:
         a = {}
         for k in keep:
@@ -129,8 +130,15 @@ def save(path, prims, name='hull', nodes=None, keep=KEEP):
         i = add(idx.astype(np.uint16 if small else np.uint32), 34963, 'SCALAR', 5123 if small else 5125)
         if mat not in materials: materials.append(mat)
         primitives.append({'attributes': a, 'indices': i, 'material': materials.index(mat)})
+        groups.setdefault(tuple(sorted(a)), []).append(primitives[-1])
+    if split and len(groups) > 1:
+        meshes = [{'name': f'{name}_{k}', 'primitives': ps} for k, ps in enumerate(groups.values())]
+        node_list = [{'name': name, 'children': list(range(1, len(meshes) + 1))}] + [{'name': m['name'], 'mesh': k} for k, m in enumerate(meshes)]
+    else:
+        meshes = [{'name': name, 'primitives': primitives}]
+        node_list = [{'name': name, 'mesh': 0}]
     g = {'asset': {'version': '2.0', 'generator': 'chorus_ships_importer'}, 'scene': 0, 'scenes': [{'nodes': [0]}],
-         'nodes': [{'name': name, 'mesh': 0}], 'meshes': [{'name': name, 'primitives': primitives}],
+         'nodes': node_list, 'meshes': meshes,
          'materials': [{'name': m, 'pbrMetallicRoughness': {'metallicFactor': 0.0, 'roughnessFactor': 0.6}} for m in materials],
          'accessors': accs, 'bufferViews': views, 'buffers': [{'byteLength': len(out)}]}
     for n, pos in (nodes or {}).items():

@@ -64,6 +64,7 @@ class Resolver:
     def prefetch(self, paths):
         """Dumps the packages not dumped yet, then their parents, a generation per exporter run."""
         todo = [p for p in paths if not os.path.exists(self._file(p))]
+        seen = set(todo)   # (a master can name an instance of itself: M_DecalMaster_Emissive's graph -> MI_DecalMaster_Emissive)
         while todo:
             rx = '^(' + '|'.join(re.escape(p) for p in sorted(set(todo))) + r')\.uasset$'
             self.run('jsonall', rx, self.folder, capture=True)
@@ -71,7 +72,7 @@ class Resolver:
             for p in todo:
                 if not os.path.exists(self._file(p)): continue   # (not in the pak: the chain stops there)
                 par = self._parent(json.load(open(self._file(p), encoding='utf-8')))
-                if par and not os.path.exists(self._file(par)): nxt.append(par)
+                if par and par not in seen and not os.path.exists(self._file(par)): nxt.append(par); seen.add(par)
             todo = nxt
 
     @staticmethod
@@ -90,7 +91,9 @@ class Resolver:
     def get(self, path):
         self.prefetch([path])
         p = Params()
-        while path and os.path.exists(self._file(path)):
+        seen = set()
+        while path and path not in seen and os.path.exists(self._file(path)):   # (a cycle ends the chain)
+            seen.add(path)
             d = json.load(open(self._file(path), encoding='utf-8'))
             p.chain.append(path.rsplit('/', 1)[-1])
             cached = _find(d, 'CachedExpressionData')

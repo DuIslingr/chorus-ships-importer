@@ -11,12 +11,12 @@ import argparse, json, os, shutil, subprocess, sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-from tools import ships, sounds, weapons, kit, npcs, mi, rig  # noqa: E402
+from tools import ships, sounds, weapons, kit, npcs, mi, rig, turrets, world  # noqa: E402
 
 MASTER_DATA = 'SpacePrototype/Content/UnleashedPrototype/Core/PlayerEquipment/BP_PlayerEquipmentMasterData.uasset'
 EXPORTS = [ships.PHOENIX + '/skelmesh/SK_Phoenix',      # what the mod needs from the pak (materials and textures come along)
            ships.PHOENIX + '/T_Phoenix_center_moveable_D',  # (MI_Phoenix_center_Moveable takes these from its parent)
-           ships.PHOENIX + '/T_Phoenix_center_moveable_N'] + kit.EXPORTS + ships.ARGUS_EXPORTS + npcs.EXPORTS
+           ships.PHOENIX + '/T_Phoenix_center_moveable_N'] + kit.EXPORTS + ships.ARGUS_EXPORTS + npcs.EXPORTS + turrets.EXPORTS
 # (the weapon models, tools/kit.py; the Argus) and the Elder Buddy's material instances, which bring their textures:
 MATERIAL_EXPORTS = ships.ELDER_EXPORTS
 
@@ -37,6 +37,8 @@ def options():
                     help="how the ships fly in the remake: Chorus's flight (default), free flight, the original, or the player's option")
     ap.add_argument('--no-kit', action='store_true', default=cfg.get('no_kit', False),
                     help="a plain ship, without the ship kit that shows Chorus's weapon models on it")
+    ap.add_argument('--no-world', action='store_true', default=cfg.get('no_world', False),
+                    help="leave out the Chorus systems (skies, planets: tools/world.py)")
     ap.add_argument('--bake-hulls', action='store_true', default=cfg.get('bake_hulls', False),
                     help="bake the NPC hulls' trim sheets into one texture set each (for a remake without Chorus's layers)")
     ap.add_argument('--no-sounds', action='store_true', default=cfg.get('no_sounds', False),
@@ -49,8 +51,9 @@ def options():
 
 def exporter(a):
     dll = os.path.join(HERE, 'exporter', 'bin', 'Release', 'net10.0', 'ChorusExport.dll')
-    if not os.path.exists(dll):
-        print('Building the exporter (first run)...')
+    src = os.path.join(HERE, 'exporter', 'Program.cs')
+    if not os.path.exists(dll) or os.path.getmtime(src) > os.path.getmtime(dll):   # (first run, or its source changed)
+        print('Building the exporter...')
         subprocess.run([a.dotnet, 'build', '-c', 'Release', '-nologo', '-v', 'q', f'-p:CUE4ParseDir={os.path.abspath(a.cue4parse)}'],
                        cwd=os.path.join(HERE, 'exporter'), check=True)
     def run(*args, capture=False):
@@ -118,6 +121,11 @@ def main():
             if snd: e['sounds'] = snd
     print("Writing the Forsaken's weapons...")
     items = weapons.build(fmod if not a.no_sounds else '', a.out, master)
+    print("Converting Chorus's turrets...")
+    items += turrets.build(export, a.out, resolver)   # (the capital ships' npcTurrets: npcs.CHORUS_TURRETS)
+    if not a.no_world:
+        print("Converting Chorus's regions (skies, planets) into the Chorus systems...")
+        world.build(export, a.out, resolver, run, ships=enemies)   # (its wreck fields' hulks: the NPC ships)
     json.dump(items, open(os.path.join(a.out, 'items.json'), 'w', encoding='utf-8'), indent=1)
     json.dump(entries, open(os.path.join(a.out, 'ships.json'), 'w', encoding='utf-8'), indent=1)
     json.dump({'id': 'chorus_ships', 'name': 'Chorus Ships', 'version': '0.1', 'author': 'DuIslingr',
@@ -126,7 +134,7 @@ def main():
                'credits': 'Models and textures: Chorus (c) Deep Silver FISHLABS. Built from your own copy; for personal use.',
                'preview': 'preview.png',
                # generated images and Ogg encoding differ between computers: two players' builds still count as the same mod
-               'multiplayerIgnore': ['maps/', 'icons/', 'preview.png', 'audio/']}, open(os.path.join(a.out, 'mod.json'), 'w', encoding='utf-8'), indent=1)
+               'multiplayerIgnore': ['maps/', 'icons/', 'preview.png', 'audio/', 'skies/', 'planets/']}, open(os.path.join(a.out, 'mod.json'), 'w', encoding='utf-8'), indent=1)
     open(os.path.join(a.out, 'README.txt'), 'w').write(
         'Chorus Ships, built by chorus_ships_importer from your own copy of Chorus.\n'
         "It contains Chorus's models and textures (c) Deep Silver FISHLABS: for your own use, don't share or upload it.\n")

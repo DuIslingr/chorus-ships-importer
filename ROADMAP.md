@@ -47,6 +47,14 @@ Done:
     read UV0), 2x near emission, far kicker rim and distance boost; the Cult / TER trim's dirt; the plating. Shared maps
     in maps/chorus/. Tech panels from their own maps. The Omen's faceless tissue as its shader draws it: all glow on a
     black base (its compiled base pass), not a lit dark red. The SM_TU_Ufo placeholder dropped (no material in the pak).
+  - Guilt re-examined (BP_NPC_Guilt, M_Guilt_Shell's compiled base, depth and vertex passes): drawn at its blueprint's
+    0.17 (a 170 m boss, not a 987 m capital ship), its inner and outer shells apart (black, half metal; each shell's
+    dissolve mask; the outer pushed out; the inner's red specks), its core (M_Warpin_Omen_Portal) an additive glow;
+    the blueprints' mesh scales applied (the Support Ship's 0.9).
+  - Guilt animated: kept skinned (the remake's ships.json "skinned") with A_Guilt_Idle03, its shells by the remake's
+    Chorus shell (flowing dissolve, the push in the vertex shader, the inner glow), its core through C_Omen_Warp; the Omen
+    Support's idle (rigid parts); the blueprints' thrusters and the gunships' gun pod / mine thrower; the material
+    resolver's parent chains guarded against cycles (M_DecalMaster_Emissive names its own instance: a build hung).
 
 Next, roughly in order:
 1. **Check in the remake.** Load the mod and look at the ship: orientation, size, mounts, materials. Then tune
@@ -63,11 +71,12 @@ Next, roughly in order:
    tune the pose rate and the 3 s weapons hold.
 6. **Station lights' channels:** their vertex colours' red steps (0.21, 0.5, 0.58, 0.74, 1) pick among four colours;
    which step is which isn't in the cooked files (they stay the first channel). Footage of lit freighters would tell.
-7. **Still read by parameter names, to decompile the same way** (the exporter's `shaders`, then d3dcompiler): Sav's and
-   Ree's M_NPC_Trim_SavRee (still baked: which mask colour picks which coat), the faceless cores (Enable Core) and the
+7. **Still read by parameter names, to decompile the same way** (the exporter's `shaders`, then d3dcompiler): the faceless cores (Enable Core) and the
    breath curve (CA_BaseVFX, a curve atlas the exporter doesn't write: the bake takes it at rest), M_JTU_Blend (the
    Prophet's crown), M_Phoenix's glow lines. The Omen tissue's pulse, parallax and scroll and the faceless dissolve edge
-   would want a remake shader like the Chorus layers.
+   would want a remake shader like the Chorus layers. Guilt's shell normal (the base pass's, from the flowing noise) is
+   left flat, and its shadow is the whole, unpushed shell; the core's portal threads are a scrolling glow, not the
+   portal's own formula (M_Warpin_Omen_Portal not decompiled).
 8. **The other trim permutations:** decompiled so far: the Cult's trim (no emissive, no kicker), the Cult's emissive
    trim (MI_TER_TechTrim03_Cult_Emissive: UV-shift emissive, dirt, no kicker), the fighters' M_NPCShipTrimMaster
    (MI_TER_NPC_Ship02: accent, emissive, kicker). A TrimLayers instance with "Enable Accent 1 (Wear)" on is drawn with
@@ -76,3 +85,16 @@ Next, roughly in order:
 9. **Smaller things:** rename the "Terran Gunship" ("Terran" is only Chorus's internal file tag); decide whether Chorus
    freighters stay out of the Vossk / Nivelian / Midorian systems; the Sentinels' near-black bones; smaller bakes for the
    freighters (the mod is about 500 MB).
+11. **Guilt as Chorus plays it** (left out of the mod: not a ship): an invincible pursuer for the remake's event graphs
+   or a special encounter: it picks the player and chases at stepped speeds (BT_Guilt: x0.5 up to x3 / x5 / x7, inside
+   its area), its proximity screen effect (PP_Guilt) within 1.5 km, its wither (BP_Guilt_Debuff, MaxWither 5) within
+   160 m, stopped or parked by the mission (MTAction_ManageGuiltNPC). Needs a new NPC behaviour in the remake.
+10. **Level-placed parts and wrecks:** the capital ships' thrusters are placed by Chorus's levels (read the .umap actors
+   that place them); the wreck skeletal meshes and their explosion anim blueprints (ships breaking apart) would need the
+   remake to swap a destroyed mod ship for its wreck.
+12. **The Chorus systems, next areas:** the magma rocks (M_Asteroid_Master: SM_CapitalAsteroid_001-006, the destroyed
+    moon SM_Moon_Destroyed_*: blackbody glow by temperature, an albedo curve, vertex-colour masks; decode its compiled
+    pass), Nimika Prime's broken planet (SM_Planet_Destroyed_LocAST parts, M_Planet_Broken), the stations of Nimika and
+    Tarris (their GeoLOD merged meshes are unnamed: find which level holds a station), the rifts and portals, then the
+    bosses, wrecks and effects that need the remake. Check the skies', planets' and stations' brightness and size against
+    Chorus in the remake (Chorus's auto exposure isn't there).

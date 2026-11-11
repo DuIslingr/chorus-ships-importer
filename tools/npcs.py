@@ -67,7 +67,9 @@ def S(sid, name, meshes, role, races, armor, glow, **kw):
     """A ship: id, fallback name (this importer's own words; "bp" reads Chorus's from the pak), meshes, role, races, armour,
     engine glow; options: bp (its NPC blueprint: the display name), name_from ('bp' / 'mesh': a character's ship, named
     by its asset), override ({material: pak path}: a variant's materials), nose, weight, traffic_role, attach ({part mesh:
-    [socket names]}: a blueprint's parts mounted on the first mesh's sockets)."""
+    [socket names]}: a blueprint's parts mounted on the first mesh's sockets), place ({part mesh: [(x, y, z) cm]}: a blueprint's parts
+    at their components' offsets), scale (its blueprint's scale on the mesh). A blueprint's in-place parts (its thrusters,
+    modelled where they sit) are simply further meshes; children inherit their parent blueprint's."""
     return dict(id=sid, name=name, meshes=[meshes] if isinstance(meshes, str) else meshes, role=role, races=races,
                 armor=armor, glow=glow, **kw)
 
@@ -79,37 +81,39 @@ def _civ(n, kind):   # the numbered civilian traffic models
 ATLAS2 = SMALL + 'TG_Atlas_MK2/'
 SHIPS = [
     # -- the Circle's and the pirates' fighters (their names: the blueprints' display names, read at build time) ----------
-    S('circle_fighter', 'Circle Fighter', SMALL + 'TF_terranfighter/TF_Fighter', 'fighter', [8], 180, CIRCLE_GLOW, bp=NPC + 'Fighter/BP_NPC_Ship_Fighter'),
-    S('circle_fighter_snipe', 'Circle Sniper', SMALL + 'TF_terranfighter_02/SM_TF_terranfighter_02', 'fighter', [8], 200, CIRCLE_GLOW,
+    S('circle_fighter', 'Circle Fighter', [SMALL + 'TF_terranfighter/TF_Fighter', SMALL + 'TF_terranfighter/SM_TF_Fighter_ThrusterCheap'], 'fighter', [8], 180, CIRCLE_GLOW, bp=NPC + 'Fighter/BP_NPC_Ship_Fighter'),
+    S('circle_fighter_snipe', 'Circle Sniper', [SMALL + 'TF_terranfighter_02/SM_TF_terranfighter_02', SMALL + 'TF_terranfighter/SM_TF_Fighter_ThrusterCheap'], 'fighter', [8], 200, CIRCLE_GLOW,
       bp=NPC + 'FighterSnipe/BP_NPC_Ship_Fighter_Snipe', traffic_role='sniper'),
-    S('circle_fighter_net', 'Circle Elite Fighter', SMALL + 'TF_terranfighter_Elite/SM_TF_terranfighter_Elite', 'fighter', [8], 240, CIRCLE_GLOW,
+    S('circle_fighter_net', 'Circle Elite Fighter', [SMALL + 'TF_terranfighter_Elite/SM_TF_terranfighter_Elite', SMALL + 'TF_terranfighter/SM_TF_Fighter_ThrusterCheap'], 'fighter', [8], 240, CIRCLE_GLOW,
       bp=NPC + 'FighterNet/BP_NPC_Ship_Fighter_Net', traffic_role='webber'),
-    S('student_fighter', 'Student Fighter', SMALL + 'TF_Fighter_Student/TF_Fighter_Student', 'fighter', [8], 150, CIRCLE_GLOW,
+    S('student_fighter', 'Student Fighter', [SMALL + 'TF_Fighter_Student/TF_Fighter_Student', SMALL + 'TF_terranfighter/SM_TF_Fighter_ThrusterCheap'], 'fighter', [8], 150, CIRCLE_GLOW,
       bp=NPC + 'FactionStudent/BP_NPC_Ship_Fighter_Student'),
-    S('circle_scout', 'Circle Scout', SMALL + 'TS_Scout01/TS_Scout01', 'fighter', [8], 140, CIRCLE_GLOW, bp=NPC + 'Scout/BP_NPC_Ship_Scout'),
-    S('circle_support', 'Circle Support Ship', SMALL + 'TS_SupportShip/SM_TS_Supportship', 'fighter', [8], 200, CIRCLE_GLOW,
-      bp=NPC + 'SupportShip/BP_NPC_Ship_SupportShip', traffic_role='shieldCharger'),
+    S('circle_scout', 'Circle Scout', [SMALL + 'TS_Scout01/TS_Scout01', SMALL + 'TS_Scout01/SM_TS_Scout_ThrusterCheap'], 'fighter', [8], 140, CIRCLE_GLOW, bp=NPC + 'Scout/BP_NPC_Ship_Scout'),
+    S('circle_support', 'Circle Support Ship', [SMALL + 'TS_SupportShip/SM_TS_Supportship', SMALL + 'TS_SupportShip/SM_TS_SupportShip_ThrusterCheap'], 'fighter', [8], 200, CIRCLE_GLOW,
+      bp=NPC + 'SupportShip/BP_NPC_Ship_SupportShip', traffic_role='shieldCharger', scale=0.9),   # (its blueprint's 0.9)
     S('circle_support_drone', 'Circle Support Drone', SMALL + 'SupportDrone/SM_TER_SupportDrone', 'fighter', [8], 90, CIRCLE_GLOW),
     S('disruptor', 'Disruptor', UP + 'ArtAssets/Affordances/SM_TER_Disruptor/SM_TER_Disruptor', 'fighter', [8], 220, CIRCLE_GLOW,
       bp=NPC + 'Disruptor/BP_NPC_Ship_Disruptor', name_from='bp', traffic_role='jumpSuppressor', nose='+y'),
-    S('pirate_fighter', 'Pirate Fighter', SMALL + 'TF_Fighter_Pirate/TF_Fighter_Pirate', 'fighter', [8], 170, PIRATE_GLOW,
+    S('pirate_fighter', 'Pirate Fighter', [SMALL + 'TF_Fighter_Pirate/TF_Fighter_Pirate', SMALL + 'TF_terranfighter/SM_TF_Fighter_ThrusterCheap'], 'fighter', [8], 170, PIRATE_GLOW,
       bp=NPC + 'Pirate/FighterPirate/BP_NPC_Ship_Fighter_Pirate'),
-    S('pirate_scout', 'Pirate Scout', SMALL + 'TS_Scout01_Pirate/TS_Scout01_Pirate', 'fighter', [8], 130, PIRATE_GLOW,
+    S('pirate_scout', 'Pirate Scout', [SMALL + 'TS_Scout01_Pirate/TS_Scout01_Pirate', SMALL + 'TS_Scout01/SM_TS_Scout_ThrusterCheap'], 'fighter', [8], 130, PIRATE_GLOW,
       bp=NPC + 'Pirate/ScoutPirate/BP_NPC_Ship_ScoutPirate'),
     S('elder_ship', 'Elder Ship', NPC + 'Elder/Base/SM_NPC_Ship_Elder_Base', 'fighter', [0], 400, [0.0, 0.61, 1.0], weight=0.3),
     # (SM_TU_Ufo left out: an unfinished placeholder, its material slots empty and no material, texture or blueprint for it
     # anywhere in the pak, so Chorus never draws it and there is no look to rebuild)
     # -- gunships and the characters' ships: bosses --------------------------------------------------------------------
-    S('circle_gunship', 'Circle Gunship', SMALL + 'TG_Gunship/TG_gunship', 'boss', [8], 900, CIRCLE_GLOW, bp=NPC + 'Gunship/BP_NPC_Ship_Gunship'),
-    S('circle_gunship_apex', 'Circle Heavy Gunship', SMALL + 'TG_Gunship_02/SM_TG_Gunship_02', 'boss', [8], 950, CIRCLE_GLOW, bp=NPC + 'Gunship2/BP_NPC_Ship_Gunship2'),
-    S('circle_gunship_elite', 'Circle Elite Gunship', SMALL + 'TG_Gunship_Elite/SM_TG_Gunship_Elite', 'boss', [8], 1100, CIRCLE_GLOW,
+    S('circle_gunship', 'Circle Gunship', [SMALL + 'TG_Gunship/TG_gunship', SMALL + 'TG_Gunship/SM_TG_Gunship_ThrusterCheap'], 'boss', [8], 900, CIRCLE_GLOW, bp=NPC + 'Gunship/BP_NPC_Ship_Gunship',
+      place={SMALL + 'TG_Gunship_Gunpod/SK_Gunship_Gunpod': [(590.0, 0.0, -460.0)]}),
+    S('circle_gunship_apex', 'Circle Heavy Gunship', [SMALL + 'TG_Gunship_02/SM_TG_Gunship_02', SMALL + 'TG_Gunship/SM_TG_Gunship_ThrusterCheap'], 'boss', [8], 950, CIRCLE_GLOW, bp=NPC + 'Gunship2/BP_NPC_Ship_Gunship2',
+      place={SMALL + 'TG_Gunship_Mine/SK_Gunship_MineThrower': [(590.0, 0.0, -1024.0)]}),
+    S('circle_gunship_elite', 'Circle Elite Gunship', [SMALL + 'TG_Gunship_Elite/SM_TG_Gunship_Elite', SMALL + 'TG_Gunship/SM_TG_Gunship_ThrusterCheap'], 'boss', [8], 1100, CIRCLE_GLOW,
       bp=NPC + 'GunshipElite/BP_NPC_Ship_GunshipElite'),
     S('student_gunship', 'Student Gunship', SMALL + 'TG_Gunship_Elite_Cerene/SM_TG_Gunship_Elite_Cerene', 'boss', [8], 1200, CIRCLE_GLOW,
       bp=NPC + 'FactionStudent/BP_NPC_Ship_Cerene_Student', name_from='bp'),
     S('terran_gunship', 'Terran Gunship', SMALL + 'TG_terrangunship_MK2/SM_TS_terran_gunship2', 'boss', [8], 950, TER_GLOW),
-    S('pirate_gunship', 'Pirate Gunship', SMALL + 'TG_Gunship_Pirate/TG_Gunship_Pirate', 'boss', [8], 900, PIRATE_GLOW,
+    S('pirate_gunship', 'Pirate Gunship', [SMALL + 'TG_Gunship_Pirate/TG_Gunship_Pirate', SMALL + 'TG_Gunship/SM_TG_Gunship_ThrusterCheap'], 'boss', [8], 900, PIRATE_GLOW,
       bp=NPC + 'Pirate/GunshipPirate/BP_NPC_Ship_Gunship_Pirate'),
-    S('pirate_queen', 'Pirate Leader', SMALL + 'TF_Fighter_Sniper_Pirate/TF_Fighter_Sniper_Pirate', 'boss', [8], 1200, PIRATE_GLOW,
+    S('pirate_queen', 'Pirate Leader', [SMALL + 'TF_Fighter_Sniper_Pirate/TF_Fighter_Sniper_Pirate', SMALL + 'TF_terranfighter/SM_TF_Fighter_ThrusterCheap'], 'boss', [8], 1200, PIRATE_GLOW,
       bp=NPC + 'Pirate/PirateQueen/BP_NPC_Ship_PirateQueen', name_from='bp'),
     S('prophet', 'Final Boss', [SMALL + 'SM_NPC_Prophet/SM_NPC_Prophet', SMALL + 'SM_NPC_Prophet/SM_NPC_Prophet_Thrusters'], 'boss', [8], 1500, CIRCLE_GLOW,
       # (its blueprint's four weapon pods, on the hull's weapon sockets)
@@ -117,33 +121,37 @@ SHIPS = [
       bp=NPC + 'FinalBoss/Prophet/BP_NPC_Ship_FinalBoss_Prophet', name_from='bp',
       # (its blueprint's override of the lights slot: the station lights in the Prophet's colours)
       override={'MI_TER_StationLights01': UP + 'ArtAssets/Environment/FactionMining/MI_TER_StationLights01_Porphet'}),
-    S('sav', 'Named Ship 1', LARGE + 'SM_Sav/SM_Sav', 'boss', [8], 1000, TER_GLOW, bp=NPC + 'Sav/BP_NPC_Ship_Sav', name_from='bp'),
-    S('ree', 'Named Ship 2', LARGE + 'SM_Ree/SM_Ree', 'boss', [8], 1000, TER_GLOW, bp=NPC + 'Ree/BP_NPC_Ship_Ree', name_from='bp'),
-    S('aryana', 'Named Ship 3', LARGE + 'SM_NPC_Aryana/SM_NPC_Aryana', 'boss', [8], 1300, TER_GLOW, bp=NPC + 'Aryana/BP_NPC_Ship_Aryana', name_from='bp'),
+    S('sav', 'Named Ship 1', [LARGE + 'SM_Sav/SM_Sav', LARGE + 'SM_Sav/SM_Thrusters_Sav_Slim', LARGE + 'SM_Sav/SM_Thrusters_Sav_Wide'], 'boss', [8], 1000, TER_GLOW, bp=NPC + 'Sav/BP_NPC_Ship_Sav', name_from='bp'),
+    S('ree', 'Named Ship 2', [LARGE + 'SM_Ree/SM_Ree', LARGE + 'SM_Ree/SM_Thrusters_Ree'], 'boss', [8], 1000, TER_GLOW, bp=NPC + 'Ree/BP_NPC_Ship_Ree', name_from='bp'),
+    S('aryana', 'Named Ship 3', [LARGE + 'SM_NPC_Aryana/SM_NPC_Aryana', LARGE + 'SM_NPC_Aryana/SM_NPC_Thrusters_Aryana'], 'boss', [8], 1300, TER_GLOW, bp=NPC + 'Aryana/BP_NPC_Ship_Aryana', name_from='bp'),
     # -- the Omen ------------------------------------------------------------------------------------------------------
     S('omen_drone', 'Omen Drone', NPC + 'OmenDrone/Art/SM_OmenDrone', 'fighter', [9], 160, OMEN_GLOW, bp=NPC + 'OmenDrone/BP_NPC_Ship_OmenDrone'),
     S('omen_bat_swarm', 'Omen Swarm', NPC + 'BatSwarm/Art/SM_BatSwarm', 'fighter', [9], 120, OMEN_GLOW, bp=NPC + 'BatSwarm/BP_NPC_Ship_BatSwarm'),
-    S('omen_support', 'Omen Support', NPC + 'OmenSupport/Art/SK_OmenSupport_02', 'fighter', [9], 420, OMEN_GLOW, bp=NPC + 'OmenSupport/BP_NPC_Ship_OmenSupport'),
+    S('omen_support', 'Omen Support', NPC + 'OmenSupport/Art/SK_OmenSupport_02', 'fighter', [9], 420, OMEN_GLOW, bp=NPC + 'OmenSupport/BP_NPC_Ship_OmenSupport',
+      idle=NPC + 'OmenSupport/Art/A_OmenSupport_Idle'),
     S('omen_fortress', 'Omen Fortress', NPC + 'Fortress/Art/SM_JTU_Fortress_02_Merged', 'boss', [9], 2000, OMEN_GLOW, bp=NPC + 'Fortress/BP_NPC_Ship_Fortress'),
     S('omen_fortress_elite', 'Omen Elite Fortress', NPC + 'FortressElite/Art/SM_FortressElite_Merged', 'capital', [9], 5000, OMEN_GLOW,
       bp=NPC + 'FortressElite/BP_NPC_Ship_Fortress_Elite'),
-    S('guilt', 'Omen Colossus', NPC + 'Guilt/Art/SK_Guilt', 'capital', [9], 8000, OMEN_GLOW, name_from='mesh'),
+    # (Guilt, SK_Guilt, left out: in Chorus not a ship but an invincible Faceless that hunts Nara through the temples and
+    # tombs. Its handling stays for a mod that wants it: _guilt_shell / _guilt_core, rig.save_skinned, the remake's Chorus
+    # shell and "skinned" ships; its entry was S('guilt', ..., NPC + 'Guilt/Art/SK_Guilt', 'boss', [9], ..., scale=0.17,
+    # idle=NPC + 'Guilt/Art/Anims/A_Guilt_Idle03', skinned=True, traffic=False).)
     # -- civilians: freighters -----------------------------------------------------------------------------------------
     # Chorus's civilian ship (BP_NPC_Ship_CivilianShip: SM_TG_Atlas_MK2_002 in M_TG_Atlas_01) and its variants' paint
-    S('civilian_ship', 'Civilian Ship', ATLAS2 + 'SM_TG_Atlas_MK2_002', 'freighter', FREIGHT_RACES, 1500, TER_GLOW,
+    S('civilian_ship', 'Civilian Ship', [ATLAS2 + 'SM_TG_Atlas_MK2_002', ATLAS2 + 'SM_NPC_Thrusters_CivilianShip'], 'freighter', FREIGHT_RACES, 1500, TER_GLOW,
       bp=NPC + 'CivilianShip/BP_NPC_Ship_CivilianShip'),
-    S('civilian_ship_blinkrace', 'Civilian Ship', ATLAS2 + 'SM_TG_Atlas_MK2_002', 'freighter', FREIGHT_RACES, 1500, TER_GLOW,
+    S('civilian_ship_blinkrace', 'Civilian Ship', [ATLAS2 + 'SM_TG_Atlas_MK2_002', ATLAS2 + 'SM_NPC_Thrusters_CivilianShip'], 'freighter', FREIGHT_RACES, 1500, TER_GLOW,
       bp=NPC + 'CivilianShip/BP_NPC_Ship_CivilianShip_Child_BlinkRace', name_from='variant', override={'M_TG_Atlas_01': ATLAS2 + 'M_TG_Atlas_02'}),
-    S('civilian_ship_kirrim', 'Civilian Ship', ATLAS2 + 'SM_TG_Atlas_MK2_002', 'freighter', FREIGHT_RACES, 1500, TER_GLOW,
+    S('civilian_ship_kirrim', 'Civilian Ship', [ATLAS2 + 'SM_TG_Atlas_MK2_002', ATLAS2 + 'SM_NPC_Thrusters_CivilianShip'], 'freighter', FREIGHT_RACES, 1500, TER_GLOW,
       bp=NPC + 'CivilianShip/BP_NPC_Ship_CivilianShip_Kirrim', name_from='variant', override={'M_TG_Atlas_01': ATLAS2 + 'M_TG_Atlas_03'}),
     S('civ_shuttle', 'Civilian Shuttle', [LARGE + 'Civilian_Ship_Small/SM_TER_CIV_Ship_Small01', LARGE + 'Civilian_Ship_Small/SM_TER_CIV_Ship_Small01_Emissives',
-                                          LARGE + 'Civilian_Ship_Small/SM_TER_CIV_Ship_Small01_windows'], 'freighter', FREIGHT_RACES, 2000, TER_GLOW,
+                                          LARGE + 'Civilian_Ship_Small/SM_TER_CIV_Ship_Small01_windows', LARGE + 'Civilian_Ship_Small/SM_NPC_Thrusters_Civilian'], 'freighter', FREIGHT_RACES, 2000, TER_GLOW,
       bp=NPC + 'Civilian02/BP_NPC_Ship_Civilian02'),
     S('civ_transport', 'Civilian Transport', [LARGE + 'Civilian_Ship_Medium/SM_TER_CIV_Ship_Medium01', LARGE + 'Civilian_Ship_Medium/SM_TER_CIV_Ship_Medium01_Emissives',
-                                              LARGE + 'Civilian_Ship_Medium/SM_TER_CIV_Ship_Medium01_windows'], 'freighter', FREIGHT_RACES, 3000, TER_GLOW),
-    S('civ_liner', 'Civilian Liner', LARGE + 'Civilian_Ship_Large/SM_TER_CIV_Ship_Large01', 'freighter', FREIGHT_RACES, 4000, TER_GLOW),
+                                              LARGE + 'Civilian_Ship_Medium/SM_TER_CIV_Ship_Medium01_windows', LARGE + 'Civilian_Ship_Medium/SM_Thrusters_ShipMedium'], 'freighter', FREIGHT_RACES, 3000, TER_GLOW),
+    S('civ_liner', 'Civilian Liner', [LARGE + 'Civilian_Ship_Large/SM_TER_CIV_Ship_Large01', LARGE + 'Civilian_Ship_Large/SM_Thrusters_ShipLarge'], 'freighter', FREIGHT_RACES, 4000, TER_GLOW),
     S('container_ship', 'Container Ship', [LARGE + 'Containership/SM_TER_ContainerShip01_ConfigA', LARGE + 'Containership/SM_TER_ContainerShip01_SetDressing01',
-                                           LARGE + 'Containership/SM_TER_ContainerShip01_SetDressing01_Emissives'], 'freighter', FREIGHT_RACES, 4000, TER_GLOW,
+                                           LARGE + 'Containership/SM_TER_ContainerShip01_SetDressing01_Emissives', LARGE + 'Containership/SM_ContainerShipThrusterCheap'], 'freighter', FREIGHT_RACES, 4000, TER_GLOW,
       nose='+z'),
     # (the other Atlas hulls: no NPC blueprint flies them; named by their assets)
     S('atlas', 'Atlas', SMALL + 'TG_Atlas/SM_TG_Atlas', 'freighter', FREIGHT_RACES, 1300, TER_GLOW, name_from='mesh'),
@@ -173,7 +181,7 @@ SHIPS = [
     S('forsaken_supercharged', 'Forsaken (Supercharged)', PLAYER + 'SuperchargedShip/SK_SuperChargedShip', 'player', [0], 640,
       [0.0, 0.61, 1.0], nose='+x', rig=True),   # (its glowing wing sheaths, "thruster" too, would turn it round; the Forsaken's skeleton: its drift)
 ]
-EXPORTS = [m for s in SHIPS for m in s['meshes']] + [m for s in SHIPS for m in s.get('attach', {})]
+EXPORTS = [m for s in SHIPS for m in s['meshes']] + [m for s in SHIPS for m in s.get('attach', {})] + [m for s in SHIPS for m in s.get('place', {})]
 
 # Instances the mesh exports don't bring along (named differently in the mesh: "MI_" for the asset's "Mi_")
 MATERIAL_PATHS = {'MI_SuperChargedShieldWings_Sheets': PLAYER + 'SuperchargedShip/Materials/Mi_SuperChargedShieldWings_Sheets'}
@@ -762,21 +770,93 @@ def _decal(export, mod, mat, p):
             'metallic': 0.0}
 
 
-def _guilt_shell(export, mod, mat, p):
-    """Guilt's shell (M_Guilt_Shell, masked): T_Guilt_A's red (the body) and green (its three arms) cut the shell to its
-    shape over UV set 0 (alphaClip, Unreal's default mask clip); its Base Color, a faint red glow in its Emissive Color.
-    (Left out: the arms' erosion over time, the flow map.)"""
-    src = _png(export, 'T_Guilt_A')
-    col = (p.vector('Base Color') or [0.04, 0.02, 0.02])[:3]
-    e = {'material': mat, 'color': list(col), 'smoothness': round(1.0 - p.scalar('Roughness', 0.5), 3)}
-    if src:
-        a = np.asarray(Image.open(src).convert('RGB'), np.float32) / 255
-        rgba = np.concatenate([np.broadcast_to(textures.linear_to_srgb(np.asarray(col, np.float32)), a.shape), a[..., :2].max(-1, keepdims=True)], -1)
-        stem = f'maps/{mat.lower()}_c.png'
-        textures._save(rgba, os.path.join(mod, stem), 1024, 'RGBA')
-        e.update({'diffuse': stem, 'alphaClip': 0.333}); e.pop('color')
-    if p.vector('Emissive Color'):
-        e.update({'emissionColor': _norm(p.vector('Emissive Color')), 'emissionIntensity': 0.15})
+def _guilt_shell(export, mod, sid, mat, p, attrs, idx, unit=None):
+    """Guilt's two shells (M_Guilt_Shell, masked, two-sided), after its compiled shaders (the base pass, the masked depth
+    pass, the vertex shader; MI_Guilt_OuterShell_Small): a black (Base Color 0), half-metal body (Metallic / Roughness).
+    The mask: ((T_Guilt_A.r + Arms Fade) x 0.5 + a screen dither - 0.5) x saturate(2 Coverage - (1 - n) x (1 -
+    T_Guilt_A.g)^Erode Exponent) >= 1/3, n the obsidian rock's grey flowing over UV0 x Tiling (the body red, the arms green):
+    the inner shell (Coverage 0.42) near whole, the outer (0.17) a veil of wisps. Its glow: (T_Guilt_A tiled - Emissive
+    Exponent) x Emissive Color x Emissive Intensity, x saturate(1 - distance from the centre / Center Emissive Radius)^2:
+    the inner shell's red specks (Intensity 51.6), none on the outer (Exponent 20). The vertex shader pushes the shell out
+    along its normals by Vertex Push + Vertex Strength B x (1 - n), world centimetres: the outer shell 3 - 9 m off the
+    body. Baked here at rest (the flow at time 0, the dither at its mean); the flow, the dissolve's motion and the push's
+    breathing left out. -> (ships.json entry, the primitive's attributes with the push applied)"""
+    if unit is not None:
+        # the remake's Chorus shell (GoF2/Hull ChorusShell) draws it moving, from these maps; lengths in the model's own
+        # units (unit: model units per world metre: the skinned file keeps the mesh unscaled, 1 / the blueprint's 0.17)
+        m_ = lambda n, k='data': _chorus_map(mod, _png(export, n), 1024, k)
+        col = (p.vector('Emissive Color') or [1.0, 0.016, 0.016])[:3]
+        peak = max(0.0, 1.0 - p.scalar('Emissive Exponent', 0.964)) * p.scalar('Emissive Intensity', 51.6) * max(col)
+        c = {'kind': 'shell', 'mask': m_('T_Guilt_A'), 'noise': m_('asteroid_obsidian_rock_000_ao'),
+             'flow': m_('asteroid_obsidian_rock_000_norm_spec_diff'), 'phase': m_('T_Guilt_Flow'),
+             'tiling': p.scalar('Tiling', 8.0), 'randomness': p.scalar('Randomness Scale', 3.0), 'flowSpeed': p.scalar('FlowSpeed', 2.0),
+             'flowStrength': p.scalar('Flow Map Strength', 3.0), 'armsFade': p.scalar('Arms Fade', 1.0), 'coverage': p.scalar('Coverage', 0.42),
+             'erode': p.scalar('Erode Exponent', 1.0), 'masterAlpha': p.scalar('MasterAlpha', 1.0),
+             'push': p.scalar('Vertex Push', 0.0) / 100.0 * unit, 'pushNoise': p.scalar('Vertex Strength B', 0.0) / 100.0 * unit,
+             'baseColor': p.scalar('Base Color', 0.0), 'metal': p.scalar('Metallic', 0.5), 'roughness': p.scalar('Roughness', 0.5),
+             'emissiveExponent': p.scalar('Emissive Exponent', 0.964), 'emissiveIntensity': p.scalar('Emissive Intensity', 51.6),
+             'emissiveColor': list(col), 'centerRadius': p.scalar('Center Emissive Radius', 27430.0) / 100.0 * unit}
+        if peak > CHORUS_EMISSION_PEAK: c['emissionScale'] = round(CHORUS_EMISSION_PEAK / peak, 4)
+        return {'material': mat, 'doubleSided': True, 'chorus': {k: (round(v, 5) if isinstance(v, float) else v) for k, v in c.items()}}, attrs
+    n_ = 1024
+    A = _png(export, 'T_Guilt_A'); N = _png(export, 'asteroid_obsidian_rock_000_ao')
+    load = lambda f: np.asarray(Image.open(f).convert('RGB').resize((n_, n_), Image.BILINEAR), np.float32) / 255 if f else None
+    a, noise = load(A), load(N)
+    tiling = p.scalar('Tiling', 8.0)
+    uv = np.asarray(attrs['TEXCOORD_0'], np.float32)
+    def tiled(img, u, k):   # (the image wrapped k times over the UVs)
+        x = (np.mod(u[..., 0] * k, 1.0) * n_).astype(int) % n_; y = (np.mod(u[..., 1] * k, 1.0) * n_).astype(int) % n_
+        return img[y, x]
+    tri, bary = textures.rasterize(uv, idx, n_)
+    cov = tri >= 0
+    tuv = textures.interpolate(uv, idx, tri, bary)
+    pos = textures.interpolate(np.asarray(attrs['POSITION'], np.float32), idx, tri, bary)
+    A_ = a if a is not None else np.zeros((n_, n_, 3), np.float32)
+    nz = tiled(noise, tuv, tiling)[..., 0] if noise is not None else np.full((n_, n_), 0.5, np.float32)
+    erode = np.power(np.clip(1.0 - A_[..., 1], 1e-6, 1.0), p.scalar('Erode Exponent', 1.0))
+    vis = ((A_[..., 0] + p.scalar('Arms Fade', 1.0)) * 0.5) * np.clip(2 * p.scalar('Coverage', 0.42) - (1 - nz) * erode, 0, 1) \
+          - (1.0 - p.scalar('MasterAlpha', 1.0))
+    alpha = np.clip(vis, 0, 1) * cov
+    stem = f'{sid}_{mat.lower()}'
+    rgba = np.zeros((n_, n_, 4), np.float32); rgba[..., 3] = alpha
+    textures._save(textures.dilate(rgba, cov) if cov.any() else rgba, os.path.join(mod, 'maps', stem + '_c.png'), 0, 'RGBA')
+    e = {'material': mat, 'diffuse': f'maps/{stem}_c.png', 'alphaClip': 0.333, 'doubleSided': True,
+         'metallic': round(p.scalar('Metallic', 0.5), 3), 'smoothness': round(1.0 - p.scalar('Roughness', 0.5), 3)}
+    ex, inten = p.scalar('Emissive Exponent', 0.964), p.scalar('Emissive Intensity', 51.6)
+    if ex < 1.0 and inten > 0 and a is not None:
+        dist = np.linalg.norm(pos, axis=-1) * 100.0   # (world cm from the centre: the model is in Chorus's metres here)
+        fall = np.clip(1.0 - dist / max(p.scalar('Center Emissive Radius', 27430.0), 1e-5), 0, 1) ** 2
+        col = np.asarray((p.vector('Emissive Color') or [1.0, 0.016, 0.016])[:3], np.float32)
+        glow = np.clip(tiled(a, tuv, tiling) - ex, 0, None) * col * inten * fall[..., None] * cov[..., None]
+        peak = float(glow.max())
+        if peak > 1e-3:
+            textures._save(textures.linear_to_srgb(textures.dilate(glow / peak, cov)), os.path.join(mod, 'maps', stem + '_e.png'), 0, 'RGB')
+            e.update({'emission': f'maps/{stem}_e.png', 'emissionColor': [1, 1, 1], 'emissionIntensity': round(min(peak, 2.5), 3)})
+    # the push, baked: out along the normals by Vertex Push + Vertex Strength B x (1 - n), centimetres -> metres
+    push, strength = p.scalar('Vertex Push', 0.0), p.scalar('Vertex Strength B', 0.0)
+    if (push or strength) and 'NORMAL' in attrs:
+        nv = tiled(noise, uv, tiling)[..., 0] if noise is not None else np.full(len(uv), 0.5, np.float32)
+        off = (push + strength * (1.0 - nv)) / 100.0
+        attrs = dict(attrs, POSITION=(np.asarray(attrs['POSITION'], np.float32) + np.asarray(attrs['NORMAL'], np.float32) * off[:, None]).astype(np.float32))
+    return e, attrs
+
+
+def _guilt_core(export, mod, sid, mat, p):
+    """Guilt's core (MP_Guilt_Core_Radial_02 on M_Warpin_Omen_Portal: translucent, unlit): its threads (Threads Texture)
+    scrolling at Speed U / V over Tiling V, brightest at the core, the vertex colours shaping it. Here an additive glow in
+    Guilt's red (the portal's colour is a row of a curve atlas the exporter doesn't write), the threads its pattern."""
+    tex = _png(export, p.texture('Threads Texture') or 'T_Lu_Noise_17')
+    e = {'material': mat, 'additive': True, 'emissionColor': [1.0, 0.06, 0.03], 'emissionIntensity': round(min(p.scalar('Core Mult', 1.2) * 1.5, 2.5), 3),
+         'scroll': [round(p.scalar('Speed U', 0.05), 3), round(p.scalar('Speed V', 0.56) * p.scalar('Tiling V', 0.15), 3)]}
+    if tex:
+        # coloured through the portal's colour curve (ColorCurve 26 of CA_BaseVFX: C_Omen_Warp, its keys below): the threads
+        # dark red where faint, hot pink-red, white at their brightest
+        v = textures._load(tex)[..., 0]
+        keys = np.array([0.087, 0.391, 0.702, 1.0]); R, G, B = [0, 0.4, 1.0, 1.0], [0, 0, 0.2, 1.0], [0, 0.007, 0.213, 1.0]
+        ramp = np.stack([np.interp(v, keys, ch) for ch in (R, G, B)], -1)
+        stem = f'maps/{sid}_{mat.lower()}_e.png'
+        textures._save(textures.linear_to_srgb(ramp), os.path.join(mod, stem), 512, 'RGB')
+        e.update({'emission': stem, 'emissionColor': [1, 1, 1]})
     return e
 
 
@@ -801,7 +881,7 @@ def _windows(export, mod, stem, mat, p, master):
             'emissionColor': [1, 1, 1], 'emissionIntensity': power}
 
 
-def _convert(export, mod, sid, meshes, resolver=None, size=1024, override=None):
+def _convert(export, mod, sid, meshes, resolver=None, size=1024, override=None, unit=None):
     """meshes: [prims] per source mesh; override: {material: pak path of the instance drawn in its place}. -> (the prims
     to save, ships.json materials)."""
     override = override or {}
@@ -820,7 +900,7 @@ def _convert(export, mod, sid, meshes, resolver=None, size=1024, override=None):
             low = mat.lower()
             p = _params(export, path, resolver) if path else None
             master = p.chain[-1] if p and p.chain else None
-            if master in DROP or ('decal' in low and master != 'M_DecalMaster_Labels'): continue   # (normal-only decals)
+            if (master in DROP and not mat.startswith('MP_Guilt_Core')) or ('decal' in low and master != 'M_DecalMaster_Labels'): continue   # (normal-only decals)
             if master == 'M_SuperChargedShieldWings_Sheets' and p is not None:
                 if mat not in done: mats.append(_energy_wings(export, mod, f'{sid}_{low}', mat, p))
                 done.add(mat); keep.append((mat, attrs, idx)); continue
@@ -835,6 +915,13 @@ def _convert(export, mod, sid, meshes, resolver=None, size=1024, override=None):
                         mats.append(e); done.add(name)
                     keep.append((name, attrs, sub))
                 continue
+            if master == 'M_Guilt_Shell' and p is not None:   # (its push changes the geometry: _guilt_shell)
+                e_, attrs = _guilt_shell(export, mod, sid, mat, p, attrs, idx, unit)
+                if mat not in done: mats.append(e_); done.add(mat)
+                keep.append((mat, attrs, idx)); continue
+            if mat.startswith('MP_Guilt_Core') and p is not None:   # (an additive glow over its vertex colours)
+                if mat not in done: mats.append(_guilt_core(export, mod, sid, mat, p)); done.add(mat)
+                keep.append((mat, dict(attrs, COLOR_0=colour) if colour is not None else attrs, idx)); continue
             r = _recipe(export, p, master) if p else None
             if r is not None and CHORUS_LAYERS and r['kind'] in ('trim', 'plating') and r.get('colors') and r.get('data'):
                 # drawn by the remake's Chorus layers over the hull's own UV sets (TRIM_SHADER), not baked
@@ -863,8 +950,6 @@ def _convert(export, mod, sid, meshes, resolver=None, size=1024, override=None):
                     mats.append(e)
                 elif master == 'M_DecalMaster_Labels':
                     mats.append(_decal(export, mod, mat, p))
-                elif master == 'M_Guilt_Shell':
-                    mats.append(_guilt_shell(export, mod, mat, p))
                 elif master in FLAT:
                     c, sm = FLAT[master]
                     col = p.vector(c) if isinstance(c, str) else c
@@ -1036,6 +1121,16 @@ KEEP = ('POSITION', 'NORMAL', 'TANGENT', 'TEXCOORD_0', 'TEXCOORD_1', 'TEXCOORD_2
 
 # ---- mounts ------------------------------------------------------------------------------------------------------------
 MAX_TURRETS, MAX_EXHAUSTS = 8, 8   # (a capital ship's hardpoints carry at most 8 turrets in multiplayer copies)
+MOD_ID = 'chorus_ships'
+# which of Chorus's turrets (tools/turrets.py) a capital ship or boss carries on its turret mounts, in turn: the Circle's
+# warships heavy and missile turrets (the dreadnought its sniper too), the captured warship heavy and light ones, the rest
+# the light one
+CHORUS_TURRETS = {'circle_warship': ['chorus_turret_heavy', 'chorus_turret_missile'],
+                  'circle_destroyer': ['chorus_turret_heavy', 'chorus_turret_missile'],
+                  'circle_dreadnought': ['chorus_turret_heavy', 'chorus_turret_sniper', 'chorus_turret_missile'],
+                  'captured_warship': ['chorus_turret_heavy', 'chorus_turret_light'],
+                  'dropship': ['chorus_turret_light', 'chorus_turret_mine']}
+CHORUS_TURRETS_DEFAULT = ['chorus_turret_light']
 TURRET = {1: 49}                   # npcTurrets by race: the Vossk L'ksaar; the others the Hammerhead D2A2 (48), as the GoF3 importer
 TURRET_SOCKETS = re.compile(r'(?i)artillery|turret|npcattack')
 THRUSTER_SOCKETS = re.compile(r'(?i)^thruster')
@@ -1174,8 +1269,16 @@ def build(export, mod, resolver=None, only=None, work=None, anims=None):
             group = [p for t in placed if t for p in _place(glb.static_mesh(src, keep=KEEP), *t)]
             if group: meshes.append(group)
             else: print(f'  {sid}: {part.rsplit("/", 1)[1]} not placed')
+        for part, locs in s.get('place', {}).items():   # (a blueprint's part at its component's offset, cm)
+            src = os.path.join(export, part + '.glb')
+            if not os.path.exists(src): print(f'  {sid}: {part.rsplit("/", 1)[1]} not exported'); continue
+            meshes.append([p_ for l_ in locs for p_ in _place(glb.static_mesh(src, keep=KEEP), np.array(l_, np.float32), np.eye(3, dtype=np.float32), np.ones(3, np.float32))])
         nose = s.get('nose') or _nose(meshes[0])
         meshes = [_turn(m, nose) for m in meshes]
+        sc = s.get('scale', 1.0)   # (the blueprint's scale on its mesh component: Guilt's 0.17)
+        if sc != 1.0:
+            meshes = [[(m_, dict(a_, POSITION=(np.asarray(a_['POSITION'], np.float32) * sc).astype(np.float32)), i_) for m_, a_, i_ in mesh]
+                      for mesh in meshes]
         lo, hi = glb.bounds([p for m in meshes for p in m])
         length_m = float(hi[0] - lo[0]) * SCALE
         role = s['role']
@@ -1183,12 +1286,21 @@ def build(export, mod, resolver=None, only=None, work=None, anims=None):
         cap = {'boss': MAX_BOSS, 'capital': MAX_CAPITAL, 'freighter': MAX_CAPITAL}.get(role)
         shrink = min(1.0, cap / length_m) if cap else 1.0
         size = 2048 if length_m > 500 else 1024
-        prims, mats = _convert(export, mod, sid, meshes, resolver, size, s.get('override'))
+        # (a skinned ship's file keeps its mesh unscaled: its shell's lengths in those units, 1 / the blueprint's scale)
+        skinned = bool(s.get('skinned') and CHORUS_LAYERS and s.get('idle'))
+        prims, mats = _convert(export, mod, sid, meshes, resolver, size, s.get('override'), (1.0 / s.get('scale', 1.0)) if skinned else None)
+        if prims:   # (measured again on what is drawn: a thruster part's flame and glow cards are left out)
+            lo, hi = glb.bounds(prims)
+            length_m = float(hi[0] - lo[0]) * SCALE
+            role = s['role']
+            if role == 'fighter' and length_m > MAX_TRAFFIC: role = 'boss'
+            cap = {'boss': MAX_BOSS, 'capital': MAX_CAPITAL, 'freighter': MAX_CAPITAL}.get(role)
+            shrink = min(1.0, cap / length_m) if cap else 1.0
         name = shown.get(sid, s['name'])
         if not prims:
             print(f'  {sid}: nothing to draw'); continue
         k = K * shrink   # game units per model metre (the hull scaled down past its cap)
-        if any('chorus' in e_ for e_ in mats):
+        if any('chorus' in e_ for e_ in mats) or any('COLOR_0' in a_ for _, a_, _ in prims):
             # Chorus's layers read UV sets 1 and 3 and the vertex colours: every primitive gets them (glTFast reads one
             # vertex layout per mesh), zero UVs and white where a part has none
             glb.save(os.path.join(mod, 'models', 'npc', sid + '.glb'), _uniform(prims), sid, keep=CHORUS_KEEP)
@@ -1204,7 +1316,7 @@ def build(export, mod, resolver=None, only=None, work=None, anims=None):
         half = float(min(hi[1] - lo[1], hi[2] - lo[2])) / 6
         mounts = [{'slotType': 0, 'position_engine': game([hi[0], mid_y, 0.0])}]
         # the hull's sockets (in the turned frame): thrusters, turrets, damage effects
-        sk = [(n_, ROT[nose](p_[None, :])[0]) for m_ in s['meshes'] for n_, p_ in socks.get(m_, [])]
+        sk = [(n_, ROT[nose](p_[None, :])[0] * sc) for m_ in s['meshes'] for n_, p_ in socks.get(m_, [])]
         exhausts = [(p_, half) for n_, p_ in sk if THRUSTER_SOCKETS.search(n_)]
         if not exhausts:   # else at the rear faces of its own thruster glow (the traffic ships', the warships')
             glows = {e_['material'] for e_ in mats if e_.get('engine')}
@@ -1254,10 +1366,27 @@ def build(export, mod, resolver=None, only=None, work=None, anims=None):
              'model': f'models/npc/{sid}.glb', 'modelLength': round(length_m * shrink / 0.05), 'modelYaw': 90,
              'hangarHeight': round(-float(lo[1]) * k + 20), 'engineGlowColor': s['glow'], 'mounts': mounts, 'materials': mats,
              'traffic': traffic}
+        if s.get('traffic') is False:   # (in the mod, flown by no one: Guilt, a story hazard in Chorus, not a ship)
+            del e['traffic']
+        if s.get('description'): e['description'] = s['description']
         if role in ('capital', 'freighter'): e['explosionScale'] = round(min(20.0, max(2.0, length_m * shrink / 150)), 1)
         n_turrets = sum(1 for m_ in mounts if m_['slotType'] == 2)
-        if n_turrets: e['npcTurrets'] = [TURRET.get(race, 48)] * n_turrets
+        if n_turrets:   # Chorus's own turrets (tools/turrets.py's items), in turn along the mounts
+            kinds = CHORUS_TURRETS.get(sid, CHORUS_TURRETS_DEFAULT)
+            e['npcTurrets'] = [f'{MOD_ID}:{kinds[i % len(kinds)]}' for i in range(n_turrets)]
         if smoke: e['smoke'] = [game(p_) for p_ in smoke]
+        # its own idle (rig.NPC_CLIPS), looped: a rigid skin as parts on its skeleton's nodes (tools/rig.py)
+        idle = rig.npc_clip(work or os.path.dirname(os.path.abspath(export)), s['idle']) if s.get('idle') else None
+        if idle is not None and nose == '+x' and s.get('scale', 1.0) == 1.0 and len(srcs) == 1 and rig.is_rigid(srcs[0]):
+            raw = glb.static_mesh(srcs[0], keep=KEEP[:-1])
+            if {m_ for m_, _, _ in prims} <= {m_ for m_, _, _ in raw}:   # (no material renamed by the conversion)
+                rig.save_rigged(os.path.join(mod, 'models', 'npc', sid + '.glb'), srcs[0], raw, {'idle': idle}, sid,
+                                keep_materials={m_ for m_, _, _ in prims})
+                e['animations'] = {'idle': 'idle'}
+        elif idle is not None and skinned and len(srcs) == 1:
+            # a soft skin (Guilt's arms) kept skinned: the remake plays its idle on the bones (ships.json "skinned")
+            rig.save_skinned(os.path.join(mod, 'models', 'npc', sid + '.glb'), srcs[0], {m_: m_ for m_, _, _ in prims}, {'idle': idle}, sid)
+            e.update({'skinned': True, 'animations': {'idle': 'idle'}})
         print(f'  {sid} ({name}): {role}, {length_m * shrink:.0f} m{" (from %.0f)" % length_m if shrink < 1 else ""}, nose {nose}, {len(mats)} materials')
         out.append(e)
     return out

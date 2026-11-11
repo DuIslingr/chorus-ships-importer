@@ -5,6 +5,7 @@
 //   json <path> <out.json>    one package as JSON                  jsonall <regex> <dir>   every match
 //   export <list> <outdir>    meshes as .glb + materials (.json) + textures (.png), in FModel's layout
 //   shaders <material> <outdir>  a material's compiled shaders (DXBC, from the shader library) and its uniforms.json
+//   raw <regex> <outdir>      the files matching, as they are in the pak (.locres text tables, ...)
 using Serilog;
 using CUE4Parse.Encryption.Aes;
 using CUE4Parse.FileProvider;
@@ -229,6 +230,15 @@ switch (args[0])
         }
         Console.WriteLine($"{nj} packages -> {args[2]}");
         break;
+    case "raw":
+        // raw <regex> <outdir>: every file whose pak path matches, written as it is (its own name)
+        Directory.CreateDirectory(args[2]);
+        var rrx = new System.Text.RegularExpressions.Regex(args[1], System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        int nr = 0;
+        foreach (var (key, file) in provider.Files)
+            if (rrx.IsMatch(key)) { File.WriteAllBytes(Path.Combine(args[2], key.Split('/').Last()), file.Read()); nr++; }
+        Console.WriteLine($"{nr} files -> {args[2]}");
+        break;
     case "export":
         CUE4Parse_Conversion.Textures.TextureDecoder.UseAssetRipperTextureDecoder = true;
         var session = new CUE4Parse_Conversion.ExportSession { MaxDegreeOfParallelism = 2 };
@@ -241,8 +251,11 @@ switch (args[0])
             try { session.Add(provider.LoadPackageObject(line)); queued++; }
             catch (Exception e) { Console.WriteLine($"MISSING {line}: {e.Message}"); }
         }
+        // (args[3]: "all" writes every LOD, <name>_LOD1.glb ...: the stations' merged meshes pick theirs by a triangle budget)
+        var quality = args.Length > 3 && args[3] == "all" ? CUE4Parse_Conversion.Options.EMeshQuality.All
+                    : args.Length > 3 && args[3] == "lowest" ? CUE4Parse_Conversion.Options.EMeshQuality.Lowest : CUE4Parse_Conversion.Options.EMeshQuality.Highest;
         var opts = new CUE4Parse_Conversion.Options.ExportOptions(meshFormat: CUE4Parse_Conversion.Options.EMeshFormat.Gltf2,
-            meshQuality: CUE4Parse_Conversion.Options.EMeshQuality.Highest, textureFormat: CUE4Parse_Conversion.Options.ETextureFormat.Png,
+            meshQuality: quality, textureFormat: CUE4Parse_Conversion.Options.ETextureFormat.Png,
             materialDepth: EMaterialDepth.TopLayerOnly);
         var results = session.RunAsync(args[2], opts).GetAwaiter().GetResult();
         foreach (var r in results) if (!r.Success) Console.WriteLine($"FAILED {r.ObjectPath}: {r.Error?.Message}");

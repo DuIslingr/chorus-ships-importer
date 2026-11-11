@@ -12,8 +12,10 @@ Builds the **chorus_ships** mod for the Galaxy on Fire 2 Unity Remake from **you
     and warden with the Void;
   - the gunships, the Prophet, Sav, Ree, Aryana's ship and the Omen fortress as pirate bosses;
   - the civilian liners, transports, haulers, couriers, container ship, Atlases and traffic ships as freighters;
-  - the frigates, dropship, battleship, the Circle's warships, Kardoh's ship, the Omen's elite fortress and Guilt as capital
+  - the frigates, dropship, battleship, the Circle's warships, Kardoh's ship, the Omen's elite fortress as capital
     ships (the Terran ones parked in the orbits, the Circle's and the Omen's hostile).
+- **Chorus's regions as new systems:** Stega, Amarok, Nimika and Tarris, past Pescal Inartu at the top of the map, each
+  under its region's sky and with its stations' planets as Chorus draws them (below). `--no-world` leaves them out.
 
 `python3 tools/sheet.py` renders a contact sheet of every ship (`chorus_ships_sheet.png`).
 
@@ -138,8 +140,22 @@ which the remake doesn't have, so each slot takes the waves that fit it. `--no-s
     least half with its inner glow over the variation maps, baked as seen head-on with its breathing pulse at rest; the
     cores glow through their thin parts. The Prophet's crystal crown glows red through its veins (its blueprint's lights
     override applied by hand).
+  - Guilt is left out: in Chorus it's not a ship but an invincible Faceless that hunts Nara through the temples and
+    tombs. (The importer can still draw it, kept skinned with its idle and its shells by the remake's Chorus shell, for a
+    mod that wants it: npcs.py's comment where it was.)
+  - Blueprint parts: the engine thrusters (nozzles and glows) of the fighters, scouts, Support Ship, gunships, Sav, Ree,
+    Aryana and the civilian ships (a child blueprint's inherited from its parent), the liner's, transport's and container
+    ship's; the gunship's gun pod and the Heavy Gunship's mine thrower at their components' offsets; a blueprint's mesh
+    scale (the Support Ship's 0.9). The Omen Support's crystals play its idle (its rigid skin as parts on its
+    skeleton). Left out: the frigates', Kardoh's, the warships' and the battleship's thrusters (placed by Chorus's levels,
+    not modelled in place), and the wreck meshes ships break into when destroyed.
   - Normal-only decals and effect materials are left out, and so is the unfinished SM_TU_Ufo (no material for it in the
     pak). They fly with the remake's NPC hulls and guns: only the look is Chorus's.
+- **Turrets** (`tools/turrets.py`): Chorus's light, heavy, missile, mine and sniper turrets as turret items (on the
+  Hammerhead D2A2, NPC-only), their models split on their rigs (the base fixed, a `pivot` at baseYaw that turns, a
+  `turret_gun` at basePitch that tilts, the barrel turned onto +Z), their materials Chorus's layers (the remake's turret
+  `materials`). The Chorus capital ships carry them (the Circle's warships heavy and missile turrets, the dreadnought its
+  sniper too) instead of the Hammerhead. Their mounts' hatches and the turrets' own animations are left out.
 - **Mounts and escorts:** an NPC hull's exhausts sit at its mesh's Thruster sockets, else at the nozzles of its own
   thruster glow; a capital ship's turrets at its Artillery / NPCAttack sockets, else along its back (armed through
   `npcTurrets`: the Hammerhead D2A2, the Vossk L'ksaar for the Vossk); the warships smoke at their damage-effect
@@ -165,6 +181,34 @@ perks as the remake's echo blasts, salvos and EMP. The T1 weapons:
 
 In Chorus all three are primaries. Galaxy on Fire 2 has no missile primaries, so the launcher fires secondary missiles.
 The gun models are on the Forsaken's mounts through its ship kit (above).
+
+## The Chorus systems
+
+`tools/world.py` writes `systems.json` and `stations.json`: four systems (one jumpgate from Pescal Inartu into Stega, the
+four linked among themselves) and seven stations, named from Chorus's own text. The game's systems are unchanged.
+
+- **Skies** (`tools/sky.py`): each region's sky material (MI_Skybox_Loc*) as the remake's `skybox` "chorus" block, drawn
+  live by the remake's port of Chorus's sky shader (Options > Graphics "Live mod skies", on from Medium), and the same
+  formula baked by numpy into a 4096 x 2048 panorama for Low and for the crossfade between systems. The gradient, the
+  tiled star mask through its curve, up to four nebula / galaxy layers placed by heading, elevation, scale and rotation.
+  A layer of a planet's atmosphere glow (T_LocASP_Atmosphere) is left out: Chorus hides its centre behind the region's
+  planet, which the sky doesn't have.
+- **Planets** (`tools/planets.py`): each station's planet as a `planetSphere` with `"look": "chorus"`: M_Planet03 (tiled
+  terrain, macro height, water, flow-mapped clouds, the atmosphere's rim) or M_Planet_SurfaceCheap (diffuse, night lights,
+  clouds, two rims), with its atmosphere shell where Chorus has one; their colour curves baked from the CA_Planets atlas.
+- **Stations** (`tools/stations.py`): The Enclave (Stega), Helios and Eos (Amarok) rebuilt from their levels' merged
+  meshes (Maps/<region>/<level>_GeoLOD/SM_MERGED_*: Chorus's HLOD proxies, placed in the level's space; the cooked
+  prefabs hold no actors), their materials converted as the ships' (Chorus's layers drawn by the remake). Every LOD is
+  exported (`export <list> <out> all`) and the largest meshes step down until a station fits 350 000 triangles. The
+  other stations look like an original one until theirs come in.
+- **Asteroids** (`tools/rocks.py`): the field asteroids as the orbits' asteroid fields (mined like the game's), the giant
+  rocks and split rocks as props, their M_MaskBlend_Placeholder material (two tiled rock layers blended by a mesh mask,
+  the mesh's normal map under the layers' by Unreal's angle-corrected blend) baked per rock over its own UVs.
+- **Wrecks:** Nimika Prime's, Stega Belt's and the Tarris Wormhole's wreck fields use the mod's own Chorus freighters and
+  frigates as hulks.
+
+Skies and planets were decoded from Chorus's compiled shaders (the exporter's `shaders`, its preshader for each
+constant's parameter), not approximated: see the remake's docs/notes/mods-world.md "Chorus skies" / "Chorus planets".
 
 ## Tests
 
