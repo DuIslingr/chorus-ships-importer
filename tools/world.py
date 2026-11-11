@@ -122,6 +122,7 @@ def build(export, mod, resolver, run, ships=None):
     _export(run, export, rocks.EXPORTS)
     station_paths = {k: v for k, v in chorus_stations.mesh_paths(run('list', 'SM_MERGED_', capture=True).split()).items() if k in MODEL_SIZE}
     _export(run, export, [p for v in station_paths.values() for p in v] + [chorus_gate.GATE], 'all')
+    _export(run, export, chorus_gate.EXPORTS)
     resolver.prefetch(npcs.material_paths(export))
     resolver.fetch_textures(npcs.texture_paths(resolver, export), export)
     print('  the jumpgate...')

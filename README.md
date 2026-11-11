@@ -227,7 +227,9 @@ world part is large (about 1 GB, most of it the five stations).
   over each rock's unique layout; Chorus's destroyed moon put back together at Nimika Prime (its three shell pieces at
   one place and scale, its loose rocks round it).
 - **Jumpgate** (`tools/gate.py`): Chorus's own gate (SM_MERGED_Jumpgate_001, a ring tunnel at the front of a 9.7 km
-  frame) in all four systems, its origin in the ring (systems.json jumpgate `"centre": false`), 50 000 units long.
+  frame) in all four systems, its origin in the ring (systems.json jumpgate `"centre": false`), 50 000 units long, with
+  Chorus's FTL portal in the ring (the Theia gate's card and glow, M_FTL_Portal / M_FTL_PortalGlow as material
+  `"portal"` blocks: veins scrolling out in polar coordinates, the scene behind bent through it).
 - **Wrecks:** Nimika Prime's, Stega Belt's and the Tarris Wormhole's wreck fields use the mod's own Chorus freighters and
   frigates as hulks.
 
