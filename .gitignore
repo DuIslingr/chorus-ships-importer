@@ -8,3 +8,6 @@ config.json
 exporter/bin/
 exporter/obj/
 __pycache__/
+# The contact sheet (tools/sheet.py): renders of Chorus models, never commit or share it
+*_sheet.png
+*_sheet_*.png

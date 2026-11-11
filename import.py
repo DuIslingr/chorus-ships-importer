@@ -11,11 +11,14 @@ import argparse, json, os, shutil, subprocess, sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-from tools import ships, sounds, weapons  # noqa: E402
+from tools import ships, sounds, weapons, kit, npcs, mi  # noqa: E402
 
+MASTER_DATA = 'SpacePrototype/Content/UnleashedPrototype/Core/PlayerEquipment/BP_PlayerEquipmentMasterData.uasset'
 EXPORTS = [ships.PHOENIX + '/skelmesh/SK_Phoenix',      # what the mod needs from the pak (materials and textures come along)
            ships.PHOENIX + '/T_Phoenix_center_moveable_D',  # (MI_Phoenix_center_Moveable takes these from its parent)
-           ships.PHOENIX + '/T_Phoenix_center_moveable_N']
+           ships.PHOENIX + '/T_Phoenix_center_moveable_N'] + kit.EXPORTS + ships.ARGUS_EXPORTS + npcs.EXPORTS
+# (the weapon models, tools/kit.py; the Argus) and the Elder Buddy's material instances, which bring their textures:
+MATERIAL_EXPORTS = ships.ELDER_EXPORTS
 
 
 def options():
@@ -32,6 +35,8 @@ def options():
     ap.add_argument('--key', default=cfg.get('key'), help='the pak key (0x...), if the scan of the exe should be skipped')
     ap.add_argument('--flight-style', default=cfg.get('flight_style', 'chorus'), choices=['chorus', 'free', 'original', 'player'],
                     help="how the ships fly in the remake: Chorus's flight (default), free flight, the original, or the player's option")
+    ap.add_argument('--no-kit', action='store_true', default=cfg.get('no_kit', False),
+                    help="a plain ship, without the ship kit that shows Chorus's weapon models on it")
     ap.add_argument('--no-sounds', action='store_true', default=cfg.get('no_sounds', False),
                     help="leave Chorus's sounds out (the ship plays the game's)")
     ap.add_argument('--fresh', action='store_true', default=cfg.get('fresh', False), help='export again even if the work folder has it')
@@ -61,12 +66,16 @@ def main():
         print('Finding the pak key in the game exe...')
         a.key = run('keyscan', capture=True)
     export = os.path.join(a.work, 'export')
-    if a.fresh or not os.path.exists(os.path.join(export, ships.PHOENIX, 'T_Phoenix_center_moveable_N.png')):
+    if a.fresh or not all(os.path.exists(os.path.join(export, p + ('.png' if '/T_' in p else '.glb'))) for p in EXPORTS) \
+            or not all(os.path.exists(os.path.join(export, p + '.json')) for p in MATERIAL_EXPORTS):
         os.makedirs(a.work, exist_ok=True)
         lst = os.path.join(a.work, 'export_list.txt')
-        open(lst, 'w').write('\n'.join(EXPORTS) + '\n')
+        open(lst, 'w').write('\n'.join(EXPORTS + MATERIAL_EXPORTS) + '\n')
         print('Exporting from the pak...')
         run('export', lst, export)
+    master = os.path.join(a.work, 'PlayerEquipmentMasterData.json')   # the weapons' names and descriptions
+    if a.fresh or not os.path.exists(master):
+        run('json', MASTER_DATA, master)
     fmod = os.path.join(a.work, 'fmod')
     if not a.no_sounds and (a.fresh or not os.path.exists(os.path.join(fmod, 'events.json'))):
         print("Exporting the ship's sounds from the FMOD banks...")
@@ -74,17 +83,32 @@ def main():
 
     if os.path.exists(a.out): shutil.rmtree(a.out)
     os.makedirs(a.out)
+    # the material instances' parameters through their parents (tools/mi.py: one exporter run per generation)
+    resolver = mi.Resolver(run, os.path.join(a.work, 'mi'))
+    resolver.prefetch([p for _, p, _ in ships.FORSAKEN_MATERIALS + ships.ELDER_MATERIALS] +
+                      [ships.ARGUS + '/' + m for m in ships.ARGUS_MATERIALS] + npcs.material_paths(export))
+    resolver.fetch_textures(npcs.texture_paths(resolver, export), export)   # (maps an instance inherits from its parents)
     print('Converting the Forsaken...')
-    entries = [ships.forsaken(export, a.out)]
+    forsaken = ships.forsaken(export, a.out, resolver)
+    print('Converting the Elder Buddy and the Argus...')
+    elder = ships.elder_buddy(export, a.out, forsaken, resolver)
+    argus = ships.argus(export, a.out, resolver)
+    entries = [forsaken, elder] + ([argus] if argus else [])
+    print("Converting Chorus's enemy ships for the traffic...")
+    enemies = npcs.build(export, a.out, resolver, work=a.work)
+    players = [e for e in enemies if 'lounge' in e]   # (the supercharged Forsaken: sold, with sounds and an icon)
+    enemies = [e for e in enemies if 'lounge' not in e]
+    entries += players
     for e in entries:
         if a.flight_style == 'player': e.pop('flightStyle', None)
         else: e['flightStyle'] = a.flight_style
     if not a.no_sounds:
         print('Converting the sounds...')
-        snd = sounds.build(fmod, a.out)
-        if snd: entries[0]['sounds'] = snd
+        for e in entries:
+            snd = sounds.build(fmod, a.out, e['id'])
+            if snd: e['sounds'] = snd
     print("Writing the Forsaken's weapons...")
-    items = weapons.build(fmod if not a.no_sounds else '', a.out)
+    items = weapons.build(fmod if not a.no_sounds else '', a.out, master)
     json.dump(items, open(os.path.join(a.out, 'items.json'), 'w', encoding='utf-8'), indent=1)
     json.dump(entries, open(os.path.join(a.out, 'ships.json'), 'w', encoding='utf-8'), indent=1)
     json.dump({'id': 'chorus_ships', 'name': 'Chorus Ships', 'version': '0.1', 'author': 'DuIslingr',
@@ -101,8 +125,10 @@ def main():
     if a.blender:
         print('Rendering the icon and preview...')
         os.makedirs(os.path.join(a.out, 'icons'), exist_ok=True)
-        subprocess.run([a.blender, '-b', '--factory-startup', '-P', os.path.join(HERE, 'tools', 'render_blender.py'), '--',
-                        a.out, 'forsaken'], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        for e in entries:
+            subprocess.run([a.blender, '-b', '--factory-startup', '-P', os.path.join(HERE, 'tools', 'render_blender.py'), '--',
+                            a.out, e['id'], 'preview.png' if e['id'] == 'forsaken' else ''],
+                           check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         from PIL import Image
         for e in entries:   # rendered at twice the size, then scaled to the shop's 180 x 88
             p = os.path.join(a.out, e['icon']); Image.open(p).resize((180, 88), Image.LANCZOS).save(p, optimize=True)
@@ -110,6 +136,14 @@ def main():
         print('No Blender: the ship uses the default shop icon and the mod has no preview image.')
         for e in entries: e.pop('icon', None)
         json.dump(entries, open(os.path.join(a.out, 'ships.json'), 'w', encoding='utf-8'), indent=1)
+    if not a.no_kit:
+        # After the render (it draws the plain ship): the Forsaken as a ship kit with its weapon models (tools/kit.py).
+        print('Writing the ship kit and its weapon models...')
+        kits, kit_ships = kit.build(export, a.out, forsaken, skinned=[elder])
+        entries = kit_ships + ([argus] if argus else []) + players
+        json.dump(kits, open(os.path.join(a.out, 'shipkits.json'), 'w', encoding='utf-8'), indent=1)
+    entries += enemies   # (no icons or sounds: only the traffic flies them)
+    json.dump(entries, open(os.path.join(a.out, 'ships.json'), 'w', encoding='utf-8'), indent=1)
     print(f'Done: {a.out}. Copy (or link) it into the remake\'s Mods folder.')
 
 

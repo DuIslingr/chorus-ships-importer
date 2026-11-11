@@ -31,14 +31,42 @@ def read(g, binary, idx):
     return out
 
 
-def static_mesh(path):
-    """[(material name, {attribute: float32 array}, uint32 indices)] of the file's first mesh."""
+def uv_frames(pos, uv, tris):
+    """Per-triangle dP/du and dP/dv (T x 3 each) for the UV set uv (glTF UVs: v grows down the image)."""
+    P, U = np.asarray(pos, np.float64)[tris], np.asarray(uv, np.float64)[tris]
+    e1, e2, d1, d2 = P[:, 1] - P[:, 0], P[:, 2] - P[:, 0], U[:, 1] - U[:, 0], U[:, 2] - U[:, 0]
+    r = d1[:, 0] * d2[:, 1] - d2[:, 0] * d1[:, 1]
+    r = np.where(np.abs(r) < 1e-12, 1e-12, r)[:, None]
+    return (e1 * d2[:, 1:2] - e2 * d1[:, 1:2]) / r, (e2 * d1[:, 0:1] - e1 * d2[:, 0:1]) / r
+
+
+def tangent_signs(pos, nrm, tan, uv, idx):
+    """The tangents' handedness (w) from the UVs. glTF's bitangent is cross(normal, tangent) x w and points up the
+    normal map (+Y, green), which is toward -v; CUE4Parse writes w = 1 everywhere, so on mirrored UV islands (a ship's
+    other half) the normal maps' green came out inverted. -> tan with w recomputed (kept where the UVs are degenerate)."""
+    tris = np.asarray(idx).reshape(-1, 3)
+    _, B = uv_frames(pos, uv, tris)
+    b = np.zeros((len(pos), 3))
+    for k in range(3): np.add.at(b, tris[:, k], B)
+    s = (np.cross(np.asarray(nrm, np.float64), np.asarray(tan, np.float64)[:, :3]) * -b).sum(-1)
+    out = np.array(tan, np.float32)
+    out[:, 3] = np.where(np.abs(s) < 1e-12, out[:, 3], np.sign(s))
+    return out
+
+
+def static_mesh(path, keep=KEEP):
+    """[(material name, {attribute: float32 array}, uint32 indices)] of the file's first mesh (the attributes in `keep`;
+    tangents with their handedness from the UVs, tangent_signs)."""
     g, binary = load(path)
     mesh = g['meshes'][0]
     prims = []
     for p in mesh['primitives']:
-        attrs = {k: read(g, binary, p['attributes'][k]).astype(np.float32) for k in KEEP if k in p['attributes']}
+        attrs = {k: read(g, binary, p['attributes'][k]).astype(np.float32) for k in keep if k in p['attributes']}
         idx = read(g, binary, p['indices']).reshape(-1).astype(np.uint32)
+        pa = p['attributes']
+        if 'TANGENT' in attrs and all(k in pa for k in ('POSITION', 'NORMAL', 'TEXCOORD_0')):
+            get = lambda k: attrs[k] if k in attrs else read(g, binary, pa[k]).astype(np.float32)
+            attrs['TANGENT'] = tangent_signs(get('POSITION'), get('NORMAL'), attrs['TANGENT'], get('TEXCOORD_0'), idx)
         name = g['materials'][p['material']].get('name', f'material_{p["material"]}') if 'material' in p else 'default'
         prims.append((name, attrs, idx))
     return prims
@@ -72,8 +100,9 @@ def joint_positions(path):
     return out
 
 
-def save(path, prims, name='hull'):
-    """Writes the primitives as one mesh on one root node, de-interleaved, 16-bit indices where they fit."""
+def save(path, prims, name='hull', nodes=None):
+    """Writes the primitives as one mesh on one root node, de-interleaved, 16-bit indices where they fit; `nodes`
+    {name: [x, y, z]} adds empty child nodes there (a weapon's "muzzle")."""
     out = bytearray(); views = []; accs = []
 
     def add(arr, target, kind, comp):
@@ -103,6 +132,9 @@ def save(path, prims, name='hull'):
          'nodes': [{'name': name, 'mesh': 0}], 'meshes': [{'name': name, 'primitives': primitives}],
          'materials': [{'name': m, 'pbrMetallicRoughness': {'metallicFactor': 0.0, 'roughnessFactor': 0.6}} for m in materials],
          'accessors': accs, 'bufferViews': views, 'buffers': [{'byteLength': len(out)}]}
+    for n, pos in (nodes or {}).items():
+        g['nodes'].append({'name': n, 'translation': [float(v) for v in pos]})
+        g['nodes'][0].setdefault('children', []).append(len(g['nodes']) - 1)
     while len(out) % 4: out.append(0)
     js = json.dumps(g, separators=(',', ':')).encode()
     js += b' ' * (-len(js) % 4)

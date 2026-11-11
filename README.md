@@ -1,14 +1,21 @@
 # Chorus ships importer
 
-Builds the **chorus_ships** mod for the Galaxy on Fire 2 Unity Remake from **your own copy of Chorus**. For now that's
-the **Forsaken**, Nara's fighter, as a ship sold by visitors in the Space Lounges. It has:
-- its own model and Chorus's materials, with the glow lines and engine glow;
-- guns on its weapon platforms, a launcher under the nose, and exhausts at its nozzles;
-- Chorus's own engine, boost, drift, dodge and travel boost sounds;
-- the remake's Chorus flight.
+Builds the **chorus_ships** mod for the Galaxy on Fire 2 Unity Remake from **your own copy of Chorus**:
+- **Ships sold by Space Lounge visitors,** each with its own sounds and the remake's Chorus flight:
+  - the **Forsaken**, Nara's fighter, as a customizable ship whose mounted Chorus guns show on its weapon platforms;
+  - the **Elder Buddy** (the Forsaken in the Elder's colours, also a skin in its Customize screen);
+  - the **Argus**.
+- **Chorus's fifteen weapons** in the shops: the gatlings, lasers and missile launchers of every tier, under their Chorus
+  names.
+- **Every other Chorus ship, flown by the remake's NPCs:**
+  - the Circle's and the pirates' fighters, scouts, support ships and drones with the pirates, the Omen's drone, bat swarm
+    and warden with the Void;
+  - the gunships, the Prophet, Sav, Ree, Aryana's ship and the Omen fortress as pirate bosses;
+  - the civilian liners, transports, haulers, couriers, container ship, Atlases and traffic ships as freighters;
+  - the frigates, dropship, battleship, the Circle's warships, Kardoh's ship, the Omen's elite fortress and Guilt as capital
+    ships (the Terran ones parked in the orbits, the Circle's and the Omen's hostile).
 
-Its three weapons are sold in the shops: the **Forsaken Gatling**, the **Forsaken Laser Rifle** and **Forsaken
-Missiles**.
+`python3 tools/sheet.py` renders a contact sheet of every ship (`chorus_ships_sheet.png`).
 
 This importer contains **nothing from Chorus**: no models, textures, game data or encryption key, only the code that
 reads the files of your own installation. The mod it builds does contain Chorus's models and textures (© Deep Silver
@@ -51,7 +58,10 @@ Settings can also go in `config.json` (copy `config.example.json`); the command 
   - The colour map is darkened by the baked ambient occlusion.
   - Normal maps are converted from DirectX to Unity (green flipped).
   - The RMO map (roughness, metallic, AO) becomes metallic / smoothness.
-  - The emissive masks are baked with each material instance's colours and multipliers.
+  - The emissive masks are baked with each material instance's colours and multipliers, read through its parents
+    (`tools/mi.py`: an instance's own values, then its parent instances', then the master material's defaults).
+  - Tangents get their handedness from the UVs (`glb.tangent_signs`: the export writes +1 everywhere, which turned the
+    normal maps inside out on mirrored UV islands, a ship's other half).
   - The thrusters' glow follows the engines (`engine`).
 - **Mounts:** the guns go on the skeleton's weapon platform bones (`SCK_Weapon_L/R`) and the launcher between the wing
   weapon attach points. The exhausts are found on the mesh, at the thrusters' rear-facing nozzle faces. The cockpit
@@ -82,17 +92,47 @@ Each sound is set to the game's own level (a loop's loudness, a shot's loudest 6
 4- or 6-channel waves mixed down to stereo. Chorus switches waves inside an event by its own parameters (rpm, speed),
 which the remake doesn't have, so each slot takes the waves that fit it. `--no-sounds` leaves them out.
 
+## Ships
+
+- **Forsaken** (`tools/ships.py`, `tools/kit.py`): a ship kit with one hull part and Chorus's weapon model of each mounted
+  Chorus gun (the Talon, Guardian Fang, ... models) on its platforms; other primaries a Talon or a Glow (energy weapons),
+  secondaries none (their mount is inside the hull). The Customize screen can hide them. `--no-kit`: a plain ship.
+- **Elder Buddy:** the same hull in BP_Player_Ship_ElderBuddy's material set, a skin of the kit; its own engine, boost,
+  drift and dash sounds. Its hull instances inherit their glow from the Forsaken's (through MI_Elder_Theia_* and
+  MI_ElderAmaranth_*): the Forsaken's cyan lines and red accents; only its thrusters are its own orange.
+- **Argus** (SK_TF_Argus): its MRO maps converted. Its hull glows from its vertex colours (M_Argus_Master's "Use VC as
+  Emissve"; its emissive map is empty): red, the lit trim and vents (x EmissiveIntensity_R), and blue, its small lights
+  (x _B), baked into an emission map; green, a soft gradient over whole panels, is the hull-heat mask (off at rest) and
+  left out. Guns on its side weapon bones, the launcher under the nose, exhausts at its main nozzles; its own engine,
+  boost, roll and travel boost sounds.
+- **Everything else** (`tools/npcs.py`, about seventy ships): their role follows the remake's limits: a fighter (up to
+  150 m) flies in the traffic, a longer one is a pirate boss (up to 400 m), and the big hulls are freighters or capital
+  ships, scaled down past 4.5 km. Each is turned nose forward (away from its thruster glow, or along its longer axis).
+  Their materials are rebuilt from Chorus's master materials: the trim-sheet hulls (a palette colour per triangle, the trim
+  sheet's AO, roughness and normals) baked into one texture set per mesh over its unique UV layout; the plating and tech
+  panels into the same bake; windows, lights and thruster glows as flat glows; the Omen's organic shader as dark red
+  tissue with its inner glow through the thin parts. Decals and effect materials are left out. They fly with the
+  remake's NPC hulls and guns: only the look is Chorus's.
+- **Names:** an NPC ship's name is its Chorus blueprint's display name (BP_NPC_Ship_*: the name on its lock-on), read
+  from your pak at build time; a character's ship without one is named by its asset (BP_NPC_Ship_PirateQueen -> Pirate
+  Queen); the rest (the haulers, couriers, warships..., which Chorus places in its levels, not as NPC ships) get this
+  importer's own descriptive names. `tools/sheet.py` labels which is which. The civilian ship is Chorus's
+  BP_NPC_Ship_CivilianShip (SM_TG_Atlas_MK2_002) with its variants' paint (M_TG_Atlas_02 / _03); the Atlas, Mk II and
+  Mk III hulls are flown by no NPC blueprint and keep their asset names. `python3 tools/sheet.py` also writes a page per
+  role (`chorus_ships_sheet_<role>.png`).
+
 ## Weapons
 
-`tools/weapons.py` writes `items.json`. The three T1 weapons keep the proportions of Chorus's blueprints, on the scale of
-the original items they play like:
+`tools/weapons.py` writes `items.json`: all fifteen (T1, and the A / B branches of T2 and T3), named and described
+from your copy (BP_PlayerEquipmentMasterData), damage per second in Chorus's ratios at a third (the original's scale), the
+perks as the remake's echo blasts, salvos and EMP. The T1 weapons:
 - **Gatling:** on the Mass Driver MD 10. The tracers are orange and it uses Chorus's gatling loop.
 - **Laser rifle:** on the Berger Converge IV. It fires Chorus's 25-damage shots every 0.9 s, 0.62 of the gatling per
   second, as in Chorus.
 - **Missiles:** a secondary on the Intelli Jet, fired in pairs, faster, red.
 
 In Chorus all three are primaries. Galaxy on Fire 2 has no missile primaries, so the launcher fires secondary missiles.
-The weapon models aren't on the mounts: that needs the ship as a ship kit.
+The gun models are on the Forsaken's mounts through its ship kit (above).
 
 ## Tests
 

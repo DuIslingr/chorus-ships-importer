@@ -1,12 +1,12 @@
 """The conversions the importer relies on, on synthetic data (no game files): Unreal's export frame -> the remake's
 mounts, Chorus's RMO / normal / emissive maps -> URP's, the nozzle finder, and the glb round trip."""
 from pathlib import Path
-import sys, tempfile, os, unittest
+import sys, tempfile, os, unittest, json
 import numpy as np
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-from tools import ships, textures, glb, sounds, weapons
+from tools import ships, textures, glb, sounds, weapons, mi, npcs
 
 
 class MountTests(unittest.TestCase):
@@ -86,17 +86,113 @@ class SoundTests(unittest.TestCase):
         self.assertEqual(slots, set(sounds.SHIP))
 
 
+class KitTests(unittest.TestCase):
+    def test_a_weapon_glb_has_its_muzzle_at_the_front(self):
+        from tools import kit
+        v, i = _box(-1.0, 2.0, -0.5, 0.5)
+        prims = [('MatA', {'POSITION': v}, i)]
+        m = kit.muzzle(prims)
+        self.assertAlmostEqual(2.0, m[0]); self.assertAlmostEqual(0.0, m[1]); self.assertAlmostEqual(0.0, m[2])
+        with tempfile.TemporaryDirectory() as d:
+            p = os.path.join(d, 'w.glb')
+            glb.save(p, prims, 'gun', nodes={'muzzle': m})
+            np.testing.assert_allclose([2.0, 0.0, 0.0], glb.joint_positions(p)['muzzle'], atol=1e-6)
+
+    def test_the_kit_ship_keeps_the_ship_but_its_model(self):
+        from tools import kit
+        ship = {'id': 'forsaken', 'model': 'models/forsaken.glb', 'modelLength': 749, 'modelYaw': 90, 'hangarHeight': 107,
+                'materials': [{'material': 'M'}], 'mounts': [{'slotType': 0}], 'armor': 560}
+        elder = dict(ship, id='elder_buddy', name='Elder Buddy', engineGlowColor=[1, 0.4, 0],
+                     materials=[{'material': 'M', 'diffuse': 'maps/e_c.png', 'engine': True}])
+        with tempfile.TemporaryDirectory() as d:
+            kits, entries = kit.build(d, d, ship, skinned=[elder])   # no export: no weapon models, the defaults only
+        entry = entries[0]
+        self.assertEqual('forsaken', entry['kit']); self.assertNotIn('model', entry); self.assertEqual(560, entry['armor'])
+        self.assertEqual(ship['mounts'], entry['mounts'])
+        k = kits[0]
+        self.assertEqual((3.6, 90), (k['scale'], k['yaw']))
+        self.assertEqual('models/forsaken.glb', k['parts'][0]['model'])
+        self.assertEqual([{'slot': 'secondary', 'model': ''}], k['hardpoints']['weapons'])
+        # the Elder Buddy: a skin of the kit (maps only) and a ship that wears it
+        self.assertEqual({'hull': 'forsaken', 'skin': 'elder_buddy'}, entries[1]['build'])
+        self.assertEqual([{'material': 'M', 'diffuse': 'maps/e_c.png'}], k['skins'][0]['materials'])
+        self.assertEqual([1, 0.4, 0], k['skins'][0]['engineColor'])
+
+
 class WeaponTests(unittest.TestCase):
+    def test_names_come_from_the_master_data(self):
+        master = [{'Properties': {'WeaponsMasterData': [{'ItemName': 'Gatling_T1', 'ItemDisplayName': {'LocalizedString': 'BIG  GUN'},
+                   'ItemDescription': {'LocalizedString': 'It shoots.'},
+                   'PerkDescription0': {'LocalizedString': 'FAST - Shoots fast.'}}]}}]
+        with tempfile.TemporaryDirectory() as d:
+            p = os.path.join(d, 'm.json'); json.dump(master, open(p, 'w'))
+            items = weapons.build('', d, p)
+        t1 = next(i for i in items if i['id'] == 'chorus_gatling_t1')
+        self.assertEqual('Big Gun', t1['name'])
+        self.assertEqual('It shoots. Shoots fast. (Chorus)', t1['description'])
+
     def test_items_without_an_export_keep_their_base_sounds(self):
         with tempfile.TemporaryDirectory() as d:
             items = weapons.build('', d)
-        self.assertEqual(['chorus_gatling', 'chorus_laser_rifle', 'chorus_missiles'], [i['id'] for i in items])
-        self.assertEqual([27, 8, 37], [i['base'] for i in items])   # Mass Driver MD 10, Berger Converge IV, Intelli Jet
+        self.assertEqual(15, len(items))
+        ids = {i['id']: i for i in items}
+        self.assertEqual(15, len(ids), 'unique ids')
+        self.assertEqual([27, 8, 37], [ids[k]['base'] for k in ('chorus_gatling_t1', 'chorus_laser_t1', 'chorus_missiles_t1')])
         for i in items:
             self.assertNotIn('shot', i.get('fx', {}))
-        gat, laser = items[0]['stats'], items[1]['stats']
+            self.assertIn(i['techLevel'], (7, 8, 9))
+        gat, laser = ids['chorus_gatling_t1']['stats'], ids['chorus_laser_t1']['stats']
         ratio = (laser['damage'] / laser['loadingTimeMs']) / (gat['damage'] / gat['loadingTimeMs'])
         self.assertAlmostEqual(83 / 133, ratio, delta=0.02)   # Chorus's laser rifle / gatling per second
+
+
+class MaterialTests(unittest.TestCase):
+    def test_tangent_handedness_follows_the_uvs(self):
+        # a quad facing +z, u along +x and v down the image (-y): glTF's bitangent (+Y, up the normal map) is +y -> w = +1;
+        # the same quad with its u mirrored -> w = -1
+        pos = np.array([[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]], np.float32)
+        nrm = np.tile([0, 0, 1], (4, 1)).astype(np.float32)
+        idx = np.array([0, 1, 2, 0, 2, 3], np.uint32)
+        uv = np.array([[0, 1], [1, 1], [1, 0], [0, 0]], np.float32)
+        tan = np.tile([1, 0, 0, 1], (4, 1)).astype(np.float32)
+        np.testing.assert_array_equal([1, 1, 1, 1], glb.tangent_signs(pos, nrm, tan, uv, idx)[:, 3])
+        mirrored = uv * [-1, 1] + [1, 0]
+        tan_m = np.tile([-1, 0, 0, 1], (4, 1)).astype(np.float32)
+        np.testing.assert_array_equal([-1, -1, -1, -1], glb.tangent_signs(pos, nrm, tan_m, mirrored, idx)[:, 3])
+
+    def test_vertex_colours_bake_over_the_uvs(self):
+        uv = np.array([[0, 0], [1, 0], [0, 1]], np.float32)
+        col = np.array([[1, 0, 0], [1, 0, 0], [1, 0, 0]], np.float32)
+        img = textures.bake_vertex_colours(uv, col, np.array([0, 1, 2]), 16)
+        np.testing.assert_allclose([1, 0, 0], img[2, 2], atol=1e-5)   # inside the triangle
+        self.assertEqual((16, 16, 3), img.shape)
+
+    def test_parameters_come_through_the_parents(self):
+        def inst(parent, **kw):
+            d = {'Parent': {'ObjectPath': parent + '.0'} if parent else None}
+            d.update(kw); return [{'Properties': d}]
+        with tempfile.TemporaryDirectory() as d:
+            files = {'MI_Child': inst('P/MI_Parent', ScalarParameterValues=[{'ParameterInfo': {'Name': 'Emissive02_Multiplier'}, 'ParameterValue': 2.0}]),
+                     'MI_Parent': inst('P/M_Master', VectorParameterValues=[{'ParameterInfo': {'Name': 'Emissive02'}, 'ParameterValue': {'R': 0.2, 'G': 1, 'B': 0.8}}]),
+                     'M_Master': [{'CachedExpressionData': {'Parameters': {
+                         'RuntimeEntries': {'ParameterInfos': [{'Name': 'Emissive02_Multiplier'}, {'Name': 'Emissive03_Multiplier'}]},
+                         'RuntimeEntries[1]': {'ParameterInfos': [{'Name': 'Emissive02'}, {'Name': 'Emissive03'}]},
+                         'ScalarValues': [1.0, 0.0], 'VectorValues': [{'R': 0, 'G': 1, 'B': 0}, {'R': 0, 'G': 0, 'B': 1}]}}}]}
+            for n, v in files.items(): json.dump(v, open(os.path.join(d, n + '.json'), 'w'))
+            p = mi.Resolver(lambda *a, **k: None, d).get('P/MI_Child')
+        self.assertEqual(['MI_Child', 'MI_Parent', 'M_Master'], p.chain)
+        self.assertEqual(2.0, p.scalar('Emissive02_Multiplier'))
+        self.assertEqual([0.2, 1.0, 0.8], p.vector('Emissive02'))      # the parent's, not the master's default
+        self.assertEqual([0.0, 0.0, 1.0], p.vector('Emissive03'))      # the master's default
+        # Emissive03's multiplier is 0: only green (Emissive02) glows
+        self.assertEqual([(1, [0.2, 1.0, 0.8], 2.0)], [c for c in ships._colours(p) if c[0] != 0])
+
+    def test_a_hull_is_turned_nose_forward(self):
+        v = np.array([[0, 0, 5], [0, 0, -5], [1, 0, 0]], np.float32)
+        prims = [('Hull', {'POSITION': v}, np.array([0, 1, 2])), ('MI_Thruster', {'POSITION': np.array([[0.5, 0, -5]], np.float32)}, np.array([0]))]
+        self.assertEqual('+z', npcs._nose(prims))                       # away from the thruster
+        turned = npcs._turn(prims, '+z')[0][1]['POSITION']
+        np.testing.assert_allclose([5, 0, 0], turned[0])                # the nose now at +X
 
 
 if __name__ == '__main__':

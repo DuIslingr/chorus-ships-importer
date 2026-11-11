@@ -1,9 +1,11 @@
 # Blender script: the mod's shop icon (180 x 88, transparent, the ship seen from the front-left above) and preview.png,
 # with the ships.json materials (colour, normal, metallic / smoothness, emission) as the remake draws them.
-# blender -b --factory-startup -P render_blender.py -- <mod folder> <ship id>
+# blender -b --factory-startup -P render_blender.py -- <mod folder> <ship id> [<preview file name>]
 import bpy, sys, os, json, math, mathutils
 
-mod, ship_id = sys.argv[sys.argv.index('--') + 1:][:2]
+args = sys.argv[sys.argv.index('--') + 1:]
+mod, ship_id = args[:2]
+preview = args[2] if len(args) > 2 else 'preview.png'   # '' = the icon only
 ship = next(s for s in json.load(open(os.path.join(mod, 'ships.json'), encoding='utf-8')) if s['id'] == ship_id)
 bpy.ops.wm.read_factory_settings(use_empty=True)
 bpy.ops.import_scene.gltf(filepath=os.path.join(mod, ship['model']))
@@ -39,6 +41,7 @@ meshes = [o for o in bpy.data.objects if o.type == 'MESH']
 pts = [o.matrix_world @ mathutils.Vector(c) for o in meshes for c in o.bound_box]
 lo = mathutils.Vector([min(p[i] for p in pts) for i in range(3)]); hi = mathutils.Vector([max(p[i] for p in pts) for i in range(3)])
 ctr = (lo + hi) / 2; r = (hi - lo).length / 2
+span = max(hi - lo)   # the longest side: the framing follows it (a long hull isn't cropped more than a round one)
 sc = bpy.context.scene
 sc.render.engine = 'BLENDER_EEVEE_NEXT' if 'BLENDER_EEVEE_NEXT' in [e.identifier for e in bpy.types.RenderSettings.bl_rna.properties['engine'].enum_items] else 'BLENDER_EEVEE'
 sc.world = bpy.data.worlds.new('w'); sc.world.color = (0.02, 0.02, 0.025)
@@ -53,7 +56,7 @@ def shot(path, w, h, view, film_transparent, fill):
     cam.data.type = 'ORTHO'
     cam.location = ctr + mathutils.Vector(view).normalized() * r * 4
     cam.rotation_euler = (ctr - cam.location).to_track_quat('-Z', 'Y').to_euler()
-    cam.data.ortho_scale = 2 * r * fill * max(1.0, w / h)
+    cam.data.ortho_scale = span * fill
     sc.render.resolution_x, sc.render.resolution_y = w, h
     sc.render.film_transparent = film_transparent
     sc.render.filepath = path
@@ -61,6 +64,6 @@ def shot(path, w, h, view, film_transparent, fill):
 
 
 sc.view_settings.exposure = 1.3
-shot(os.path.join(mod, ship['icon']), 360, 176, (0.35, -1.0, 0.3), True, 0.3)
+shot(os.path.join(mod, ship['icon']), 360, 176, (0.35, -1.0, 0.3), True, 0.875)
 sc.view_settings.exposure = 0.0   # (import.py scales it to 180 x 88)
-shot(os.path.join(mod, 'preview.png'), 960, 540, (0.8, -1.0, 0.55), False, 0.62)
+if preview: shot(os.path.join(mod, preview), 960, 540, (0.8, -1.0, 0.55), False, 1.57)

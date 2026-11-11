@@ -18,9 +18,11 @@ import numpy as np
 
 ENGINE_LEVEL, SHOT_LEVEL, BOOST_LEVEL, BOOST_LOOP_LEVEL = 0.388 * 0.27, 0.371 * 0.7, 0.407 * 0.81, 0.343 * 0.6
 
-# The ships.json sound -> (Chorus event under event:/Sfx/Player/Ships/Phoenix/, its waves to take (a pattern), loop?, the
-# level, how the volume and pitch run (the slot's from / to: the engine by speed, the boost loop by its strength)).
+# Per ship: the ships.json sound -> (Chorus event, its waves to take (a pattern), loop?, the level, how the volume and pitch
+# run (the slot's from / to: the engine by speed, the boost loop by its strength)).
 PHOENIX = 'Sfx/Player/Ships/Phoenix/'
+ELDER = 'Sfx/Player/Ships/Elder_Buddy_Engine/'
+ARGUS = 'Sfx/Player/Ships/Argus/'
 SHIP = {
     'engine':      ('Playership_Phoenix_Engine', r'^Argus3_Engine_Loop_04$', True, ENGINE_LEVEL, (0.55, 1.0), (0.85, 1.15)),
     'boostStart':  ('Playership_Boost', r'^Sfx_Phoenix_Boost_v6_Default_6ch-\d+$', False, BOOST_LEVEL, (1.0, 1.0), (0.95, 1.05)),
@@ -34,8 +36,31 @@ SHIP = {
     'travelLoop':  ('Playership_Travel_Boost', r'^Sfx_Phoenix_Travel_Boost_3_Add_Loop$', True, BOOST_LOOP_LEVEL, (0.6, 1.0), (1.0, 1.0)),
     'travelStop':  ('Playership_Travel_Boost', r'^Sfx_Phoenix_Travel_Boost_off_\d+$', False, BOOST_LEVEL * 0.7, (1.0, 1.0), (0.95, 1.05)),
 }
+# The Elder Buddy (Elder_Buddy_Engine's events; it has no travel boost of its own: the Forsaken's) and the Argus (no drift
+# or dash events: its rolls are the dodge).
+ELDER_SHIP = {
+    'engine':      ('Player_Elder_Engine', r'^Playership_Elder_Buddy_Engine_Loop-001$', True, ENGINE_LEVEL, (0.55, 1.0), (0.85, 1.15)),
+    'boostStart':  ('Player_Elder_Boost', r'^Playership_Elder_Buddy_Boost_Ignition$', False, BOOST_LEVEL, (1.0, 1.0), (0.95, 1.05)),
+    'boostLoop':   ('Player_Elder_Boost', r'^Playership_Elder_Buddy_Boost_Loop$', True, BOOST_LOOP_LEVEL, (0.5, 1.0), (1.0, 1.1)),
+    'boostStop':   ('Player_Elder_Boost', r'^Playership_Elder_Buddy_Boost_Stop$', False, BOOST_LEVEL * 0.5, (1.0, 1.0), (0.95, 1.05)),
+    'driftStart':  ('Player_Elder_Drift_Start', r'^Player_elder_Drift_Ignition_\d+$', False, BOOST_LEVEL * 0.6, (1.0, 1.0), (0.95, 1.05)),
+    'driftLoop':   ('Player_Elder_Drift_Active', r'^Sfx_Flight_Condition_Form_Wind_Cold_05$', True, BOOST_LOOP_LEVEL * 0.6, (0.4, 1.0), (0.9, 1.1)),
+    'driftStop':   ('Player_Elder_Drift_Stop_Ignition', r'^Playership_Engine_Ignition_Main_\d+$', False, BOOST_LEVEL * 0.8, (1.0, 1.0), (0.95, 1.05)),
+    'dodge':       ('Player_Elder_Dash', r'^Playership_Elder_Buddy_Dash-\d+$', False, SHOT_LEVEL * 0.8, (1.0, 1.0), (0.95, 1.05)),
+}
+ARGUS_SHIP = {
+    'engine':      ('Argus_Engine', r'^Argus3_Engine_Loop_04$', True, ENGINE_LEVEL, (0.55, 1.0), (0.85, 1.15)),
+    'boostStart':  ('Argus_Boost', r'^Sfx_Argus_Boost_v10_Exhaust_Flap_\d+$', False, BOOST_LEVEL, (1.0, 1.0), (0.95, 1.05)),
+    'boostLoop':   ('Argus_Boost', r'^Argus_Accelerate_Loop_01$', True, BOOST_LOOP_LEVEL, (0.5, 1.0), (1.0, 1.1)),
+    'dodge':       ('Argus_Roll_L', r'^Argus_Reduced_Roll_L-\d+$', False, SHOT_LEVEL * 0.8, (1.0, 1.0), (0.95, 1.05)),
+    'travelStart': ('Argus_Travel_Boost', r'^Sfx_Argus_Travelboost_Activate_6ch_01$', False, BOOST_LEVEL, (1.0, 1.0), (1.0, 1.0)),
+    'travelLoop':  ('Argus_Travel_Boost', r'^Ship_Argus_TravelBoost_Engine_Loop-001$', True, BOOST_LOOP_LEVEL, (0.6, 1.0), (1.0, 1.0)),
+    'travelStop':  ('Argus_Travel_Boost', r'^Ship_Argus_TravelBoost_Stop-\d+$', False, BOOST_LEVEL * 0.7, (1.0, 1.0), (0.95, 1.05)),
+}
+# ship id -> (its events' folder, its table); a slot it lacks is taken from the Forsaken's.
+SHIPS = {'forsaken': (PHOENIX, SHIP), 'elder_buddy': (ELDER, ELDER_SHIP), 'argus': (ARGUS, ARGUS_SHIP), 'forsaken_supercharged': (PHOENIX, {})}   # (the supercharged Forsaken: all the Forsaken's)
 # The exporter's event pattern for these.
-EVENTS = r'Sfx/Player/Ships/Phoenix/'
+EVENTS = r'Sfx/Player/Ships/(Phoenix|Elder_Buddy_Engine|Argus)/'
 
 
 def ffmpeg():
@@ -71,16 +96,20 @@ def write(src, dst, gain=1.0):
     subprocess.run(args + ['-c:a', 'libvorbis', '-q:a', '5', dst], check=True)
 
 
-def build(fmod_dir, mod):
-    """ships.json "sounds" for the Forsaken from <fmod_dir> (the exporter's fmod output); the files go to <mod>/audio/.
-    Missing events or waves leave their slot out (the remake keeps the game's sound there)."""
+def build(fmod_dir, mod, ship='forsaken'):
+    """ships.json "sounds" for a ship (SHIPS) from <fmod_dir> (the exporter's fmod output); the files go to <mod>/audio/.
+    Missing events or waves leave their slot out (the remake keeps the game's sound there); a slot the ship's table lacks
+    is the Forsaken's (its files shared)."""
     if not ffmpeg():
-        print('  no ffmpeg on the PATH: the Forsaken keeps the game\'s sounds')
+        print('  no ffmpeg on the PATH: the ships keep the game\'s sounds')
         return {}
     events = json.load(open(os.path.join(fmod_dir, 'events.json'), encoding='utf-8'))
+    folder, table = SHIPS[ship]
     out = {}
-    for slot, (event, pattern, loop, level, vol, pitch) in SHIP.items():
-        waves = events.get('event:/' + PHOENIX + event, {}).get('waves', [])
+    for slot, spec in list(table.items()) + [(k, v) for k, v in SHIP.items() if k not in table]:
+        event, pattern, loop, level, vol, pitch = spec
+        own = slot in table
+        waves = events.get('event:/' + (folder if own else PHOENIX) + event, {}).get('waves', [])
         pick = sorted(w for w in waves if re.match(pattern, os.path.splitext(os.path.basename(w))[0]))
         if not pick:
             print(f'  {slot}: no wave in {event}')
@@ -97,7 +126,7 @@ def build(fmod_dir, mod):
             gain = min(volume, 0.98 / peak)
             volume = min(1.0, volume / gain)
         for w in pick:
-            name = 'audio/forsaken_' + re.sub(r'[^a-z0-9]+', '_', os.path.splitext(os.path.basename(w))[0].lower()).strip('_') + '.ogg'
+            name = f"audio/{ship if own else 'forsaken'}_" + re.sub(r'[^a-z0-9]+', '_', os.path.splitext(os.path.basename(w))[0].lower()).strip('_') + '.ogg'
             write(os.path.join(fmod_dir, w), os.path.join(mod, name), gain)
             files.append(name)
         entry = {'files' if len(files) > 1 else 'file': files if len(files) > 1 else files[0]}
