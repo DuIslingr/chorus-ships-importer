@@ -100,9 +100,10 @@ def joint_positions(path):
     return out
 
 
-def save(path, prims, name='hull', nodes=None):
+def save(path, prims, name='hull', nodes=None, keep=KEEP):
     """Writes the primitives as one mesh on one root node, de-interleaved, 16-bit indices where they fit; `nodes`
-    {name: [x, y, z]} adds empty child nodes there (a weapon's "muzzle")."""
+    {name: [x, y, z]} adds empty child nodes there (a weapon's "muzzle"); `keep` the attributes written (the Chorus
+    layers' hulls: UV sets 0 - 3 and the vertex colours too)."""
     out = bytearray(); views = []; accs = []
 
     def add(arr, target, kind, comp):
@@ -120,7 +121,7 @@ def save(path, prims, name='hull', nodes=None):
     materials, primitives = [], []
     for mat, attrs, idx in prims:
         a = {}
-        for k in KEEP:
+        for k in keep:
             if k in attrs:
                 v = attrs[k].astype(np.float32)
                 a[k] = add(v, 34962, {2: 'VEC2', 3: 'VEC3', 4: 'VEC4'}[v.shape[1]], 5126)

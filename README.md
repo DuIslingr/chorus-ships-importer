@@ -23,7 +23,8 @@ FISHLABS), so it is for your own use: **don't share or upload the built mod**. S
 
 ## What you need
 
-- The **Galaxy on Fire 2 Unity Remake**.
+- The **Galaxy on Fire 2 Unity Remake**, a build with its Chorus layers (GoF2/Hull's `chorus` materials, 2026-11-11) for the
+  NPC hulls' trim sheets; with an older one, build with `--bake-hulls`.
 - **Chorus**, installed (Steam, Epic or GOG: the PC game, with its `SpacePrototype/Content/Paks` folder).
 - The **.NET 10 SDK** (dotnet.microsoft.com) to build the exporter.
 - A checkout of **CUE4Parse** (`git clone https://github.com/FabianFG/CUE4Parse`), the library that reads Unreal
@@ -97,6 +98,17 @@ which the remake doesn't have, so each slot takes the waves that fit it. `--no-s
 - **Forsaken** (`tools/ships.py`, `tools/kit.py`): a ship kit with one hull part and Chorus's weapon model of each mounted
   Chorus gun (the Talon, Guardian Fang, ... models) on its platforms; other primaries a Talon or a Glow (energy weapons),
   secondaries none (their mount is inside the hull). The Customize screen can hide them. `--no-kit`: a plain ship.
+- **Animations** (`tools/rig.py`, the exporter's `anim`): the Forsaken's skin is rigid (every vertex on one bone), so its
+  hull is written as parts on its skeleton's nodes, with Chorus's idle and drift clips (phoenix_anim_driftStart / Loop /
+  End) as node animations; ships.json `"animations"` has the remake play them while the player drifts. Also: the travel
+  boost clips; the steering / thrust / brake flaps and the bank as poses weighted by the input; the weapons deploying
+  while the player fires (the kit's primary guns ride the wpnPlatform bones: the mounts' `follow`); the dash's dodge
+  roll, and its own dodge out of a drift. Each layered clip keys only the bones that differ from Chorus's idle (more
+  than 1 cm or 0.003 in the quaternion), the bank's leave the root alone (the remake rolls the ship itself). The Elder
+  Buddy and the supercharged Forsaken share the skeleton and the clips.
+- **Supercharged Forsaken:** its energy wings (Mi_SuperChargedShieldWings_Sheets, translucent) as an additive glow: the
+  feather mask in the Main Color, its streaks brighter, kept under the remake's bloom (Chorus's HDR colours white it out
+  at full strength); their scrolling noise shimmer and orange accent are left out.
 - **Elder Buddy:** the same hull in BP_Player_Ship_ElderBuddy's material set, a skin of the kit; its own engine, boost,
   drift and dash sounds. Its hull instances inherit their glow from the Forsaken's (through MI_Elder_Theia_* and
   MI_ElderAmaranth_*): the Forsaken's cyan lines and red accents; only its thrusters are its own orange.
@@ -108,11 +120,31 @@ which the remake doesn't have, so each slot takes the waves that fit it. `--no-s
 - **Everything else** (`tools/npcs.py`, about seventy ships): their role follows the remake's limits: a fighter (up to
   150 m) flies in the traffic, a longer one is a pirate boss (up to 400 m), and the big hulls are freighters or capital
   ships, scaled down past 4.5 km. Each is turned nose forward (away from its thruster glow, or along its longer axis).
-  Their materials are rebuilt from Chorus's master materials: the trim-sheet hulls (a palette colour per triangle, the trim
-  sheet's AO, roughness and normals) baked into one texture set per mesh over its unique UV layout; the plating and tech
-  panels into the same bake; windows, lights and thruster glows as flat glows; the Omen's organic shader as dark red
-  tissue with its inner glow through the thin parts. Decals and effect materials are left out. They fly with the
-  remake's NPC hulls and guns: only the look is Chorus's.
+  Their materials are rebuilt from Chorus's master materials, after their compiled shaders (the exporter's `shaders`
+  command, disassembled; `tools/npcs.py` TRIM_SHADER / PLATING_SHADER has the formulas):
+  - **Trim sheets and platings** (M_TrimLayersMaster, M_NPCShipTrimMaster, M_PlatingMaster: nearly every hull) are drawn
+    by the remake's **Chorus layers** (GoF2/Hull, the material's `chorus` block) from Chorus's own maps over the hull's own
+    UV sets, as Chorus draws them: a palette swatch per face (UV3), the tiling layer (UV1), the trim sheet's accent strips,
+    occlusion, normals and lit strips (UV0), the dirt by the vertex colours, the gunships' red kicker rim far off. The
+    maps are written once into `maps/chorus/` and shared. (A bake into one texture per hull, `--bake-hulls`, lost the
+    trim sheet's detail on the big hulls: a 2K map over a 4 km warship is metres a texel. It needs a remake without the
+    Chorus layers only.)
+  - Tech panels from their own maps at full size; Sav's and Ree's hulls by their layer mask (a tinted coat or bare metal
+    per panel, tiled; baked), their floater panels from their own sheet; decals (hull numbers, labels, emblems) cut out
+    of their sheets; a blueprint's parts on the hull's sockets (the Prophet's weapon pods); windows as their pane atlas
+    (each pane lit or dimmed) or their glass mask; lights and thruster glows as flat glows (a station light's channel
+    by its UV quadrant, as the compiled shader picks it).
+  - The Omen's tissue (M_JTU_Faceless) is all glow, as its shader has it (a black, unlit base): its outer glow mixed at
+    least half with its inner glow over the variation maps, baked as seen head-on with its breathing pulse at rest; the
+    cores glow through their thin parts. The Prophet's crystal crown glows red through its veins (its blueprint's lights
+    override applied by hand).
+  - Normal-only decals and effect materials are left out, and so is the unfinished SM_TU_Ufo (no material for it in the
+    pak). They fly with the remake's NPC hulls and guns: only the look is Chorus's.
+- **Mounts and escorts:** an NPC hull's exhausts sit at its mesh's Thruster sockets, else at the nozzles of its own
+  thruster glow; a capital ship's turrets at its Artillery / NPCAttack sockets, else along its back (armed through
+  `npcTurrets`: the Hammerhead D2A2, the Vossk L'ksaar for the Vossk); the warships smoke at their damage-effect
+  sockets. `npcships.json` brings the capital ships with escorts of their own side's fighters (the Circle's Ravens,
+  Crows and Harriers, the Omen's Emergents, swarms and Conduits) and the dropship launching Circle fighters.
 - **Names:** an NPC ship's name is its Chorus blueprint's display name (BP_NPC_Ship_*: the name on its lock-on), read
   from your pak at build time; a character's ship without one is named by its asset (BP_NPC_Ship_PirateQueen -> Pirate
   Queen); the rest (the haulers, couriers, warships..., which Chorus places in its levels, not as NPC ships) get this

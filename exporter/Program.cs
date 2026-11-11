@@ -4,11 +4,13 @@
 //   keyscan                   the pak key from the game exe        list [regex]   package paths
 //   json <path> <out.json>    one package as JSON                  jsonall <regex> <dir>   every match
 //   export <list> <outdir>    meshes as .glb + materials (.json) + textures (.png), in FModel's layout
+//   shaders <material> <outdir>  a material's compiled shaders (DXBC, from the shader library) and its uniforms.json
 using Serilog;
 using CUE4Parse.Encryption.Aes;
 using CUE4Parse.FileProvider;
 using CUE4Parse.MappingsProvider.Usmap;
 using CUE4Parse.UE4.Objects.Core.Misc;
+using CUE4Parse.UE4.Objects.Core.Math;
 using CUE4Parse.UE4.Versions;
 using CUE4Parse.UE4.Assets.Exports.Material;
 
@@ -48,6 +50,7 @@ if (args.Length > 0 && args[0] == "keyscan")
 var provider = new DefaultFileProvider(Env("CHORUS_GAME"), SearchOption.AllDirectories, new VersionContainer(EGame.GAME_UE4_26), StringComparer.OrdinalIgnoreCase);
 var usmap = Environment.GetEnvironmentVariable("CHORUS_USMAP");
 if (!string.IsNullOrEmpty(usmap)) provider.MappingsContainer = new FileUsmapTypeMappingsProvider(usmap);
+if (args.Length > 0 && args[0] == "shaders") provider.ReadShaderMaps = true;
 provider.Initialize();
 provider.SubmitKey(new FGuid(), new FAesKey(Env("CHORUS_AES_KEY")));
 provider.PostMount();
@@ -109,12 +112,106 @@ switch (args[0])
         Console.WriteLine($"{manifest.Count} events -> {args[2]}");
         break;
     }
+    case "shaders":
+    {
+        // shaders <material path> <outdir>: the material's shader map (the first of its parent chain that has one): every
+        // shader type per vertex factory (shadermap.txt), the uniform buffer's layout and preshaders (uniforms.json: which
+        // parameter fills which slot), and each shader's code out of the project's shader library (LZ4-decompressed; a
+        // DXBC container, for d3dcompiler's disassembler) as <index>_<frequency>.bin
+        Directory.CreateDirectory(args[2]);
+        UMaterialInterface? mat = provider.LoadPackageObject<UMaterialInterface>(Norm(args[1]));
+        var log = new System.Text.StringBuilder();
+        CUE4Parse.UE4.Assets.Exports.Material.FMaterialShaderMap? sm = null;
+        for (var p = mat; p != null; p = (p as UMaterialInstance)?.Parent?.Load<UMaterialInterface>())
+        {
+            log.AppendLine($"{p.GetPathName()}: {p.LoadedMaterialResources?.Count ?? 0} resources");
+            sm = p.LoadedMaterialResources?.Select(r => r.LoadedShaderMap).FirstOrDefault(x => x != null);
+            if (sm != null) break;
+        }
+        if (sm == null) { Console.Error.WriteLine("no shader map in the chain"); File.WriteAllText(Path.Combine(args[2], "shadermap.txt"), log.ToString()); break; }
+        log.AppendLine($"platform {sm.ShaderPlatform} hash {sm.ResourceHash}");
+        void ListC(string label, FShaderMapContent c) { foreach (var x in c.Shaders) log.AppendLine($"  [{label}] {x.Type} freq {x.Target.Frequency} res {x.ResourceIndex} instr {x.NumInstructions}"); }
+        if (sm.Content != null) ListC("material", sm.Content);
+        if (sm.Content is FMaterialShaderMapContent mc)
+        {
+            File.WriteAllText(Path.Combine(args[2], "uniforms.json"), Newtonsoft.Json.JsonConvert.SerializeObject(mc.MaterialCompilationOutput, Newtonsoft.Json.Formatting.Indented));
+            if (mc.OrderedMeshShaderMaps != null) foreach (var vf in mc.OrderedMeshShaderMaps) ListC(vf.VertexFactoryTypeName.ToString(), vf);
+        }
+        var libPath = provider.Files.Keys.First(k => k.EndsWith("ShaderArchive-SpacePrototype-PCD3D_SM5.ushaderbytecode", StringComparison.OrdinalIgnoreCase));
+        var lib = new CUE4Parse.UE4.Shaders.FShaderCodeArchive(new CUE4Parse.UE4.Readers.FByteArchive("lib", provider.Files[libPath].Read(), provider.Versions));
+        var a = (CUE4Parse.UE4.Shaders.FSerializedShaderArchive) lib.SerializedShaders;
+        int mi = Array.FindIndex(a.ShaderMapHashes, h => h.ToString() == sm.ResourceHash?.ToString());
+        log.AppendLine($"library: {a.ShaderMapHashes.Length} maps, {a.ShaderEntries.Length} shaders; ours {mi}");
+        if (mi >= 0)
+        {
+            var me = a.ShaderMapEntries[mi];
+            for (uint k = 0; k < me.NumShaders; k++)
+            {
+                uint si = a.ShaderIndices[me.ShaderIndicesOffset + k];
+                var se = a.ShaderEntries[si];
+                var raw = lib.ShaderCode[si]; var code = raw;
+                if (se.Size < se.UncompressedSize)
+                {
+                    code = new byte[se.UncompressedSize];
+                    CUE4Parse.Compression.Compression.Decompress(raw, 0, raw.Length, code, 0, code.Length, CUE4Parse.Compression.CompressionMethod.LZ4);
+                }
+                File.WriteAllBytes(Path.Combine(args[2], $"{k:D3}_{se.Frequency}.bin"), code);
+                log.AppendLine($"  {k:D3} freq {se.Frequency} lib {si} {raw.Length} -> {code.Length}");
+            }
+        }
+        File.WriteAllText(Path.Combine(args[2], "shadermap.txt"), log.ToString());
+        Console.WriteLine(log.ToString());
+        break;
+    }
     case "json":
-        var pkg = provider.LoadPackage(Norm(args[1]).Replace(".uasset", "") + ".uasset");
+        var jp = Norm(args[1]);   // (a level: its .umap as given)
+        var pkg = provider.LoadPackage(jp.EndsWith(".umap") ? jp : jp.Replace(".uasset", "") + ".uasset");
         var all = pkg.GetExports().ToList();
         File.WriteAllText(args[2], Newtonsoft.Json.JsonConvert.SerializeObject(all, Newtonsoft.Json.Formatting.Indented));
         Console.WriteLine($"{all.Count} exports -> {args[2]}");
         break;
+    case "anim":
+    {
+        // anim <list> <outdir>: animation sequences (a pak path a line) sampled per frame, every bone of the skeleton:
+        // <outdir>/<name>.json = { name, fps, frames, additive, ref: {bone: [tx,ty,tz, qx,qy,qz,qw, sx,sy,sz]},
+        // bones: {bone: [[tx,ty,tz, qx,qy,qz,qw, sx,sy,sz] per frame]} } in Unreal's frame (cm, bone-local)
+        Directory.CreateDirectory(args[2]);
+        int na = 0;
+        foreach (var raw in File.ReadAllLines(args[1]).Select(l => l.Trim()).Where(l => l.Length > 0))
+        {
+            try
+            {
+                var seq = provider.LoadPackageObject<CUE4Parse.UE4.Assets.Exports.Animation.UAnimSequence>(Norm(raw).Replace(".uasset", ""));
+                var set = CUE4Parse_Conversion.Animations.AnimConverter.ConvertAnims(seq);
+                var cs = set.Sequences[0];
+                var refSk = set.Skeleton.ReferenceSkeleton;
+                float[] T(FTransform t) => new[] { (float)t.Translation.X, (float)t.Translation.Y, (float)t.Translation.Z,
+                    (float)t.Rotation.X, (float)t.Rotation.Y, (float)t.Rotation.Z, (float)t.Rotation.W, (float)t.Scale3D.X, (float)t.Scale3D.Y, (float)t.Scale3D.Z };
+                var refPose = new Dictionary<string, float[]>(); var bones = new Dictionary<string, List<float[]>>();
+                for (int b = 0; b < refSk.FinalRefBoneInfo.Length; b++)
+                {
+                    string bn = refSk.FinalRefBoneInfo[b].Name.Text;
+                    var rp = refSk.FinalRefBonePose[b];
+                    refPose[bn] = T(rp);
+                    var frames = new List<float[]>();
+                    var track = b < cs.Tracks.Count ? cs.Tracks[b] : null;
+                    for (int fr = 0; fr < Math.Max(cs.NumFrames, 1); fr++)
+                    {
+                        var q = rp.Rotation; var p = rp.Translation; var sc = rp.Scale3D;
+                        track?.GetBoneTransform(fr, cs.NumFrames, ref q, ref p, ref sc);
+                        frames.Add(T(new FTransform(q, p, sc)));
+                    }
+                    bones[bn] = frames;
+                }
+                var outp = new { name = seq.Name, fps = cs.FramesPerSecond, frames = cs.NumFrames, additive = cs.IsAdditive, @ref = refPose, bones };
+                File.WriteAllText(Path.Combine(args[2], seq.Name + ".json"), Newtonsoft.Json.JsonConvert.SerializeObject(outp));
+                na++;
+            }
+            catch (Exception e) { Console.WriteLine($"FAILED {raw}: {e.Message}"); }
+        }
+        Console.WriteLine($"{na} animations -> {args[2]}");
+        break;
+    }
     case "jsonall":
         // jsonall <regex> <outdir>: every matching .uasset's exports as <outdir>/<name>.json
         var rxa = new System.Text.RegularExpressions.Regex(args[1], System.Text.RegularExpressions.RegexOptions.IgnoreCase);

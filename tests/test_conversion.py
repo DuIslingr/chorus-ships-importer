@@ -6,7 +6,7 @@ import numpy as np
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-from tools import ships, textures, glb, sounds, weapons, mi, npcs
+from tools import ships, textures, glb, sounds, weapons, mi, npcs, rig
 
 
 class MountTests(unittest.TestCase):
@@ -160,6 +160,55 @@ class MaterialTests(unittest.TestCase):
         tan_m = np.tile([-1, 0, 0, 1], (4, 1)).astype(np.float32)
         np.testing.assert_array_equal([-1, -1, -1, -1], glb.tangent_signs(pos, nrm, tan_m, mirrored, idx)[:, 3])
 
+    def test_station_lights_pick_their_channel_by_uv1_quadrant(self):
+        from tools import npcs
+        class P:   # (four channels; strength 1)
+            def vector(self, k): return {'Emissive_01_Color': [1, 0, 0], 'Emissive_02_Color': [0, 1, 0], 'Emissive_03_Color': [0, 0, 1], 'Emissive_04_Color': [1, 1, 1]}.get(k)
+            def scalar(self, k, d=0.0): return 1.0
+        uv = np.array([[.2, .2], [.3, .2], [.2, .3], [.8, .2], [.9, .2], [.8, .3], [.2, .8], [.3, .8], [.2, .9], [.8, .8], [.9, .8], [.8, .9]], np.float32)
+        got = {tag: col for tag, col, _ in npcs._station_lights(P(), {'TEXCOORD_1': uv}, np.arange(12, dtype=np.uint32))}
+        self.assertEqual({'q00': [1, 0, 0], 'q10': [0, 1, 0], 'q01': [0, 0, 1], 'q11': [1, 1, 1]}, got)
+
+    def test_palette_metal_is_layer_data_blue(self):
+        from tools import npcs
+        self.assertEqual(2, npcs.DATA_METAL)   # (the Prophet's white swatches black in its dim arena: metal)
+
+    def test_trim_bake_follows_the_compiled_shader(self):
+        # TRIM_SHADER: metallic = saturate((LayerData.b - .5) x 2 + Tiling RMO.g), roughness = lerp(LayerData.r,
+        # LayerData.g, Tiling RMO.r), occlusion = Tiling RMO.b x Trim AAO.b; the tiling layer over UV set 1
+        from PIL import Image
+        with tempfile.TemporaryDirectory() as d:
+            def png(name, rgb):
+                p = os.path.join(d, name + '.png'); Image.new('RGB', (4, 4), rgb).save(p); return p
+            r = {'kind': 'trim', 'colors': png('c', (255, 255, 255)), 'data': png('d', (51, 153, 255)),
+                 'trmo': png('t', (128, 0, 255)), 'tdiff': png('f', (255, 255, 255)), 'aro': png('a', (0, 0, 255)), 'tile': 2.0}
+            attrs = {'POSITION': np.array([[0, 0, 0], [1, 0, 0], [0, 1, 0]], np.float32), 'NORMAL': np.tile([0, 0, 1], (3, 1)).astype(np.float32)}
+            for k in range(4): attrs[f'TEXCOORD_{k}'] = np.array([[0.05, 0.05], [0.95, 0.05], [0.05, 0.95]], np.float32)
+            _, ms, _, _ = npcs.bake_hull([(attrs, np.array([0, 1, 2], np.uint32), r)], 16)
+            npcs._IMG.clear()
+        np.testing.assert_allclose([1.0, 1.0 - (0.2 + 0.4 * 128 / 255)], ms[3, 3, [0, 3]], atol=0.01)
+        np.testing.assert_allclose([0.0], npcs._data_metal(np.array([[0, 0, 126 / 255]])), atol=1e-6)   # (a half-blue swatch: paint)
+
+    def test_chorus_palette_is_linear_colours_beside_the_data(self):
+        # the remake's ChorusLayers reads the left half as linear colour and the right half as LayerData, by texel
+        from PIL import Image
+        with tempfile.TemporaryDirectory() as d:
+            c = os.path.join(d, 'T_X_Colors.png'); Image.new('RGB', (4, 4), (188, 188, 188)).save(c)
+            dd = os.path.join(d, 'T_X_Data.png'); Image.new('RGB', (4, 4), (10, 20, 255)).save(dd)
+            rel = npcs._chorus_palette(d, c, dd)
+            a = np.asarray(Image.open(os.path.join(d, rel)).convert('RGB'))
+        self.assertEqual((4, 8, 3), a.shape)
+        self.assertAlmostEqual(0.5, a[0, 0, 0] / 255, delta=0.01)          # (sRGB 188 is linear 0.5)
+        np.testing.assert_array_equal([10, 20, 255], a[0, 4])
+
+    def test_chorus_hulls_share_one_vertex_layout(self):
+        # glTFast reads one layout per mesh: every primitive gets UV sets 0 - 3 and vertex colours
+        n = 3
+        plain = {'POSITION': np.zeros((n, 3), np.float32), 'NORMAL': np.zeros((n, 3), np.float32), 'TEXCOORD_0': np.zeros((n, 2), np.float32)}
+        out = npcs._uniform([('glow', plain, np.arange(3, dtype=np.uint32))])
+        self.assertEqual(set(npcs.CHORUS_KEEP), set(out[0][1]))
+        np.testing.assert_array_equal(np.ones((n, 4)), out[0][1]['COLOR_0'])   # (white where a part has none)
+
     def test_vertex_colours_bake_over_the_uvs(self):
         uv = np.array([[0, 0], [1, 0], [0, 1]], np.float32)
         col = np.array([[1, 0, 0], [1, 0, 0], [1, 0, 0]], np.float32)
@@ -193,6 +242,30 @@ class MaterialTests(unittest.TestCase):
         self.assertEqual('+z', npcs._nose(prims))                       # away from the thruster
         turned = npcs._turn(prims, '+z')[0][1]['POSITION']
         np.testing.assert_allclose([5, 0, 0], turned[0])                # the nose now at +X
+
+
+class RigTests(unittest.TestCase):
+    def test_unreal_bone_poses_become_the_exports_node_poses(self):
+        # measured on the Forsaken's skeleton: Unreal (cm, x y z, quaternion x y z w) against the exported node
+        ue = [-145.5, -36.36, -1.3, -0.27, 0.0, 0.0, -0.9629, 1, 1, 1]
+        np.testing.assert_allclose([-1.455, -0.013, -0.3636], rig._ue_t(ue), atol=1e-4)
+        np.testing.assert_allclose([-0.27, 0.0, 0.0, 0.9629], rig._ue_q(ue), atol=1e-4)
+        ue2 = [-20.2, -152.68, -39.73, 0.0, -0.0, 0.3341, -0.9425, 1, 1, 1]
+        np.testing.assert_allclose([0.0, 0.3341, 0.0, 0.9425], rig._ue_q(ue2), atol=1e-4)
+
+    def test_every_clip_keys_every_moving_part_and_idle_holds_the_rest_pose(self):
+        nodes = [{'name': 'BONE_a', 'translation': [0, 0, 0], 'rotation': [0, 0, 0, 1]},
+                 {'name': 'BONE_b', 'translation': [1, 0, 0], 'rotation': [0, 0, 0, 1]}]
+        still = [100, 0, 0, 0, 0, 0, 1, 1, 1, 1]                     # BONE_b at rest (1 m along x)
+        moved = [[100, 0, 0, 0, 0, 0, 1, 1, 1, 1], [100, 0, 50, 0, 0, 0, 1, 1, 1, 1]]   # up 0.5 m (Unreal z -> glTF y)
+        anims = {'idle': None, 'open': {'fps': 2, 'frames': 2, 'bones': {'BONE_a': [[0] * 6 + [1, 1, 1, 1]] * 2, 'BONE_b': moved}}}
+        out = dict(rig.clips(anims, nodes))
+        self.assertEqual({(1, 'translation'), (1, 'rotation')}, {(n, p) for n, p, _, _ in out['idle']})   # only the moving part
+        idle_t = next(v for n, p, t, v in out['idle'] if p == 'translation')
+        np.testing.assert_allclose([[1, 0, 0], [1, 0, 0]], idle_t)
+        open_t, open_v = next((t, v) for n, p, t, v in out['open'] if p == 'translation')
+        np.testing.assert_allclose([0.0, 0.5], open_t)
+        np.testing.assert_allclose([1, 0.5, 0], open_v[1])
 
 
 if __name__ == '__main__':

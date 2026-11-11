@@ -3,6 +3,8 @@
 # and the kit's weapon models on its primary mounts (sheet.py names the weapon).
 # blender -b --factory-startup -P sheet_blender.py -- <mod folder> <out folder> [<primary weapon model>]
 import bpy, sys, os, json, mathutils
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import chorus_blender   # (a ships.json "chorus" entry: Chorus's layers as the remake draws them)
 
 args = sys.argv[sys.argv.index('--') + 1:]
 mod, out = args[0], args[1]
@@ -18,15 +20,43 @@ def img(rel, colour=True):
     return im
 
 
+def additive(nt, mat, spec, img):
+    """An additive glow layer (ships.json "additive": true), as the remake draws it: unlit light added to what is behind,
+    the emission texture (else the diffuse) x emissionIntensity."""
+    out = next(n for n in nt.nodes if n.type == 'OUTPUT_MATERIAL')
+    em = nt.nodes.new('ShaderNodeEmission'); tr = nt.nodes.new('ShaderNodeBsdfTransparent'); add = nt.nodes.new('ShaderNodeAddShader')
+    em.inputs['Color'].default_value = list(spec.get('emissionColor', spec.get('color', [1, 1, 1])))[:3] + [1]
+    em.inputs['Strength'].default_value = float(spec.get('emissionIntensity', 1))
+    tex = spec.get('emission') or spec.get('diffuse')
+    if tex:
+        t = nt.nodes.new('ShaderNodeTexImage'); t.image = img(tex); nt.links.new(t.outputs['Color'], em.inputs['Color'])
+    nt.links.new(em.outputs[0], add.inputs[0]); nt.links.new(tr.outputs[0], add.inputs[1]); nt.links.new(add.outputs[0], out.inputs['Surface'])
+    for attr, val in (('blend_method', 'BLEND'), ('surface_render_method', 'BLENDED')):
+        try: setattr(mat, attr, val)
+        except Exception: pass
+
+
 def apply(specs):
     for spec in specs:
         for mat in bpy.data.materials:
             if spec['material'].lower() not in mat.name.lower() or not mat.node_tree: continue
             nt = mat.node_tree; b = next((n for n in nt.nodes if n.type == 'BSDF_PRINCIPLED'), None)
+            if spec.get('additive') or spec.get('shimmer'):
+                additive(nt, mat, spec, img); continue
+            if spec.get('chorus'):
+                chorus_blender.apply(nt, mat, spec, img); continue
             if b is None: continue
             if 'color' in spec: b.inputs['Base Color'].default_value = list(spec['color'][:3]) + [1]
             if 'diffuse' in spec:
                 t = nt.nodes.new('ShaderNodeTexImage'); t.image = img(spec['diffuse']); nt.links.new(t.outputs['Color'], b.inputs['Base Color'])
+                if spec.get('alphaClip'):   # (cut out below the clip, as the remake draws decals)
+                    gt = nt.nodes.new('ShaderNodeMath'); gt.operation = 'GREATER_THAN'; gt.inputs[1].default_value = float(spec['alphaClip'])
+                    nt.links.new(t.outputs['Alpha'], gt.inputs[0]); nt.links.new(gt.outputs['Value'], b.inputs['Alpha'])
+                    for attr, val in (('blend_method', 'CLIP'), ('surface_render_method', 'DITHERED')):
+                        try: setattr(mat, attr, val)
+                        except Exception: pass
+            if 'smoothness' in spec: b.inputs['Roughness'].default_value = 1.0 - float(spec['smoothness'])
+            if spec.get('metallic', -1) >= 0: b.inputs['Metallic'].default_value = float(spec['metallic'])
             if 'normal' in spec:
                 t = nt.nodes.new('ShaderNodeTexImage'); t.image = img(spec['normal'], False)
                 nm = nt.nodes.new('ShaderNodeNormalMap'); nt.links.new(t.outputs['Color'], nm.inputs['Color']); nt.links.new(nm.outputs['Normal'], b.inputs['Normal'])
@@ -73,6 +103,7 @@ for ship in ships:
     ctr = (lo + hi) / 2; span = max(hi - lo)
     sc = bpy.context.scene
     sc.render.engine = 'BLENDER_EEVEE_NEXT' if 'BLENDER_EEVEE_NEXT' in [e.identifier for e in bpy.types.RenderSettings.bl_rna.properties['engine'].enum_items] else 'BLENDER_EEVEE'
+    sc.view_settings.view_transform = 'Standard'   # (the remake has bloom and no tonemapping: a bright red glow stays red)
     sc.world = bpy.data.worlds.new('w'); sc.world.color = (0.02, 0.02, 0.025)
     for d, e in (((1, -1, 1.2), 4.0), ((-1, 1, 0.3), 1.2), ((0, 0, -1), 0.4)):
         l = bpy.data.objects.new('sun', bpy.data.lights.new('sun', 'SUN')); l.data.energy = e

@@ -22,27 +22,37 @@ Materials, by Chorus's master materials (their parameters resolved through the i
 in Unity's terms, so approximations where Chorus's shaders layer more):
   baked (per source mesh, over its UV set 2, the unique lightmap layout, into one material, <id>_hull<n>):
     M_NPCShipTrimMaster / M_TrimLayersMaster: trim sheets. A triangle's colour is one swatch of a 256-pixel palette
-      (LayerColors, by UV set 3) and its metalness the swatch's LayerData red; the trim sheet (UV set 0, tiling) gives the
-      ambient occlusion (Trim AAO blue), roughness (green) and normals; the trim emissive lights the strips whose UVs are
+      (LayerColors, by UV set 3) times the tiling diffuse (UV set 1), its metalness the swatch's LayerData blue (plus the
+      tiling RMO's), its roughness between LayerData red and green by the tiling RMO (TRIM_SHADER, from the compiled
+      shader); the trim sheet (UV set 0) gives the ambient occlusion (Trim AAO blue) and normals; the trim emissive lights the strips whose UVs are
       shifted out of the sheet's row ("Use UV shift to mask trim emissive"), its channels in their tints
     M_PlatingMaster: the palette swatch times the plating's albedo (UV set 0), its ORM and normal map
     M_SimpleMaster (tech panels): their own maps over UV set 0; the emissive mask's channels in the channel colours
     The normals are carried from UV set 0's tangent frame into UV set 2's.
-  flat glows: windows (emissive_Color), station and running lights (Emissive_01_Color / Color Emissive), thruster glows
-    (StandingColor / Color, following the engines)
+  windows: M_TER_SimpleWindows01 its pane atlas (each pane's brightness) lit in emissive_Color; M_WindowMaster its mask's
+    glass lit in Tint 1 (the interior cube left out)
+  flat glows: station lights (four channels by vertex colour; only black is read, the fourth channel: the Prophet's
+    blue, the Circle warships' red; the rest the first), running lights (Color Emissive), thruster glows (StandingColor /
+    Color, following the engines)
   their own maps: single-texture hulls (the Atlases' M_Terran_Hull: Metalness_Roughness_AO), the Omen bones, the Forsaken
-    master's (M_Phoenix: the Elder ship), M_JTU_Blend (the Prophet)
+    master's (M_Phoenix: the Elder ship); the Prophet's Omen crystal (M_JTU_Blend) with its red inner glow and specks
+  a blueprint's material overrides by hand (the table's override): the Prophet's lights
   Omen tissue (M_JTU_Faceless, no colour map): the Outer Glow Color as the base colour times the ambient occlusion, and
     the Inner Glow Color glowing through the thin parts (the thickness map, to the power of its Inner Contrast); the cores
     (Enable Core) glow in the Inner Core Color
-  flat colours: Sav's and Ree's coats, floaters, the bat swarm's bone, Guilt's shell (with its red glow)
-  left out: decals (they need alpha blending), the thruster flames and other effect materials
+  Sav's and Ree's hulls (M_NPC_Trim_SavRee): a layer per panel from an RGB index mask (UV set 3), the coat tiled and tinted
+    in the instance's Coat01 tints, bare metal for blue; their floaters (M_NPC_Floater_Simple) a sheet over UV set 1
+  decals (M_DecalMaster_Labels: hull numbers, labels, emblems): their sheet cut out by its alpha (alphaClip), one map per
+    sheet shared by every ship; normal-only decals (M_DecalMaster_N) left out
+  Guilt's shell (M_Guilt_Shell, masked): cut to its body-and-arms mask (T_Guilt_A), with its faint red glow
+  the supercharged Forsaken's energy wings: an additive glow, the feather mask in its Main Color
+  left out: normal-only decals, the thruster flames and other effect materials (Guilt's portal core)
 """
 import glob, json, os, re
 import numpy as np
 from PIL import Image
-from . import glb, textures
-from .ships import K, SCALE, _tex, _params, _colours
+from . import glb, rig, textures
+from .ships import K, SCALE, _tex, _params, _colours, nozzle_faces
 
 UP = 'SpacePrototype/Content/UnleashedPrototype/'
 SMALL, LARGE, NPC = UP + 'ArtAssets/Vehicles/Small/', UP + 'ArtAssets/Vehicles/Large/', UP + 'NPC/Ships/'
@@ -56,7 +66,8 @@ MAX_TRAFFIC, MAX_BOSS, MAX_CAPITAL = 150.0, 400.0, 4500.0   # metres (Modding/RE
 def S(sid, name, meshes, role, races, armor, glow, **kw):
     """A ship: id, fallback name (this importer's own words; "bp" reads Chorus's from the pak), meshes, role, races, armour,
     engine glow; options: bp (its NPC blueprint: the display name), name_from ('bp' / 'mesh': a character's ship, named
-    by its asset), override ({material: pak path}: a variant's materials), nose, weight, traffic_role."""
+    by its asset), override ({material: pak path}: a variant's materials), nose, weight, traffic_role, attach ({part mesh:
+    [socket names]}: a blueprint's parts mounted on the first mesh's sockets)."""
     return dict(id=sid, name=name, meshes=[meshes] if isinstance(meshes, str) else meshes, role=role, races=races,
                 armor=armor, glow=glow, **kw)
 
@@ -80,13 +91,14 @@ SHIPS = [
       bp=NPC + 'SupportShip/BP_NPC_Ship_SupportShip', traffic_role='shieldCharger'),
     S('circle_support_drone', 'Circle Support Drone', SMALL + 'SupportDrone/SM_TER_SupportDrone', 'fighter', [8], 90, CIRCLE_GLOW),
     S('disruptor', 'Disruptor', UP + 'ArtAssets/Affordances/SM_TER_Disruptor/SM_TER_Disruptor', 'fighter', [8], 220, CIRCLE_GLOW,
-      bp=NPC + 'Disruptor/BP_NPC_Ship_Disruptor', name_from='bp', traffic_role='jumpSuppressor'),
+      bp=NPC + 'Disruptor/BP_NPC_Ship_Disruptor', name_from='bp', traffic_role='jumpSuppressor', nose='+y'),
     S('pirate_fighter', 'Pirate Fighter', SMALL + 'TF_Fighter_Pirate/TF_Fighter_Pirate', 'fighter', [8], 170, PIRATE_GLOW,
       bp=NPC + 'Pirate/FighterPirate/BP_NPC_Ship_Fighter_Pirate'),
     S('pirate_scout', 'Pirate Scout', SMALL + 'TS_Scout01_Pirate/TS_Scout01_Pirate', 'fighter', [8], 130, PIRATE_GLOW,
       bp=NPC + 'Pirate/ScoutPirate/BP_NPC_Ship_ScoutPirate'),
     S('elder_ship', 'Elder Ship', NPC + 'Elder/Base/SM_NPC_Ship_Elder_Base', 'fighter', [0], 400, [0.0, 0.61, 1.0], weight=0.3),
-    S('ufo', 'Unidentified Craft', SMALL + 'TU_Ufo/SM_TU_Ufo', 'fighter', [9], 300, [0.4, 1.0, 0.5], weight=0.2),
+    # (SM_TU_Ufo left out: an unfinished placeholder, its material slots empty and no material, texture or blueprint for it
+    # anywhere in the pak, so Chorus never draws it and there is no look to rebuild)
     # -- gunships and the characters' ships: bosses --------------------------------------------------------------------
     S('circle_gunship', 'Circle Gunship', SMALL + 'TG_Gunship/TG_gunship', 'boss', [8], 900, CIRCLE_GLOW, bp=NPC + 'Gunship/BP_NPC_Ship_Gunship'),
     S('circle_gunship_apex', 'Circle Heavy Gunship', SMALL + 'TG_Gunship_02/SM_TG_Gunship_02', 'boss', [8], 950, CIRCLE_GLOW, bp=NPC + 'Gunship2/BP_NPC_Ship_Gunship2'),
@@ -99,8 +111,12 @@ SHIPS = [
       bp=NPC + 'Pirate/GunshipPirate/BP_NPC_Ship_Gunship_Pirate'),
     S('pirate_queen', 'Pirate Leader', SMALL + 'TF_Fighter_Sniper_Pirate/TF_Fighter_Sniper_Pirate', 'boss', [8], 1200, PIRATE_GLOW,
       bp=NPC + 'Pirate/PirateQueen/BP_NPC_Ship_PirateQueen', name_from='bp'),
-    S('prophet', 'Final Boss', SMALL + 'SM_NPC_Prophet/SM_NPC_Prophet', 'boss', [8], 1500, CIRCLE_GLOW,
-      bp=NPC + 'FinalBoss/Prophet/BP_NPC_Ship_FinalBoss_Prophet', name_from='bp'),
+    S('prophet', 'Final Boss', [SMALL + 'SM_NPC_Prophet/SM_NPC_Prophet', SMALL + 'SM_NPC_Prophet/SM_NPC_Prophet_Thrusters'], 'boss', [8], 1500, CIRCLE_GLOW,
+      # (its blueprint's four weapon pods, on the hull's weapon sockets)
+      attach={SMALL + 'SM_NPC_Prophet/SM_NPC_Prophet_Weapon': ['WeaponBack_L', 'WeaponBack_R', 'WeaponFront_L', 'WeaponFront_R']},
+      bp=NPC + 'FinalBoss/Prophet/BP_NPC_Ship_FinalBoss_Prophet', name_from='bp',
+      # (its blueprint's override of the lights slot: the station lights in the Prophet's colours)
+      override={'MI_TER_StationLights01': UP + 'ArtAssets/Environment/FactionMining/MI_TER_StationLights01_Porphet'}),
     S('sav', 'Named Ship 1', LARGE + 'SM_Sav/SM_Sav', 'boss', [8], 1000, TER_GLOW, bp=NPC + 'Sav/BP_NPC_Ship_Sav', name_from='bp'),
     S('ree', 'Named Ship 2', LARGE + 'SM_Ree/SM_Ree', 'boss', [8], 1000, TER_GLOW, bp=NPC + 'Ree/BP_NPC_Ship_Ree', name_from='bp'),
     S('aryana', 'Named Ship 3', LARGE + 'SM_NPC_Aryana/SM_NPC_Aryana', 'boss', [8], 1300, TER_GLOW, bp=NPC + 'Aryana/BP_NPC_Ship_Aryana', name_from='bp'),
@@ -155,9 +171,12 @@ SHIPS = [
     S('captured_warship', 'Captured Warship', PLAYER + 'PlayerControlledLargeShip/SM_PlayerControlledLargeShip01', 'capital', [0], 7000, TER_GLOW),
     # -- flown by the player -------------------------------------------------------------------------------------------
     S('forsaken_supercharged', 'Forsaken (Supercharged)', PLAYER + 'SuperchargedShip/SK_SuperChargedShip', 'player', [0], 640,
-      [0.0, 0.61, 1.0], nose='+x'),   # (its glowing wing sheaths, "thruster" too, would turn it round)
+      [0.0, 0.61, 1.0], nose='+x', rig=True),   # (its glowing wing sheaths, "thruster" too, would turn it round; the Forsaken's skeleton: its drift)
 ]
-EXPORTS = [m for s in SHIPS for m in s['meshes']]
+EXPORTS = [m for s in SHIPS for m in s['meshes']] + [m for s in SHIPS for m in s.get('attach', {})]
+
+# Instances the mesh exports don't bring along (named differently in the mesh: "MI_" for the asset's "Mi_")
+MATERIAL_PATHS = {'MI_SuperChargedShieldWings_Sheets': PLAYER + 'SuperchargedShip/Materials/Mi_SuperChargedShieldWings_Sheets'}
 
 # How a master material is drawn (the last of an instance's chain, tools/mi.py)
 TRIM = {'M_NPCShipTrimMaster', 'M_TrimLayersMaster'}
@@ -166,15 +185,24 @@ GLOWS = {'M_TER_SimpleWindows01': ('emissive_Color', 2.0, False), 'M_TER_Station
          'M_RunningLights_Opaque': ('Color Emissive', 3.0, False), 'M_Thruster_Glow_Masked': ('StandingColor', 3.0, True),
          'M_ThrusterTraffic': ('StandingColor', 3.0, True), 'M_Warship_Thrusters': ('Color', 3.0, True),
          'M_Thruster_Master': (None, 3.0, True)}
-FLAT = {'M_NPC_Trim_SavRee': ('Coat01 Tint 1', 0.6), 'M_NPC_Floater_Simple': ([0.3, 0.3, 0.32], 0.4),
-        'MI_BatSwarm_Bone': ([0.05, 0.045, 0.045], 0.3), 'M_Guilt_Shell': ([0.04, 0.02, 0.02], 0.5)}
-DROP = {'M_DecalMaster_Labels', 'M_DecalMaster_N', 'M_P_Boost_Edge_Argus', 'M_P_Glow_Engine', 'M_Warpin_Omen_Portal',
+WINDOWS = {'M_TER_SimpleWindows01', 'M_WindowMaster'}   # (_windows)
+FLAT = {}   # (master: (colour, smoothness): none left; the bat swarm's bone has its own maps, Guilt's shell _guilt_shell)
+DROP = {'M_DecalMaster_N', 'M_P_Boost_Edge_Argus', 'M_P_Glow_Engine', 'M_Warpin_Omen_Portal',
         'M_BlockoutGrid', 'M_MaskBlend_Placeholder'}
 
 
 def _find_mi(export, mat):
     hits = glob.glob(os.path.join(export, '**', mat + '.json'), recursive=True)
-    return (json.load(open(hits[0], encoding='utf-8')), os.path.dirname(hits[0])) if hits else (None, None)
+    if not hits:   # (a mesh may name its material in another case than the pak: MI_TER_PlatingTrim01_CIV_Ship_Small01)
+        hits = [f for f in _jsons(export) if os.path.basename(f)[:-5].lower() == mat.lower()]
+    # -> (its json, the pak path of the instance as the pak spells it), or (None, None)
+    return (json.load(open(hits[0], encoding='utf-8')), os.path.relpath(hits[0], export)[:-5]) if hits else (None, None)
+
+
+_JSONS = {}
+def _jsons(export):
+    if export not in _JSONS: _JSONS[export] = glob.glob(os.path.join(export, '**', '*.json'), recursive=True)
+    return _JSONS[export]
 
 
 _PNG = {}
@@ -235,11 +263,44 @@ def _tangents(attrs, idx, uv_key):
 
 
 # ---- the hull bake --------------------------------------------------------------------------------------------------
+# What the masters compute, from their compiled base-pass pixel shaders (`import.py`'s exporter `shaders` command on
+# MI_TER_TechTrim03_Cult / MI_TER_PlatingTrim02_Cult, disassembled with d3dcompiler; the vertex shader confirms which UV
+# set each interpolant carries):
+#   TRIM_SHADER (M_TrimLayersMaster)  base colour = LayerColors(uv3) x Tiling Diffuse(uv1 x Base UV Tile Amount)
+#                                     metallic    = saturate((LayerData.b - 0.5) x 2 + Tiling RMO.g)
+#                                     roughness   = lerp(LayerData.r, LayerData.g, Tiling RMO.r)
+#                                     occlusion   = Tiling RMO.b x lerp(1, Trim AAO.b(uv0), Trim AO Intensity)
+#                                     (then the dirt layer, by the vertex colour's red: left out; no emissive in the
+#                                     Cult's permutation)
+#   PLATING_SHADER (M_PlatingMaster)  base colour = LayerColors(uv3) x Albedo; metallic = saturate((LayerData.b - 0.5) x 2
+#                                     + ORM.b); roughness = lerp(LayerData.r, LayerData.g, ORM.g); occlusion = ORM.r
+#   SAVREE_SHADER (M_NPC_Trim_SavRee) T_RGB_Mask (uv2): R bare metal, G Coat01 Tint 2, B Tint 3, black Tint 1; the coat (x the
+#                                     tint x Base_Color_Add), metal and rust layers (D / ORM / N) tiled over uv1; T_Floater_01_EOA
+#                                     (uv0): G rust, R bare metal over all that, B glow x Emissive Color x Emissive Multiplier
+# So LayerData's blue is a metal flag (the off-white swatches of the Cult palette are bare, fairly glossy metal) and
+# its red / green the roughness range. A metal swatch's colour on screen is mostly what it reflects: on the Prophet in
+# its arena (a red glow overhead, dark fog around) the upward plates of its head show red and the V down its blade,
+# facing the fog, black, while the grey paint on its sides and wing tops is lit pale. The remake's URP Lit hull
+# reflects the system's sky the same way (Modding/README "Ship and station materials"), so the colours come from the
+# same maps as in Chorus; only the surroundings differ.
+DATA_METAL = 2
+
+
+def _data_metal(data):
+    """LayerData's metal flag as both masters read it: saturate((blue - 0.5) x 2)."""
+    return np.clip((data[:, DATA_METAL] - 0.5) * 2.0, 0.0, 1.0)
+
+
 def _recipe(export, p, master):
     """What the bake samples for one material instance: {'kind', maps (paths), colours}, or None (not baked)."""
     png = lambda n: _png(export, p.texture(n))
     if master in TRIM:
-        r = {'kind': 'trim', 'colors': png('LayerColors'), 'data': png('LayerData'), 'aro': png('Trim AAO'), 'normal': png('Trim Normal')}
+        r = {'kind': 'trim', 'colors': png('LayerColors'), 'data': png('LayerData'), 'aro': png('Trim AAO'), 'normal': png('Trim Normal'),
+             # (the tiling layer over UV set 1 x Base UV Tile Amount: its diffuse tints the swatch, its RMO (or the
+             # Uniform values without "Use RMO Texture") drives roughness, adds metal and carries the AO; TRIM_SHADER)
+             'tdiff': png('Tiling Diffuse'), 'trmo': png('Tiling RMO') if p.switch('Use RMO Texture', True) else None,
+             'tile': p.scalar('Base UV Tile Amount', 1.0), 'ao_amount': p.scalar('Trim AO Intensity', 1.0),
+             'uniform': (p.scalar('Uniform Roughness', 0.5), p.scalar('Uniform Metallic', 0.0))}
         # (a blank white sheet masks nothing: MI_TER_NPC_Ship0x's would light the whole hull in its tint)
         if p.switch('Enable Trim Emissive') and p.switch('Use Trim Emissive as Masks') and png('Trim Emissive') \
                 and 'blankwhite' not in p.texture('Trim Emissive').lower():
@@ -251,6 +312,19 @@ def _recipe(export, p, master):
     if master in PLATING:
         return {'kind': 'plating', 'colors': png('LayerColors'), 'data': png('LayerData'), 'albedo': png('Albedo'),
                 'orm': png('ORM'), 'normal': png('Normal')}
+    if master == 'M_NPC_Trim_SavRee':
+        # Sav's and Ree's hulls (SAVREE_SHADER, their compiled base pass: MI_NPC_Trim_Sav): T_RGB_Mask over UV set 2 picks
+        # the layer per texel: red bare metal, green the coat in Coat01 Tint 2, blue in Tint 3, black in Tint 1 (the coat x
+        # Base_Color_Add); the coat, metal and rust layers each tiled over UV set 1; T_Floater_01_EOA over UV set 0 lays
+        # rust (G) and bare metal (R) over that and glows (B, x Emissive Color x Emissive Multiplier).
+        ref = lambda n: _png(export, p.texture('ref:' + n))
+        return {'kind': 'layers', 'mask': ref('T_RGB_Mask'), 'eoa': ref('T_Floater_01_EOA'),
+                'tints': [p.vector(f'Coat01 Tint {i}', [0.5, 0.5, 0.5]) for i in (1, 2, 3)],
+                'add': p.vector('Base_Color_Add', [1, 1, 1]),
+                'glow': [c * p.scalar('Emissive Multiplier', 1.0) for c in (p.vector('Emissive Color') or [0, 0, 0])[:3]],
+                'coat': (ref('T_Coat_01_D'), ref('T_Coat_01_N'), ref('T_Coat_01_ORM'), p.scalar('Tiling_Coat_01', 2.0), p.scalar('Coat01Layer Roughness Bias', 0.0)),
+                'metal': (ref('T_Metallic_01_D'), ref('T_Metallic_01_N'), ref('T_Metallic_01_ORM'), p.scalar('Tiling_Metallic_01', 4.0), p.scalar('MetallicLayer Roughness Bias', 0.0)),
+                'rust': (ref('T_Rust_01_D'), ref('T_Rust_01_N'), ref('T_Rust_01_ORM'), p.scalar('Tiling_Rust_01', 1.0), 0.0)}
     if master in PANEL:
         r = {'kind': 'panel', 'diffuse': png('BaseColor'), 'rmo': png('RMO'), 'normal': png('Normal')}
         if p.switch('Use Emissive') and png('Emissive'):
@@ -258,6 +332,94 @@ def _recipe(export, p, master):
             r['tints'] = [p.vector(f'Emissive {c} Channel Color', [0, 0, 0]) for c in 'RGB']
         return r
     return None
+
+
+# ---- Chorus's layers in the remake (its GoF2/Hull ChorusLayers; Modding/README "chorus") -----------------------------------
+# The trim and plating masters are drawn in the remake as Chorus draws them (TRIM_SHADER / PLATING_SHADER above) from their
+# own maps over the hull's own UV sets, instead of a bake: a 2K bake over a 4 km warship's lightmap layout is metres a texel,
+# and the trim sheet's panel lines, accent strips and lit windows went with it. The maps go once into maps/chorus/, shared
+# by every ship that uses them.
+CHORUS_LAYERS = True   # (import.py --bake-hulls: False, the bake for a remake without them)
+CHORUS_TRIM_SIZE, CHORUS_TILING_SIZE, CHORUS_DIRT_SIZE = 2048, 1024, 512
+CHORUS_EMISSION_PEAK = 3.0   # (the brightest glow at most this: Chorus's HDR colours x25 for its exposure, the remake's bloom)
+CHORUS_KEEP = ('POSITION', 'NORMAL', 'TANGENT', 'TEXCOORD_0', 'TEXCOORD_1', 'TEXCOORD_2', 'TEXCOORD_3', 'COLOR_0')
+
+
+def _chorus_map(mod, src, size, kind='colour'):
+    """One of Chorus's maps into maps/chorus/ (once): kind 'colour' / 'data' as they are, 'normal' DirectX -> Unity (green
+    flipped, blue rebuilt from the two channels the pak keeps). -> its path in the mod, or None."""
+    if not src: return None
+    name = os.path.splitext(os.path.basename(src))[0].lower()
+    rel = f'maps/chorus/{name}.png'
+    out = os.path.join(mod, rel)
+    if not os.path.exists(out):
+        os.makedirs(os.path.dirname(out), exist_ok=True)
+        im = Image.open(src).convert('RGB')
+        if im.size[0] > size: im = im.resize((size, size * im.size[1] // im.size[0]), Image.LANCZOS)
+        if kind == 'normal':
+            a = np.asarray(im, np.float32) / 255.0
+            xy = a[..., :2] * 2.0 - 1.0
+            z = np.sqrt(np.clip(1.0 - (xy ** 2).sum(-1), 0.0, 1.0))
+            a = np.concatenate([a[..., :1], 1.0 - a[..., 1:2], z[..., None] * 0.5 + 0.5], -1)
+            im = Image.fromarray((np.clip(a, 0, 1) * 255 + 0.5).astype(np.uint8), 'RGB')
+        im.save(out, optimize=True)
+    return rel
+
+
+def _chorus_palette(mod, colors, data):
+    """LayerColors (its colours made linear) and LayerData side by side, as the remake's ChorusLayers reads them by texel."""
+    if not colors or not data: return None
+    rel = f"maps/chorus/pal_{os.path.splitext(os.path.basename(colors))[0].lower()}.png"
+    out = os.path.join(mod, rel)
+    if not os.path.exists(out):
+        os.makedirs(os.path.dirname(out), exist_ok=True)
+        c = textures.srgb_to_linear(np.asarray(Image.open(colors).convert('RGB'), np.float32) / 255.0)
+        d = np.asarray(Image.open(data).convert('RGB').resize((c.shape[1], c.shape[0]), Image.NEAREST), np.float32) / 255.0
+        Image.fromarray((np.clip(np.concatenate([c, d], 1), 0, 1) * 255 + 0.5).astype(np.uint8), 'RGB').save(out, optimize=True)
+    return rel
+
+
+def _chorus(export, mod, p, master, r):
+    """A trim / plating master's "chorus" block (TRIM_SHADER / PLATING_SHADER): its maps written, its values resolved through
+    the instance's parents. The kicker's fade is in Chorus's centimetres here; build() turns it into the remake's units."""
+    png = lambda n: _png(export, p.texture(n))
+    plating = master in PLATING
+    c = {'kind': 'plating' if plating else 'trim', 'palette': _chorus_palette(mod, r.get('colors'), r.get('data'))}
+    if plating:
+        c.update({'tilingDiffuse': _chorus_map(mod, png('Albedo'), CHORUS_TRIM_SIZE),
+                  'tilingRmo': _chorus_map(mod, png('ORM'), CHORUS_TRIM_SIZE, 'data'),
+                  'tilingNormal': _chorus_map(mod, png('Normal'), CHORUS_TRIM_SIZE, 'normal'),
+                  'tiling': p.scalar('Tiling', 1.0)})
+    else:
+        npc = master == 'M_NPCShipTrimMaster'   # (its permutation: the accent, the far kicker and boost, no dirt)
+        c.update({'tilingDiffuse': _chorus_map(mod, png('Tiling Diffuse'), CHORUS_TILING_SIZE),
+                  'tilingRmo': _chorus_map(mod, png('Tiling RMO'), CHORUS_TILING_SIZE, 'data') if p.switch('Use RMO Texture', True) else None,
+                  'tilingNormal': _chorus_map(mod, png('Tiling Normal'), CHORUS_TILING_SIZE, 'normal'),
+                  'trimAo': _chorus_map(mod, png('Trim AAO'), CHORUS_TRIM_SIZE, 'data'),
+                  'trimNormal': _chorus_map(mod, png('Trim Normal'), CHORUS_TRIM_SIZE, 'normal'),
+                  'tiling': p.scalar('Base UV Tile Amount', 1.0), 'aoIntensity': p.scalar('Trim AO Intensity', 1.0)})
+        if npc or p.switch('Enable Accent 1 (Wear)'):
+            c.update({'accentColor': p.vector('Accent 1 Color', [0.72, 0.72, 0.72]), 'accentMetal': p.scalar('Accent 1 Metallic Override', 1.0),
+                      'accentRoughness': p.scalar('Accent 1 Roughness Bias', 0.0),
+                      'accentNormal': p.scalar('Accent 1 Tiling Base Normal Intensity', 1.0)})
+        if png('Trim Emissive') and (npc or p.switch('Enable Trim Emissive')):
+            tints = [p.vector(f'Trim Emissive {ch} Channel Tint', [0, 0, 0]) for ch in 'RGB']
+            amount, near = p.scalar('Trim Emissive Amount', 1.0), 2.0 if npc else 1.0
+            c.update({'trimEmissive': _chorus_map(mod, png('Trim Emissive'), CHORUS_TRIM_SIZE), 'emissiveR': tints[0], 'emissiveG': tints[1],
+                      'emissiveB': tints[2], 'emissiveAmount': amount, 'nearEmission': near,
+                      'emissiveUvShift': p.switch('Use UV shift to mask trim emissive', True)})
+            peak = max(max(t) for t in tints) * amount * near
+            if peak > CHORUS_EMISSION_PEAK: c['emissionScale'] = round(CHORUS_EMISSION_PEAK / peak, 4)
+            if npc:
+                c.update({'distanceBoost': p.scalar('Emissive Channel Distance Boost', 1.0), 'kickerColor': p.vector('Kicker Color', [1, 0, 0]),
+                          'kickerExp': p.scalar('Kicker Exp', 5.0), 'kickerFadeOffset': p.scalar('Kicker Fade Offset', 15000.0),
+                          'kickerFadeLength': p.scalar('Kicker Fade Length', 90000.0)})
+    if p.switch('Enable Dirt') and png('Dirt BaseColor') and not (master == 'M_NPCShipTrimMaster'):
+        c.update({'dirt': _chorus_map(mod, png('Dirt BaseColor'), CHORUS_DIRT_SIZE), 'dirtMask': _chorus_map(mod, png('Dirt Mask'), CHORUS_DIRT_SIZE, 'data'),
+                  'dirtRoughness': _chorus_map(mod, png('Dirt Roughness'), CHORUS_DIRT_SIZE, 'data'), 'dirtTint': p.vector('Dirt Tint', [0.1, 0.1, 0.1]),
+                  'dirtUvScale': p.scalar('Dirt UV Scale', 1.0), 'dirtMaskUvScale': p.scalar('Dirt Mask UV Scale', 0.5),
+                  'dirtAo': p.scalar('Dirt from Material AO Intensity', 1.0), 'dirtContrast': p.scalar('Dirt Contrast', 0.0), 'dirtAlpha': plating})
+    return {k: (round(v, 5) if isinstance(v, float) else v) for k, v in c.items() if v is not None}
 
 
 def bake_hull(parts, size):
@@ -268,7 +430,10 @@ def bake_hull(parts, size):
     tri, bary = textures.rasterize(attrs['TEXCOORD_2'], idx, size)
     cov = tri >= 0; t = np.maximum(tri, 0); which = np.where(cov, part[t], -1)
     uv0 = textures.interpolate(attrs['TEXCOORD_0'], idx, tri, bary)
+    uv1 = textures.interpolate(attrs['TEXCOORD_1'], idx, tri, bary) if 'TEXCOORD_1' in attrs else uv0
     swatch = attrs['TEXCOORD_3'][tris].mean(1) if 'TEXCOORD_3' in attrs else np.zeros((len(tris), 2), np.float32)
+    maskuv = textures.interpolate(attrs['MASKUV'], idx, tri, bary) if 'MASKUV' in attrs else uv0   # (the original UV set 2)
+    frame1 = np.zeros(tri.shape, bool)   # (texels whose normals are in UV set 1's frame: the tiled layers)
     colour = np.full(tri.shape + (3,), 0.5, np.float32); ao = np.ones(tri.shape, np.float32)
     rough = np.full(tri.shape, 0.5, np.float32); metal = np.zeros(tri.shape, np.float32)
     ts = np.zeros(tri.shape + (3,), np.float32); ts[..., 2] = 1; emit = np.zeros(tri.shape + (3,), np.float32)
@@ -279,18 +444,62 @@ def bake_hull(parts, size):
         if r['kind'] in ('trim', 'plating'):
             sw = swatch[t[m]]
             if r.get('colors'): colour[m] = textures.sample(_img(r['colors'], True), sw)[:, :3]
-            if r.get('data'): metal[m] = textures.sample(_img(r['data']), sw)[:, 0]
+            data = textures.sample(_img(r['data']), sw) if r.get('data') else None
+            if data is not None: metal[m] = _data_metal(data)
         if r['kind'] == 'trim':
+            # (TRIM_SHADER: the tiling layer over UV set 1, the trim sheet's occlusion over UV set 0)
+            ut = uv1[m] * r.get('tile', 1.0)
+            if r.get('tdiff'): colour[m] *= textures.sample(_img(r['tdiff'], True), ut)[:, :3]
+            if r.get('trmo'):
+                s = textures.sample(_img(r['trmo']), ut); rf, mg, occ = s[:, 0], s[:, 1], s[:, 2]
+            else:
+                ro, mu = r.get('uniform', (0.5, 0.0)); n_ = int(m.sum())
+                rf, mg, occ = np.full(n_, ro, np.float32), np.full(n_, mu, np.float32), np.ones(n_, np.float32)
+            metal[m] = np.clip(metal[m] + mg, 0, 1)
+            rough[m] = data[:, 0] + (data[:, 1] - data[:, 0]) * rf if data is not None else rf
+            ao[m] = occ
             if r.get('aro'):
-                s = textures.sample(_img(r['aro']), u); ao[m] = s[:, 2]; rough[m] = s[:, 1]
+                k_ = r.get('ao_amount', 1.0)
+                ao[m] = occ * (1.0 + (textures.sample(_img(r['aro']), u)[:, 2] - 1.0) * k_)
             if r.get('emissive'):
                 e = textures.sample(_img(r['emissive'], True), u)[:, :3] @ np.asarray(r['tints'], np.float32) * r['amount']
-                if r.get('uvshift'): e *= (np.floor(u[:, 1:2]) != 0)   # (only the strips shifted out of the sheet's row)
+                # (the masters' UV-shift mask, as compiled: only faces whose palette UV (set 3) is shifted below 0)
+                if r.get('uvshift'): e *= (swatch[t[m]][:, 1:2] < 0)
                 emit[m] = e
         elif r['kind'] == 'plating':
             if r.get('albedo'): colour[m] *= textures.sample(_img(r['albedo'], True), u)[:, :3]
             if r.get('orm'):
-                s = textures.sample(_img(r['orm']), u); ao[m] = s[:, 0]; rough[m] = s[:, 1]; metal[m] = np.maximum(metal[m], s[:, 2])
+                s = textures.sample(_img(r['orm']), u); ao[m] = s[:, 0]; rough[m] = s[:, 1]; metal[m] = np.clip(metal[m] + s[:, 2], 0, 1)
+                if data is not None: rough[m] = data[:, 0] + (data[:, 1] - data[:, 0]) * s[:, 1]
+        elif r['kind'] == 'layers':
+            # (SAVREE_SHADER: the mask per texel over UV set 2, the tiled layers over UV set 1, the EOA sheet over UV set 0)
+            n_ = int(m.sum()); u1 = uv1[m]
+            mask = textures.sample(_img(r['mask']), maskuv[m])[:, :3] if r.get('mask') else np.zeros((n_, 3), np.float32)
+            eoa = textures.sample(_img(r['eoa']), u)[:, :3] if r.get('eoa') else np.zeros((n_, 3), np.float32)
+            def layer(spec, linear_colour=True):
+                d, nm, orm, tiling, bias = spec; uu = u1 * tiling
+                col = textures.sample(_img(d, True), uu)[:, :3] if d else np.full((n_, 3), 0.5, np.float32)
+                o = textures.sample(_img(orm), uu)[:, :3] if orm else np.tile([1.0, 0.5, 0.0], (n_, 1)).astype(np.float32)
+                nrm = textures.sample(_img(nm), uu)[:, :3] * 2 - 1 if nm else np.tile([0.0, 0.0, 1.0], (n_, 1)).astype(np.float32)
+                return col, o[:, 0], np.clip(o[:, 1] + bias, 0, 1), o[:, 2], nrm
+            cc, cao, cro, cme, cn = layer(r['coat']); mc, mao, mro, mme, mn = layer(r['metal']); rc, rao, rro, rme, rn = layer(r['rust'])
+            t1, t2, t3 = (np.asarray(x, np.float32) for x in r['tints'])
+            tint = t1 + (t2 - t1) * mask[:, 1:2]; tint = tint + (t3 - tint) * mask[:, 2:3]
+            lerp = lambda a, b, f: a + (b - a) * (f[:, None] if a.ndim == 2 else f)
+            mr, er, eg = mask[:, 0], eoa[:, 0], eoa[:, 1]
+            col = lerp(cc * np.asarray(r.get('add', [1, 1, 1]), np.float32) * tint, mc, mr)
+            col = np.clip(lerp(lerp(col, rc, eg), mc, er), 0, 1)
+            me = np.clip(lerp(lerp(lerp(cme, mme, mr), rme, eg), mme, er), 0, 1)
+            oc = np.clip(lerp(lerp(lerp(cao, mao, mr), rao, eg), mao, er), 0, 1)
+            ro = np.clip(lerp(lerp(lerp(cro, mro, mr), rro, eg), mro, er), 0, 1)
+            nn = lerp(lerp(lerp(cn, mn, mr), rn, eg), mn, er)
+            colour[m], rough[m], metal[m], ao[m], ts[m] = col, ro, me, oc, nn
+            frame1[m] = True
+            if max(r.get('glow') or [0]) > 0: emit[m] = eoa[:, 2:3] * np.asarray(r['glow'], np.float32)
+        elif r['kind'] == 'sheet':
+            if r.get('diffuse'): colour[m] = textures.sample(_img(r['diffuse'], True), u)[:, :3]
+            if r.get('orma'):
+                s_ = textures.sample(_img(r['orma']), u); ao[m] = s_[:, 0]; rough[m] = s_[:, 1]; metal[m] = s_[:, 2]
         elif r['kind'] == 'panel':
             if r.get('diffuse'): colour[m] = textures.sample(_img(r['diffuse'], True), u)[:, :3]
             if r.get('rmo'):
@@ -305,6 +514,10 @@ def bake_hull(parts, size):
     pos = np.asarray(attrs['POSITION'], np.float64)
     T0, B0 = _frames(pos, attrs['TEXCOORD_0'], tris); T2, B2 = _frames(pos, attrs['TEXCOORD_2'], tris)
     t0, b0 = _ortho(T0[t].astype(np.float32), B0[t].astype(np.float32), n)
+    if frame1.any() and 'TEXCOORD_1' in attrs:
+        T1, B1 = _frames(pos, attrs['TEXCOORD_1'], tris)
+        t1_, b1_ = _ortho(T1[t].astype(np.float32), B1[t].astype(np.float32), n)
+        t0 = np.where(frame1[..., None], t1_, t0); b0 = np.where(frame1[..., None], b1_, b0)
     t2, b2 = _ortho(T2[t].astype(np.float32), B2[t].astype(np.float32), n)
     world = ts[..., :1] * t0 + ts[..., 1:2] * b0 + ts[..., 2:3] * n
     out = np.stack([(world * t2).sum(-1), (world * b2).sum(-1), (world * n).sum(-1)], -1)
@@ -326,10 +539,9 @@ def _layout(attrs, idx=None):
     does (the support drone's), else UV set 2 rescaled from its bounds into 0..1 (the gunships' spill out to -1..2:
     a unique layout stays unique). -> uv array or None."""
     def inside(uv): return uv is not None and float(uv.min()) >= -0.01 and float(uv.max()) <= 1.01 and float(np.ptp(uv[:, 0])) > 0.05
-    for key in ('TEXCOORD_2', 'TEXCOORD_1'):
-        if inside(attrs.get(key)): return attrs[key]
-    uv = attrs.get('TEXCOORD_2')
+    uv = next((attrs[k] for k in ('TEXCOORD_2', 'TEXCOORD_1') if inside(attrs.get(k))), attrs.get('TEXCOORD_2'))
     if uv is None or float(np.ptp(uv[:, 0])) < 0.05: return None
+    # stretched to fill the map (a lightmap often uses only part of 0..1: Sav's half of it); a unique layout stays unique
     lo, hi = uv.min(0), uv.max(0)
     return ((uv - lo) / np.maximum(hi - lo, 1e-6) * 0.98 + 0.01).astype(np.float32)
 
@@ -387,7 +599,54 @@ def _own(export, mod, stem, mat, mi, p, master, low):
     return entry
 
 
+FACELESS_BREATH = 0.25   # (the breath curve's value at rest: CA_BaseVFX's row isn't exported; the master clamps to 0.5 - 1)
+
+
 def _faceless(export, mod, stem, mat, p):
+    """Omen tissue (M_JTU_Faceless). Its compiled base pass (the exporter's `shaders` on MI_JTU_Faceless_LowerFortress_Elite)
+    writes a black base colour and no metal: the tissue is all glow, lerp(Outer Glow Color x (T_Dirt_02.b + Outer Variation),
+    Inner Glow Color x (the scrolling Ice_Substance mask x the inverse fresnel + Inner Variation), saturate((Outer + Inner
+    Variation) x saturate(1 / (Thickness.r x Strength)) + the breath curve) clamped to 0.5 - 1), the variations through a
+    parallax offset of Thickness.r x Depth; roughness lerp(RoughnessIntensity, 0.05, Thickness.g). Baked here as seen head-on
+    (no parallax, the fresnel term 0.96) with the breath at rest; the pulse, the scroll and the dissolve edge left out. The
+    cores (Enable Core, another permutation) keep their glow through the thin parts (_faceless_core)."""
+    if p.switch('Enable Core'): return _faceless_core(export, mod, stem, mat, p)
+    tex = lambda n: _png(export, p.texture(n))
+    maps = os.path.join(mod, 'maps'); n = 1024
+    def load(path, ch, tile=1.0):
+        if not path: return None
+        a = np.asarray(Image.open(path).convert('RGB').resize((n, n), Image.BILINEAR), np.float32)[..., ch] / 255
+        if tile != 1.0:   # (a tiled lookup over the same UVs: wrap the scaled coordinates)
+            k = (np.arange(n) * tile).astype(int) % n
+            a = a[np.ix_(k, k)]
+        return a
+    tile = p.scalar('NoiseTiling', 1.0)
+    thick = load(tex('Thickness Map'), slice(0, 2), 1.0)
+    ov = load(tex('Outer Variation'), 0); iv = load(tex('Inner Variation'), 0)
+    dirt = load(_png(export, 'T_Dirt_02'), 2, tile); ice = load(_png(export, 'Ice_Substance_ColorMask-Crack-RoughnessBLend'), 0, tile)
+    z = np.zeros((n, n), np.float32)
+    ov, iv, dirt, ice = [x if x is not None else z for x in (ov, iv, dirt, ice)]
+    r = thick[..., 0] if thick is not None else np.full((n, n), 0.5, np.float32)
+    strength = p.scalar('Strength', 1.0)
+    k = np.where(r * strength > 0, np.clip(1.0 / np.maximum(r * strength, 1e-6), 0, 1), 0.0)
+    w = np.clip((ov + iv) * k + FACELESS_BREATH, 0.5, 1.0)[..., None]
+    outer = np.asarray(p.vector('Outer Glow Color', [0.17, 0.0, 0.0])[:3], np.float32)
+    inner = np.asarray(p.vector('Inner Glow Color', [3.0, 0.0, 0.08])[:3], np.float32)
+    glow = (dirt + ov)[..., None] * outer * (1 - w) + (0.96 * ice + iv)[..., None] * inner * w
+    peak = float(max(glow.max(), 1e-3))
+    textures._save(textures.linear_to_srgb(glow / peak), os.path.join(maps, stem + '_e.png'), n, 'RGB')
+    entry = {'material': mat, 'color': [0.0, 0.0, 0.0], 'metallic': 0.0, 'emission': f'maps/{stem}_e.png',
+             'emissionColor': [1, 1, 1], 'emissionIntensity': round(min(peak, 2.5), 3)}
+    if thick is not None:
+        rough = np.clip(p.scalar('RoughnessIntensity', 1.0) + (0.05 - p.scalar('RoughnessIntensity', 1.0)) * thick[..., 1], 0, 1)
+        entry['smoothness'] = round(float(1.0 - rough.mean()), 3)
+    if tex('Normal'):
+        textures._save(textures.flip_normal(textures._load(tex('Normal')))[..., :3], os.path.join(maps, stem + '_n.png'), n, 'RGB')
+        entry['normal'] = f'maps/{stem}_n.png'
+    return entry
+
+
+def _faceless_core(export, mod, stem, mat, p):
     ao = p.texture('Ambient Occlusion'); nrm = p.texture('Normal'); thick = p.texture('Thickness Map')
     outer = p.vector('Outer Glow Color', [0.17, 0.0, 0.0]); inner = p.vector('Inner Glow Color', [3.0, 0.0, 0.08])
     core = p.vector('Inner Core Color') if p.switch('Enable Core') else None
@@ -413,9 +672,133 @@ def _faceless(export, mod, stem, mat, p):
     return entry
 
 
+def _energy_wings(export, mod, stem, mat, p):
+    """The supercharged Forsaken's energy wings (M_SuperChargedShieldWings_Sheets, translucent): the remake's shimmer layer
+    (additive, its pattern times a noise scrolling along it) over UV set 0: the feather mask's red (the feathers) in the
+    Main Color and its green (their inner streaks) brighter, at the instance's Opacity, times the master's T_Soft_Noise.
+    (Left out: the orange Accent Color.)"""
+    mask = _png(export, p.texture('ref:T_FeatherSheetMask_M'))
+    main = np.asarray(p.vector('Main Color', [0.9, 2.9, 7.0]), np.float32)
+    peak = float(main.max()); col = main / max(peak, 1e-6)
+    opacity = p.scalar('Opacity', 0.4)
+    # (Chorus's colours are HDR for Unreal's exposure, the Main Color x7 at 37.5 %: as an intensity that whites out the blue,
+    # so the glow is kept just under the remake's bloom, 1)
+    e = {'material': mat, 'additive': True, 'ignoreVertexColors': True, 'emissionColor': [1, 1, 1],
+         'emissionIntensity': round(min(peak * opacity * 0.35, 1.0), 3)}
+    noise = _png(export, p.texture('ref:T_Soft_Noise'))
+    if noise:   # the shimmer: the soft noise scrolling over the feathers (it halves their light on average: twice as bright)
+        textures._save(textures._load(noise)[..., :3], os.path.join(mod, 'maps', stem + '_noise.png'), 512, 'RGB')
+        e.update({'shimmer': True, 'flameNoise': f'maps/{stem}_noise.png', 'emissionIntensity': round(e['emissionIntensity'] * 2, 3)})
+    if mask:
+        m = textures._load(mask)
+        glow = m[..., :1] * col[None, None, :] * 0.7 + m[..., 1:2] * (0.6 * col[None, None, :] + 0.4)
+        glow = np.clip(glow, 0, 1)
+        name = stem + '_e.png'
+        textures._save(np.concatenate([textures.linear_to_srgb(glow), m[..., :1]], -1), os.path.join(mod, 'maps', name), 1024, 'RGBA')
+        e['emission'] = f'maps/{name}'
+    else:
+        e['emissionColor'] = [round(float(v), 3) for v in col]
+    return e
+
+
 def _norm(c):
     m = max(max(c), 1e-6)
     return [round(v / m, 3) for v in c]
+
+
+def _station_lights(p, attrs, idx):
+    """M_TER_StationLights_MASTER, as its compiled pixel shader reads (the pak's shader library, disassembled): four
+    channels, Emissive_0n_Color x Emissive_0n_Strength, picked per face by UV set 1: qx = ceil(u - 0.5), qy = ceil(v - 0.5),
+    colour = lerp(lerp(c1, c2, qx), lerp(c4, c3, 1 - qx), qy) (u < .5, v < .5 the first; u >= .5 the second; v >= .5 the
+    third and fourth; past 0..1 it extrapolates, as the shader does). -> [(quadrant tag, linear colour, face indices)]"""
+    ch = [np.asarray((p.vector(f'Emissive_0{i}_Color') or [0, 0, 0])[:3], np.float32) * p.scalar(f'Emissive_0{i}_Strength', 5.0)
+          for i in (1, 2, 3, 4)]
+    tri = np.asarray(idx).reshape(-1, 3)
+    uv = attrs['TEXCOORD_1'][tri].mean(1) if 'TEXCOORD_1' in attrs else np.zeros((len(tri), 2), np.float32)
+    q = np.ceil(uv - 0.5).astype(int)
+    out = []
+    for qx, qy in sorted({tuple(x) for x in q}):
+        sel = (q[:, 0] == qx) & (q[:, 1] == qy)
+        lo = ch[0] + (ch[1] - ch[0]) * qx; hi = ch[3] + (ch[2] - ch[3]) * (1 - qx)
+        col = np.maximum(lo + (hi - lo) * qy, 0)
+        out.append((f'q{qx}{qy}'.replace('-', 'm'), [float(c) for c in col], tri[sel].reshape(-1).astype(np.uint32)))
+    return out
+
+
+def _jtu_blend(export, mod, stem, mat, mi, p, low):
+    """Omen crystal (M_JTU_Blend: the Prophet's crown): two surfaces blended by vertex colour and mapped in world space,
+    with red veins glowing beneath (the Inner Glow Color through a parallax heightmap) and emissive specks (B's mask
+    x its Emissive Intensity). Here: the B surface's maps over UV set 0 (_own), and an emission map in the Inner Glow
+    Color: a base glow, brighter through the veins' heightmap, plus the specks."""
+    entry = _own(export, mod, stem, mat, mi, p, 'M_JTU_Blend', low)
+    glow = _norm((p.vector('Inner Glow Color') or [1.0, 0.01, 0.01])[:3])
+    veins, specks = _png(export, 'T_JantuVeins_H'), _png(export, 'T_JTU_Blend_02_A')
+    n = 1024
+    load = lambda f, c: np.asarray(Image.open(f).convert('RGB').resize((n, n), Image.BILINEAR), np.float32)[..., c] / 255
+    h = load(veins, 2) if veins else np.full((n, n), 0.5, np.float32)
+    s = load(specks, 1) if specks else np.zeros((n, n), np.float32)
+    k = min(p.scalar('B - Emissive Intensity', 5.0), 5.0) / 5.0
+    e = np.clip(0.35 + 0.4 * h + 2.0 * k * s, 0, 1)[..., None] * np.asarray(glow, np.float32)[None, None, :]
+    textures._save(textures.linear_to_srgb(e), os.path.join(mod, 'maps', stem + '_e.png'), n, 'RGB')
+    entry.update({'emission': f'maps/{stem}_e.png', 'emissionColor': [1, 1, 1], 'emissionIntensity': 1.5})
+    return entry
+
+
+def _decal(export, mod, mat, p):
+    """Decals (M_DecalMaster_Labels: labels, hull numbers, hazard stripes, emblems on thin meshes over the hull, translucent
+    in Chorus): the decal sheet with its alpha, cut out (alphaClip, Chorus's own mask clip value). One map per sheet,
+    shared by every ship that uses it (maps/decal_<sheet>.png)."""
+    sheet = p.texture('DecalSheet', 'PM_Diffuse') if p else None
+    name = (sheet or '').rsplit('/', 1)[-1].split('.')[0]
+    src = _png(export, name) if name else None
+    if not src:
+        return {'material': mat, 'color': [0.3, 0.3, 0.3], 'alphaClip': 0.5}
+    out = f'maps/decal_{name.lower()}.png'
+    if not os.path.exists(os.path.join(mod, out)):
+        im = Image.open(src).convert('RGBA')
+        if im.size[0] > 2048: im = im.resize((2048, 2048), Image.LANCZOS)
+        im.save(os.path.join(mod, out), optimize=True)
+    return {'material': mat, 'diffuse': out, 'alphaClip': 0.333, 'smoothness': round(1.0 - p.scalar('Roughness', 0.75), 3),
+            'metallic': 0.0}
+
+
+def _guilt_shell(export, mod, mat, p):
+    """Guilt's shell (M_Guilt_Shell, masked): T_Guilt_A's red (the body) and green (its three arms) cut the shell to its
+    shape over UV set 0 (alphaClip, Unreal's default mask clip); its Base Color, a faint red glow in its Emissive Color.
+    (Left out: the arms' erosion over time, the flow map.)"""
+    src = _png(export, 'T_Guilt_A')
+    col = (p.vector('Base Color') or [0.04, 0.02, 0.02])[:3]
+    e = {'material': mat, 'color': list(col), 'smoothness': round(1.0 - p.scalar('Roughness', 0.5), 3)}
+    if src:
+        a = np.asarray(Image.open(src).convert('RGB'), np.float32) / 255
+        rgba = np.concatenate([np.broadcast_to(textures.linear_to_srgb(np.asarray(col, np.float32)), a.shape), a[..., :2].max(-1, keepdims=True)], -1)
+        stem = f'maps/{mat.lower()}_c.png'
+        textures._save(rgba, os.path.join(mod, stem), 1024, 'RGBA')
+        e.update({'diffuse': stem, 'alphaClip': 0.333}); e.pop('color')
+    if p.vector('Emissive Color'):
+        e.update({'emissionColor': _norm(p.vector('Emissive Color')), 'emissionIntensity': 0.15})
+    return e
+
+
+def _windows(export, mod, stem, mat, p, master):
+    """Windows. M_TER_SimpleWindows01: an atlas of panes (T_TER_SimpleWindows01_D: each pane's brightness, some dim, the
+    frames black) lit in emissive_Color x Emissive Power over UV set 0; the glass dark. M_WindowMaster (interior-cube
+    windows): its mask's red the glass, lit in Tint 1 at its bright power (the interior cube and reflections left out);
+    the rest a grey frame."""
+    maps = os.path.join(mod, 'maps')
+    if master == 'M_WindowMaster':
+        src, col, power = _png(export, 'T_Windows01_M'), (p.vector('Tint 1') or [1.0, 0.707, 0.432]), p.scalar('EmissivePower Bright', 3.0)
+    else:
+        src, col, power = _png(export, 'T_TER_SimpleWindows01_D'), (p.vector('emissive_Color') or [1.0, 0.614, 0.315]), p.scalar('Emissive Power', 2.0)
+    col = _norm(col[:3]); power = round(min(power, 2.5), 3)
+    if not src:
+        return {'material': mat, 'color': [0.03, 0.03, 0.03], 'emissionColor': col, 'emissionIntensity': power}
+    a = np.asarray(Image.open(src).convert('RGB').resize((1024, 1024), Image.BILINEAR), np.float32)[..., :1] / 255
+    textures._save(a * np.asarray(col, np.float32)[None, None, :], os.path.join(maps, stem + '_e.png'), 1024, 'RGB')
+    frame = 0.25 if master == 'M_WindowMaster' else 0.03
+    textures._save((frame * (1 - a) + 0.04 * a).repeat(3, -1), os.path.join(maps, stem + '_c.png'), 512, 'RGB')
+    return {'material': mat, 'diffuse': f'maps/{stem}_c.png', 'smoothness': 0.85, 'emission': f'maps/{stem}_e.png',
+            'emissionColor': [1, 1, 1], 'emissionIntensity': power}
 
 
 def _convert(export, mod, sid, meshes, resolver=None, size=1024, override=None):
@@ -427,27 +810,61 @@ def _convert(export, mod, sid, meshes, resolver=None, size=1024, override=None):
     for k, prims in enumerate(meshes):
         bake = []
         for mat, attrs, idx in prims:
+            colour = attrs.get('COLOR_0')   # (only Chorus's layers draw the vertex colours: their dirt)
+            attrs = {k: v for k, v in attrs.items() if k != 'COLOR_0'}
             if mat in override:   # (a variant's paint: another instance in this material's place)
                 path = override[mat]; mat = path.rsplit('/', 1)[1]; mi, mi_dir = None, None
             else:
-                mi, mi_dir = _find_mi(export, mat)
-                path = os.path.relpath(os.path.join(mi_dir, mat), export) if mi_dir else None
+                mi, path = _find_mi(export, mat)
+                path = path or MATERIAL_PATHS.get(mat)
             low = mat.lower()
             p = _params(export, path, resolver) if path else None
             master = p.chain[-1] if p and p.chain else None
-            if master in DROP or 'decal' in low or 'shieldwings' in low: continue
+            if master in DROP or ('decal' in low and master != 'M_DecalMaster_Labels'): continue   # (normal-only decals)
+            if master == 'M_SuperChargedShieldWings_Sheets' and p is not None:
+                if mat not in done: mats.append(_energy_wings(export, mod, f'{sid}_{low}', mat, p))
+                done.add(mat); keep.append((mat, attrs, idx)); continue
+            if master == 'M_TER_StationLights_MASTER' and p is not None:
+                # (one glow material per light colour: the master picks its channel per face, by UV set 1's quadrant)
+                for q, col, sub in _station_lights(p, attrs, idx):
+                    name = f'{mat}_{q}'
+                    if name not in done:
+                        peak = float(max(col))
+                        e = {'material': name, 'color': [0.03, 0.03, 0.03]}
+                        if peak > 1e-3: e.update({'emissionColor': _norm(col), 'emissionIntensity': round(min(peak * 0.3, 3.0), 3)})
+                        mats.append(e); done.add(name)
+                    keep.append((name, attrs, sub))
+                continue
             r = _recipe(export, p, master) if p else None
+            if r is not None and CHORUS_LAYERS and r['kind'] in ('trim', 'plating') and r.get('colors') and r.get('data'):
+                # drawn by the remake's Chorus layers over the hull's own UV sets (TRIM_SHADER), not baked
+                name = mat + '__chorus'   # (the remake matches entries by "name contains": ..._Cult in ..._Cult_Emissive)
+                if name not in done:
+                    mats.append({'material': name, 'chorus': _chorus(export, mod, p, master, r)}); done.add(name)
+                keep.append((name, dict(attrs, COLOR_0=colour) if colour is not None else attrs, idx)); continue
+            if r is not None and CHORUS_LAYERS and r['kind'] == 'panel':
+                r = None   # (the tech panels: their own maps over UV set 0, full size, as the master draws them)
             layout = _layout(attrs, idx) if r is not None and 'NORMAL' in attrs else None
             if layout is not None:
-                bake.append((mat, dict(attrs, TEXCOORD_2=layout), idx, r)); continue
+                a2 = dict(attrs, TEXCOORD_2=layout, MASKUV=attrs.get('TEXCOORD_2', layout))   # (the mask's own UV set 2)
+                if r.get('uv') and r['uv'] in attrs: a2['TEXCOORD_0'] = attrs[r['uv']]   # (the floater sheet: UV set 1)
+                bake.append((mat, a2, idx, r)); continue
             stem = f'{sid}_{low}'
             if mat not in done:
-                if master in GLOWS:
+                if master in WINDOWS:
+                    mats.append(_windows(export, mod, stem, mat, p, master))
+                elif master == 'M_JTU_Blend':
+                    mats.append(_jtu_blend(export, mod, stem, mat, mi, p, low))
+                elif master in GLOWS:
                     key, strength, engine = GLOWS[master]
                     col = (p.vector(key) if key else None) or p.vector('Color') or [1.0, 0.6, 0.3]
                     e = {'material': mat, 'color': [0.03, 0.03, 0.03], 'emissionColor': _norm(col), 'emissionIntensity': strength}
                     if engine: e.update({'engine': True, 'engineIdle': 0.25})
                     mats.append(e)
+                elif master == 'M_DecalMaster_Labels':
+                    mats.append(_decal(export, mod, mat, p))
+                elif master == 'M_Guilt_Shell':
+                    mats.append(_guilt_shell(export, mod, mat, p))
                 elif master in FLAT:
                     c, sm = FLAT[master]
                     col = p.vector(c) if isinstance(c, str) else c
@@ -457,11 +874,24 @@ def _convert(export, mod, sid, meshes, resolver=None, size=1024, override=None):
                     mats.append(e)
                 elif master in FACELESS:
                     mats.append(_faceless(export, mod, stem, mat, p))
+                elif master == 'M_NPC_Floater_Simple' and p is not None:
+                    # Sav's and Ree's floater panels: one sheet (colour, normal, ORMA: R occlusion, G roughness, B
+                    # metal) over UV set 1, which becomes their UV
+                    names = {'diffuse': p.texture('ref:T_Floater_01_D'), 'normal': p.texture('ref:T_Floater_01_N'), 'rmo': p.texture('ref:T_Floater_01_ORMA')}
+                    found = _png(export, names['diffuse'])
+                    e = {'material': mat}
+                    if found:
+                        e.update(textures.convert_material(os.path.dirname(found), names, [], maps, stem, size=1024, small=512, layout='ORM'))
+                    else:
+                        e['color'] = [0.3, 0.3, 0.32]
+                    mats.append(e)
                 elif mi is not None or p is not None:
                     mats.append(_own(export, mod, stem, mat, mi, p, master, low))
                 else:
                     mats.append({'material': mat, 'color': [0.35, 0.35, 0.37], 'smoothness': 0.45})
                 done.add(mat)
+            if master == 'M_NPC_Floater_Simple' and 'TEXCOORD_1' in attrs and 'NORMAL' in attrs:
+                attrs = dict(attrs, TEXCOORD_0=attrs['TEXCOORD_1'], TANGENT=_tangents(attrs, idx, 'TEXCOORD_1'))
             keep.append((mat, attrs, idx))
         if bake:
             name = f'{sid}_hull{k}'
@@ -480,10 +910,25 @@ def _convert(export, mod, sid, meshes, resolver=None, size=1024, override=None):
     return keep, mats
 
 
+def _uniform(prims):
+    """The primitives with the same attributes (CHORUS_KEEP): missing UV sets zero, missing vertex colours white."""
+    out = []
+    for m, a, i in prims:
+        a = dict(a); n = len(a['POSITION'])
+        for key in CHORUS_KEEP[3:7]:
+            if key not in a: a[key] = np.zeros((n, 2), np.float32)
+        if 'COLOR_0' not in a: a['COLOR_0'] = np.ones((n, 4), np.float32)
+        if 'TANGENT' not in a: a['TANGENT'] = np.tile(np.array([1, 0, 0, 1], np.float32), (n, 1))
+        out.append((m, a, i))
+    return out
+
+
 # ---- placing ----------------------------------------------------------------------------------------------------------
 # (turns that bring the nose to +X: rotations about the up axis)
 ROT = {'+x': lambda v: v, '-x': lambda v: v * np.array([-1, 1, -1], np.float32),
-       '+z': lambda v: v[:, [2, 1, 0]] * np.array([1, 1, -1], np.float32), '-z': lambda v: v[:, [2, 1, 0]] * np.array([-1, 1, 1], np.float32)}
+       '+z': lambda v: v[:, [2, 1, 0]] * np.array([1, 1, -1], np.float32), '-z': lambda v: v[:, [2, 1, 0]] * np.array([-1, 1, 1], np.float32),
+       # (modelled pointing up: the blueprint pitches it -90, so its top is the nose; up -> forward, forward -> down)
+       '+y': lambda v: v[:, [1, 0, 2]] * np.array([1, -1, 1], np.float32)}
 
 
 def _nose(prims):
@@ -572,9 +1017,10 @@ def material_paths(export):
             src = os.path.join(export, mesh + '.glb')
             if not os.path.exists(src): continue
             for m, _, _ in glb.static_mesh(src, keep=('POSITION',)):
-                _, d = _find_mi(export, m)
-                if d: out.add(os.path.relpath(os.path.join(d, m), export))
+                _, path = _find_mi(export, m)
+                if path: out.add(path)
         out |= set(s.get('override', {}).values())
+    out |= set(MATERIAL_PATHS.values())
     return sorted(out)
 
 
@@ -586,14 +1032,134 @@ def texture_paths(resolver, export):
     return sorted(out)
 
 
-KEEP = ('POSITION', 'NORMAL', 'TANGENT', 'TEXCOORD_0', 'TEXCOORD_1', 'TEXCOORD_2', 'TEXCOORD_3')
+KEEP = ('POSITION', 'NORMAL', 'TANGENT', 'TEXCOORD_0', 'TEXCOORD_1', 'TEXCOORD_2', 'TEXCOORD_3', 'COLOR_0')
+
+# ---- mounts ------------------------------------------------------------------------------------------------------------
+MAX_TURRETS, MAX_EXHAUSTS = 8, 8   # (a capital ship's hardpoints carry at most 8 turrets in multiplayer copies)
+TURRET = {1: 49}                   # npcTurrets by race: the Vossk L'ksaar; the others the Hammerhead D2A2 (48), as the GoF3 importer
+TURRET_SOCKETS = re.compile(r'(?i)artillery|turret|npcattack')
+THRUSTER_SOCKETS = re.compile(r'(?i)^thruster')
+DAMAGE_SOCKETS = re.compile(r'(?i)^vfx_dt')
 
 
-def build(export, mod, resolver=None, only=None, work=None):
+def _socket(work, mesh, name):
+    """(Unreal location in cm, rotation matrix) of the static mesh socket 'name' (<work>/sockets, read by sockets()), or
+    None."""
+    f = os.path.join(work, 'sockets', mesh.rsplit('/', 1)[1] + '.json')
+    if not os.path.exists(f): return None
+    for e in json.load(open(f, encoding='utf-8')):
+        pr = e.get('Properties', {}) if isinstance(e, dict) else {}
+        if e.get('Type') != 'StaticMeshSocket' or pr.get('SocketName') != name: continue
+        loc, rot = pr.get('RelativeLocation', {}), pr.get('RelativeRotation', {})
+        sc = pr.get('RelativeScale') or {}
+        return (np.array([loc.get(k, 0.0) for k in 'XYZ'], np.float32),
+                _rotator(rot.get('Pitch', 0.0), rot.get('Yaw', 0.0), rot.get('Roll', 0.0)),
+                np.array([sc.get(k, 1.0) for k in 'XYZ'], np.float32))
+    return None
+
+
+def _rotator(pitch, yaw, roll):
+    """Unreal's FRotationMatrix (row vectors: v' = v @ M) of a rotator in degrees."""
+    p, y, r = np.radians([pitch, yaw, roll])
+    sp, cp, sy, cy, sr, cr = np.sin(p), np.cos(p), np.sin(y), np.cos(y), np.sin(r), np.cos(r)
+    return np.array([[cp * cy, cp * sy, sp],
+                     [sr * sp * cy - cr * sy, sr * sp * sy + cr * cy, -sr * cp],
+                     [-(cr * sp * cy + sr * sy), cy * sr - cr * sp * sy, cr * cp]], np.float32)
+
+
+def _place(prims, loc, rot, scale):
+    """A part's prims (the export's frame: glTF metres, (x, z, y) of Unreal's) placed at a socket (Unreal cm)."""
+    to_ue = lambda v: v[:, [0, 2, 1]]   # (the same swap both ways)
+    out = []
+    for mat, a, idx in prims:
+        a = dict(a)
+        if 'POSITION' in a: a['POSITION'] = (to_ue(to_ue(a['POSITION'] * 100.0) * scale @ rot + loc) / 100.0).astype(np.float32)
+        if 'NORMAL' in a:
+            n = to_ue(to_ue(a['NORMAL']) / scale @ rot); a['NORMAL'] = (n / np.maximum(np.linalg.norm(n, axis=1, keepdims=True), 1e-8)).astype(np.float32)
+        if 'TANGENT' in a:
+            t = a['TANGENT']; a['TANGENT'] = np.concatenate([to_ue(to_ue(t[:, :3]) @ rot), t[:, 3:]], 1).astype(np.float32)
+        out.append((mat, a, idx))
+    return out
+
+
+def sockets(resolver, work):
+    """{mesh pak path: [(socket name, glTF position, metres)]}: the NPC hulls' static mesh sockets (Chorus places its
+    turrets, thrusters and damage effects there), read from the pak once into <work>/sockets."""
+    folder = os.path.join(work, 'sockets'); os.makedirs(folder, exist_ok=True)
+    meshes = sorted({m for s in SHIPS for m in s['meshes']})
+    todo = [m for m in meshes if not os.path.exists(os.path.join(folder, m.rsplit('/', 1)[1] + '.json'))]
+    if todo and resolver is not None:
+        resolver.run('jsonall', '^(' + '|'.join(re.escape(m) for m in todo) + r')\.uasset$', folder, capture=True)
+    out = {}
+    for m in meshes:
+        f = os.path.join(folder, m.rsplit('/', 1)[1] + '.json')
+        if not os.path.exists(f): continue
+        found = []
+        for e in json.load(open(f, encoding='utf-8')):
+            pr = e.get('Properties', {}) if isinstance(e, dict) else {}
+            if e.get('Type') != 'StaticMeshSocket' or 'SocketName' not in pr: continue
+            loc = pr.get('RelativeLocation', {})
+            ue = [loc.get('X', 0.0), loc.get('Y', 0.0), loc.get('Z', 0.0)]
+            found.append((pr['SocketName'], np.array([ue[0], ue[2], ue[1]], np.float32) / 100.0))   # (Unreal cm -> the export's metres)
+        out[m] = found
+    return out
+
+
+def _spread(points, n):
+    """At most n of the points, spread over the list."""
+    if len(points) <= n: return list(points)
+    return [points[int(round(i * (len(points) - 1) / (n - 1)))] for i in range(n)]
+
+
+def _top_points(prims, lo, hi, n=4):
+    """n points on the hull's back along its length (turret spots for a hull without turret sockets)."""
+    pos = np.concatenate([np.asarray(a['POSITION']) for _, a, _ in prims])
+    L, W = float(hi[0] - lo[0]), float(hi[2] - lo[2])
+    out = []
+    for f in np.linspace(0.2, 0.8, n):
+        x = float(lo[0]) + f * L
+        m = (np.abs(pos[:, 0] - x) < 0.04 * L) & (np.abs(pos[:, 2]) < 0.15 * W)
+        if m.any(): out.append([x, float(pos[m, 1].max()), 0.0])
+    return out
+
+
+# npcships.json: the capital ships with escorts of their own side's fighters and spawn rules (they leave the ships.json
+# traffic then: "weight" 0), the dropship launching fighters (Chorus's reveal text: it "deploys Circle forces")
+MOD_ID = 'chorus_ships'
+ESCORTS = {8: ['circle_fighter', 'circle_fighter_snipe', 'circle_fighter_net', 'circle_scout', 'circle_support'],
+           9: ['omen_drone', 'omen_bat_swarm', 'omen_support']}
+RACE_WORD = {0: 'terran', 1: 'vossk', 2: 'nivelian', 3: 'midorian', 8: 'pirates', 9: 'void'}
+LAUNCHES = {'dropship': {'ships': ['circle_fighter', 'circle_scout'], 'perWave': 3, 'every': 25, 'total': 12}}
+
+
+def npc_ships(entries):
+    """npcships.json entries for the capital ships among the built ships.json entries (and their traffic set to 0)."""
+    ids = {e['id'] for e in entries}
+    out = []
+    for e in entries:
+        t = e.get('traffic')
+        if not isinstance(t, dict) or t.get('capital') != 'battleship': continue
+        race = e.get('race', 0)
+        t['weight'] = 0
+        d = {'id': e['id'], 'kind': 'capital', 'ship': f"{MOD_ID}:{e['id']}", 'name': e['name'], 'race': RACE_WORD.get(race, 'terran')}
+        if race in (8, 9): d['hostile'] = True
+        escorts = [f'{MOD_ID}:{x}' for x in ESCORTS.get(race, []) if x in ids]
+        d['escorts'] = {'count': [2, 4], **({'ships': escorts} if escorts else {})}
+        # Terran ones in the inner systems now and then; the Circle's and the Omen's rarer, anywhere
+        d['spawn'] = {'chance': 4, 'races': ['terran']} if race == 0 else {'chance': 2}
+        if e['id'] in LAUNCHES:
+            l = dict(LAUNCHES[e['id']]); l['ships'] = [f'{MOD_ID}:{x}' for x in l['ships'] if x in ids]
+            if l['ships']: d['launches'] = l
+        out.append(d)
+    return out
+
+
+def build(export, mod, resolver=None, only=None, work=None, anims=None):
     """The NPC ships' models, maps and ships.json entries (those exported; only: a set of ids)."""
     os.makedirs(os.path.join(mod, 'models', 'npc'), exist_ok=True); os.makedirs(os.path.join(mod, 'maps'), exist_ok=True)
     _PNG.clear()   # (textures exported since the last call)
     shown = names(resolver, work or os.path.dirname(os.path.abspath(export)))
+    socks = sockets(resolver, work or os.path.dirname(os.path.abspath(export)))
     out = []
     for s in SHIPS:
         sid = s['id']
@@ -602,6 +1168,12 @@ def build(export, mod, resolver=None, only=None, work=None):
         if not os.path.exists(srcs[0]):
             print(f'  {sid}: not exported'); continue
         meshes = [glb.static_mesh(f, keep=KEEP) for f in srcs if os.path.exists(f)]
+        for part, names_ in s.get('attach', {}).items():   # (a blueprint's parts on the hull's sockets: one mesh group)
+            src = os.path.join(export, part + '.glb')
+            placed = [_socket(work or os.path.dirname(os.path.abspath(export)), s['meshes'][0], n) for n in names_] if os.path.exists(src) else []
+            group = [p for t in placed if t for p in _place(glb.static_mesh(src, keep=KEEP), *t)]
+            if group: meshes.append(group)
+            else: print(f'  {sid}: {part.rsplit("/", 1)[1]} not placed')
         nose = s.get('nose') or _nose(meshes[0])
         meshes = [_turn(m, nose) for m in meshes]
         lo, hi = glb.bounds([p for m in meshes for p in m])
@@ -615,17 +1187,43 @@ def build(export, mod, resolver=None, only=None, work=None):
         name = shown.get(sid, s['name'])
         if not prims:
             print(f'  {sid}: nothing to draw'); continue
-        glb.save(os.path.join(mod, 'models', 'npc', sid + '.glb'),
-                 [(m, {k: v for k, v in a.items() if k not in ('TEXCOORD_1', 'TEXCOORD_2', 'TEXCOORD_3')}, i) for m, a, i in prims], sid)
         k = K * shrink   # game units per model metre (the hull scaled down past its cap)
+        if any('chorus' in e_ for e_ in mats):
+            # Chorus's layers read UV sets 1 and 3 and the vertex colours: every primitive gets them (glTFast reads one
+            # vertex layout per mesh), zero UVs and white where a part has none
+            glb.save(os.path.join(mod, 'models', 'npc', sid + '.glb'), _uniform(prims), sid, keep=CHORUS_KEEP)
+            for e_ in mats:   # (the kicker's fade: Chorus's centimetres -> model metres -> game units -> the remake's world)
+                c_ = e_.get('chorus', {})
+                for f_ in ('kickerFadeOffset', 'kickerFadeLength'):
+                    if f_ in c_: c_[f_] = round(c_[f_] / 100.0 * k * 0.05, 2)
+        else:
+            glb.save(os.path.join(mod, 'models', 'npc', sid + '.glb'),
+                     [(m, {k_: v for k_, v in a.items() if k_ not in ('TEXCOORD_1', 'TEXCOORD_2', 'TEXCOORD_3')}, i) for m, a, i in prims], sid)
         game = lambda v: [round(-float(v[2]) * k, 1), round(float(v[1]) * k, 1), round(float(v[0]) * k, 1)]
         mid_y = float(lo[1] + hi[1]) / 2
         half = float(min(hi[1] - lo[1], hi[2] - lo[2])) / 6
-        mounts = [{'slotType': 0, 'position_engine': game([hi[0], mid_y, 0.0])},
-                  {'slotType': 3, 'position_engine': game([lo[0], mid_y, 0.0]), 'turretAngles': [0.35, 0.35, 0.35],
-                   'glowColor': s['glow'], 'glowSize': [round(half * k), round(half * k), 40]}]
+        mounts = [{'slotType': 0, 'position_engine': game([hi[0], mid_y, 0.0])}]
+        # the hull's sockets (in the turned frame): thrusters, turrets, damage effects
+        sk = [(n_, ROT[nose](p_[None, :])[0]) for m_ in s['meshes'] for n_, p_ in socks.get(m_, [])]
+        exhausts = [(p_, half) for n_, p_ in sk if THRUSTER_SOCKETS.search(n_)]
+        if not exhausts:   # else at the rear faces of its own thruster glow (the traffic ships', the warships')
+            glows = {e_['material'] for e_ in mats if e_.get('engine')}
+            exhausts = [(c_, max(h_)) for g_ in sorted(glows) for c_, h_ in nozzle_faces(prims, g_)]
+        if not exhausts: exhausts = [(np.array([lo[0], mid_y, 0.0]), half)]
+        for p_, h_ in _spread(sorted(exhausts, key=lambda e_: (float(e_[0][2]), float(e_[0][1]))), MAX_EXHAUSTS):
+            mounts.append({'slotType': 3, 'position_engine': game(p_), 'turretAngles': [0.35, 0.35, 0.35],
+                           'glowColor': s['glow'], 'glowSize': [max(round(h_ * k), 8), max(round(h_ * k), 8), 40]})
+        turrets = []
+        if role in ('capital', 'boss'):
+            turrets = [p_ for n_, p_ in sk if TURRET_SOCKETS.search(n_)] or (_top_points(prims, lo, hi) if role == 'capital' else [])
+            for p_ in _spread(turrets, MAX_TURRETS)[:MAX_TURRETS]:
+                mounts.append({'slotType': 2, 'position_engine': game(p_)})
+        smoke = _spread([p_ for n_, p_ in sk if DAMAGE_SOCKETS.search(n_)], 4)
         race = 9 if s['races'] == [9] else (8 if 8 in s['races'] else s['races'][0])
         if role == 'player':
+            if s.get('rig') and anims and nose == '+x':   # (Chorus's drift on the Forsaken's skeleton: tools/rig.py)
+                rig.save_rigged(os.path.join(mod, 'models', 'npc', sid + '.glb'), srcs[0], glb.static_mesh(srcs[0], keep=KEEP[:-1]), anims,
+                                sid, keep_materials={m for m, _, _ in prims})
             w = float(hi[2] - lo[2])
             mounts = [{'slotType': 0, 'position_engine': game([hi[0] * 0.4, mid_y, w * 0.25])},
                       {'slotType': 0, 'position_engine': game([hi[0] * 0.4, mid_y, -w * 0.25])},
@@ -638,6 +1236,7 @@ def build(export, mod, resolver=None, only=None, work=None):
                  'model': f'models/npc/{sid}.glb', 'icon': f'icons/{sid}.png', 'modelLength': round(length_m / 0.05), 'modelYaw': 90,
                  'hangarHeight': round(-float(lo[1]) * k + 20), 'engineGlowColor': s['glow'], 'mounts': mounts, 'materials': mats,
                  'lounge': {'systemRace': -1, 'minCampaign': 50, 'minRank': 14, 'chance': 3}, 'flightStyle': 'chorus'}
+            if s.get('rig') and anims and nose == '+x': e['animations'] = rig.ANIMATIONS
             print(f'  {sid}: player ship, {length_m:.0f} m, nose {nose}, {len(mats)} materials')
             out.append(e); continue
         if role == 'fighter':
@@ -656,6 +1255,9 @@ def build(export, mod, resolver=None, only=None, work=None):
              'hangarHeight': round(-float(lo[1]) * k + 20), 'engineGlowColor': s['glow'], 'mounts': mounts, 'materials': mats,
              'traffic': traffic}
         if role in ('capital', 'freighter'): e['explosionScale'] = round(min(20.0, max(2.0, length_m * shrink / 150)), 1)
+        n_turrets = sum(1 for m_ in mounts if m_['slotType'] == 2)
+        if n_turrets: e['npcTurrets'] = [TURRET.get(race, 48)] * n_turrets
+        if smoke: e['smoke'] = [game(p_) for p_ in smoke]
         print(f'  {sid} ({name}): {role}, {length_m * shrink:.0f} m{" (from %.0f)" % length_m if shrink < 1 else ""}, nose {nose}, {len(mats)} materials')
         out.append(e)
     return out

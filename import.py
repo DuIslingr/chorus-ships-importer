@@ -11,7 +11,7 @@ import argparse, json, os, shutil, subprocess, sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-from tools import ships, sounds, weapons, kit, npcs, mi  # noqa: E402
+from tools import ships, sounds, weapons, kit, npcs, mi, rig  # noqa: E402
 
 MASTER_DATA = 'SpacePrototype/Content/UnleashedPrototype/Core/PlayerEquipment/BP_PlayerEquipmentMasterData.uasset'
 EXPORTS = [ships.PHOENIX + '/skelmesh/SK_Phoenix',      # what the mod needs from the pak (materials and textures come along)
@@ -37,6 +37,8 @@ def options():
                     help="how the ships fly in the remake: Chorus's flight (default), free flight, the original, or the player's option")
     ap.add_argument('--no-kit', action='store_true', default=cfg.get('no_kit', False),
                     help="a plain ship, without the ship kit that shows Chorus's weapon models on it")
+    ap.add_argument('--bake-hulls', action='store_true', default=cfg.get('bake_hulls', False),
+                    help="bake the NPC hulls' trim sheets into one texture set each (for a remake without Chorus's layers)")
     ap.add_argument('--no-sounds', action='store_true', default=cfg.get('no_sounds', False),
                     help="leave Chorus's sounds out (the ship plays the game's)")
     ap.add_argument('--fresh', action='store_true', default=cfg.get('fresh', False), help='export again even if the work folder has it')
@@ -88,14 +90,21 @@ def main():
     resolver.prefetch([p for _, p, _ in ships.FORSAKEN_MATERIALS + ships.ELDER_MATERIALS] +
                       [ships.ARGUS + '/' + m for m in ships.ARGUS_MATERIALS] + npcs.material_paths(export))
     resolver.fetch_textures(npcs.texture_paths(resolver, export), export)   # (maps an instance inherits from its parents)
+    anim_dir = os.path.join(a.work, 'anims')   # Chorus's drift clips for the Forsaken (tools/rig.py)
+    if a.fresh or rig.load(anim_dir) is None:
+        lst = os.path.join(a.work, 'anim_list.txt')
+        open(lst, 'w').write('\n'.join(rig.EXPORTS) + '\n')
+        run('anim', lst, anim_dir, capture=True)
+    anims = rig.load(anim_dir)
     print('Converting the Forsaken...')
-    forsaken = ships.forsaken(export, a.out, resolver)
+    forsaken = ships.forsaken(export, a.out, resolver, anims)
     print('Converting the Elder Buddy and the Argus...')
     elder = ships.elder_buddy(export, a.out, forsaken, resolver)
     argus = ships.argus(export, a.out, resolver)
     entries = [forsaken, elder] + ([argus] if argus else [])
     print("Converting Chorus's enemy ships for the traffic...")
-    enemies = npcs.build(export, a.out, resolver, work=a.work)
+    npcs.CHORUS_LAYERS = not a.bake_hulls
+    enemies = npcs.build(export, a.out, resolver, work=a.work, anims=anims)
     players = [e for e in enemies if 'lounge' in e]   # (the supercharged Forsaken: sold, with sounds and an icon)
     enemies = [e for e in enemies if 'lounge' not in e]
     entries += players
@@ -142,6 +151,8 @@ def main():
         kits, kit_ships = kit.build(export, a.out, forsaken, skinned=[elder])
         entries = kit_ships + ([argus] if argus else []) + players
         json.dump(kits, open(os.path.join(a.out, 'shipkits.json'), 'w', encoding='utf-8'), indent=1)
+    capitals = npcs.npc_ships(enemies)   # (their ships.json traffic set to 0: npcships.json spawns them, with escorts)
+    json.dump(capitals, open(os.path.join(a.out, 'npcships.json'), 'w', encoding='utf-8'), indent=1)
     entries += enemies   # (no icons or sounds: only the traffic flies them)
     json.dump(entries, open(os.path.join(a.out, 'ships.json'), 'w', encoding='utf-8'), indent=1)
     print(f'Done: {a.out}. Copy (or link) it into the remake\'s Mods folder.')

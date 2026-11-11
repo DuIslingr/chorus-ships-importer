@@ -13,13 +13,66 @@ Done:
   - the materials read through their parents (`tools/mi.py`), the tangents' handedness fixed, the Elder's and the Argus's
     glow as Chorus sets it;
   - every other ship: about seventy NPC hulls as traffic fighters, pirate bosses, freighters and capital ships, their
-    trim-sheet materials baked.
+    trim-sheet materials baked; names from their NPC blueprints; Sav's and Ree's layered coats, the Disruptor nose first;
+  - the Forsaken's drift animation (its rigid skin as parts on the skeleton, Chorus's clips; the remake's ships.json
+    `animations`), on the Elder Buddy and the supercharged Forsaken too; the supercharged Forsaken's energy wings;
+  - its travel boost clips and its steering / thrust / brake flaps as poses by the input; the energy wings shimmer
+    (the remake's shimmer layer with Chorus's soft noise);
+  - the NPC hulls' exhausts at their Thruster sockets or their thruster glow's nozzles, the capital ships' turrets
+    (Artillery / NPCAttack sockets, else spots along the back; npcTurrets 48, the Vossk 49), damage smoke at the
+    warships' VFX_DT sockets; npcships.json: the capital ships with escorts of their side's fighters, spawn chances,
+    the dropship launching Circle fighters;
+  - checked against gameplay footage: the Forsaken's cyan glow lines (match); the Trom Shipyard frigates' light-grey
+    plating against our muddy, half-metal frigate: metalness now from LayerData's blue (a near-binary flag);
+  - the Forsaken's other animations: the weapons deploying (layer 1, while firing and 3 s after; the kit's primary
+    guns ride the wpnPlatform bones, ships.json mount `follow`), banking with the steering (poses, root left out), the
+    dash's dodge roll and its own dodge out of a drift (layer 3); every layered clip keys only the bones that differ
+    from Chorus's idle;
+  - the Prophet checked against a screenshot (upright, its blade below, as built): its crystal crown glows red (M_JTU_Blend's
+    inner glow), its lights take its blueprint's override (blue); windows drawn as their panes (the pane atlas, the
+    window master's glass mask) instead of solid glowing slabs; the shuttle's plating found (a case mismatch in its name);
+  - decals cut out of their sheets (hull numbers, emblems); Guilt's shell masked to its shape; the bat swarm's bone from
+    its own maps; the Prophet's four weapon pods on its sockets and its thrusters (blueprint parts: S(..., attach=));
+    the palette's LayerData blue stays metal (footage of the Prophet in its arena: its white swatches black).
+  - the trim and plating masters decompiled (their base-pass pixel and vertex shaders, npcs.py TRIM_SHADER /
+    PLATING_SHADER): the palette by UV set 3 as read, metal = saturate((LayerData.b - 0.5) x 2 + the RMO's metal),
+    roughness lerp(LayerData.r, .g) by the RMO, the trim's tiling diffuse / RMO over UV set 1 x Base UV Tile Amount
+    (left out before). The Prophet's red head and black V are its arena in its mirror plates: the head (palette cell
+    4) and the V (cell 0) are glossy off-white metal, the head's plates facing up into the arena's red glow, the V
+    facing the dark fog; rendered under a red-overhead sky, the importer's maps give the footage's look. In a remake
+    system the head reflects that system's sky instead (dark in most).
+  - the remake's **Chorus layers** (GoF2/Hull ChorusLayers, a material's `chorus` block; remake ChorusLayersTests): the
+    trim and plating hulls drawn from Chorus's maps over their own UV sets instead of a bake (the warships' trim detail
+    was lost at metres a texel): M_NPCShipTrimMaster's accent strips, UV-shift emissive (UV3.v < 0, compiled; the bake
+    read UV0), 2x near emission, far kicker rim and distance boost; the Cult / TER trim's dirt; the plating. Shared maps
+    in maps/chorus/. Tech panels from their own maps. The Omen's faceless tissue as its shader draws it: all glow on a
+    black base (its compiled base pass), not a lit dark red. The SM_TU_Ufo placeholder dropped (no material in the pak).
 
 Next, roughly in order:
 1. **Check in the remake.** Load the mod and look at the ship: orientation, size, mounts, materials. Then tune
    `glowSize`, the hangar height and the camera.
 2. **Listen in the game** and tune the sound volumes and pitch ranges, and the weapons' balance.
-3. **The NPC ships in the game:** their turrets (`npcTurrets` and turret mounts for the capital ships), exhaust mounts at
-   their real nozzles, escorts and spawns (`npcships.json`), their weapons and NPC flight from Chorus's NPC steering.
-4. **Check the guesses** against Chorus in motion: the trim emissive's UV-shift mask, the LayerData channels (metalness
-   from red), the Argus's vertex colours, the Elder's edge kicker (a red rim far away, left out).
+3. **NPC flight from Chorus's NPC steering** and their own weapons (they fly with the remake's NPC hulls and guns).
+4. **Still unchecked against Chorus** (no footage shows them clearly; they rest on reading the materials): the trim
+   emissive's UV-shift mask; which colour of Sav's and Ree's layer mask picks which coat (they are allies' large ships
+   in "Defend the Naiara Citadel", BP_NPC_Ship_Sav / _Ree confirm SM_Sav / SM_Ree, but neither hull is in frame long
+   enough); the Elder ship's / Elder Buddy's glow and edge kicker (Rasar's ship stays far off); the TER military
+   palette once rebuilt with the blue-channel metalness; the Argus never appears (a player ship the game doesn't let
+   you fly). Next way in: the shaders' compiled HLSL in the pak's shader library, or someone's own captures.
+5. **Look at the Forsaken's animations in the remake:** the weapon doors and guns while firing, the bank, the dodge;
+   tune the pose rate and the 3 s weapons hold.
+6. **Station lights' channels:** their vertex colours' red steps (0.21, 0.5, 0.58, 0.74, 1) pick among four colours;
+   which step is which isn't in the cooked files (they stay the first channel). Footage of lit freighters would tell.
+7. **Still read by parameter names, to decompile the same way** (the exporter's `shaders`, then d3dcompiler): Sav's and
+   Ree's M_NPC_Trim_SavRee (still baked: which mask colour picks which coat), the faceless cores (Enable Core) and the
+   breath curve (CA_BaseVFX, a curve atlas the exporter doesn't write: the bake takes it at rest), M_JTU_Blend (the
+   Prophet's crown), M_Phoenix's glow lines. The Omen tissue's pulse, parallax and scroll and the faceless dissolve edge
+   would want a remake shader like the Chorus layers.
+8. **The other trim permutations:** decompiled so far: the Cult's trim (no emissive, no kicker), the Cult's emissive
+   trim (MI_TER_TechTrim03_Cult_Emissive: UV-shift emissive, dirt, no kicker), the fighters' M_NPCShipTrimMaster
+   (MI_TER_NPC_Ship02: accent, emissive, kicker). A TrimLayers instance with "Enable Accent 1 (Wear)" on is drawn with
+   the fighters' accent formula, unchecked; the Disruptor's emissive trim not dumped. Guilt's radial portal core is
+   still left out.
+9. **Smaller things:** rename the "Terran Gunship" ("Terran" is only Chorus's internal file tag); decide whether Chorus
+   freighters stay out of the Vossk / Nivelian / Midorian systems; the Sentinels' near-black bones; smaller bakes for the
+   freighters (the mod is about 500 MB).

@@ -6,7 +6,7 @@
 # units per glTF metre (the same mapping as the EVERSPACE 2 importer's warships.ue_to_game).
 import json, os
 import numpy as np
-from . import glb, textures
+from . import glb, rig, textures
 from . import mi as mip   # (material parameters through the parents; "mi" is the local instance below)
 
 SCALE = 3.6          # Chorus metres -> remake metres, as the EVERSPACE 2 importer sizes ES2's ships next to GoF2's
@@ -86,7 +86,7 @@ FORSAKEN_MATERIALS = [
 ]
 
 
-def forsaken(export, mod, resolver=None):
+def forsaken(export, mod, resolver=None, anims=None):
     """Builds models/forsaken.glb and maps/*, returns the ships.json entry. resolver: a tools/mi.Resolver (the glow
     colours an instance inherits from its parents)."""
     src = os.path.join(export, PHOENIX, 'skelmesh', 'SK_Phoenix.glb')
@@ -94,7 +94,10 @@ def forsaken(export, mod, resolver=None):
     lo, hi = glb.bounds(prims)
     length = float(hi[0] - lo[0])                       # along the nose (glTF X)
     os.makedirs(os.path.join(mod, 'models'), exist_ok=True); os.makedirs(os.path.join(mod, 'maps'), exist_ok=True)
-    glb.save(os.path.join(mod, 'models', 'forsaken.glb'), prims, 'forsaken')
+    if anims:   # Chorus's drift: the parts on the skeleton, with its clips (tools/rig.py)
+        rig.save_rigged(os.path.join(mod, 'models', 'forsaken.glb'), src, prims, anims, 'forsaken')
+    else:
+        glb.save(os.path.join(mod, 'models', 'forsaken.glb'), prims, 'forsaken')
 
     materials = []
     for mat, mi_path, short in FORSAKEN_MATERIALS:
@@ -121,8 +124,10 @@ def forsaken(export, mod, resolver=None):
     mid = lambda a, b: (bone(a) + bone(b)) / 2
     glow = [0.0, 0.61, 1.0]                             # the thruster's Emissive02, 009CFF
     mounts = [
-        {'slotType': 0, 'position_engine': to_game(bone('SM_Phoenix_wpnPlatform_01_l'))},   # SCK_Weapon_L
-        {'slotType': 0, 'position_engine': to_game(bone('SM_Phoenix_wpnPlatform_01_r'))},   # SCK_Weapon_R
+        {'slotType': 0, 'position_engine': to_game(bone('SM_Phoenix_wpnPlatform_01_l')),     # SCK_Weapon_L
+         **({'follow': rig.FOLLOW['SM_Phoenix_wpnPlatform_01_l']} if anims else {})},       # (riding the platform: rig.py)
+        {'slotType': 0, 'position_engine': to_game(bone('SM_Phoenix_wpnPlatform_01_r')),     # SCK_Weapon_R
+         **({'follow': rig.FOLLOW['SM_Phoenix_wpnPlatform_01_r']} if anims else {})},
         {'slotType': 1, 'position_engine': to_game(mid('SK_Phoenix_wingWeaponAttach_l', 'SK_Phoenix_wingWeaponAttach_r'))},
     ]
     for centre, half in nozzles:                        # the thrusters' nozzles (their rear faces), one per side
@@ -151,6 +156,7 @@ def forsaken(export, mod, resolver=None):
         # The remake's Chorus flight (FlightModel.StepChorus, 2026-11-11): this ship always flies as in Chorus; import.py's
         # --flight-style changes it ("player" leaves it to the player's option).
         'flightStyle': 'chorus',
+        **({'animations': rig.ANIMATIONS} if anims else {}),
     }
 
 

@@ -55,12 +55,14 @@ def emission(e, colours):
 
 def convert_material(src_dir, tex_names, colours, dst_dir, name, size=2048, small=1024, layout='RMO'):
     """Writes <name>_c / _n / _ms (/ _e) .png and returns the ships.json material entry's map fields. layout: the specular
-    map's channels, 'RMO' (R roughness, G metallic, B AO: the Forsaken's) or 'MRO' (R metallic, G roughness: the Argus's)."""
+    map's channels, 'RMO' (R roughness, G metallic, B AO: the Forsaken's), 'MRO' (R metallic, G roughness: the Argus's) or
+    'ORM' (R occlusion, G roughness, B metal: Sav's and Ree's floaters)."""
     def find(t): return os.path.join(src_dir, t + '.png') if t and os.path.exists(os.path.join(src_dir, t + '.png')) else None
     out = {}
     d, n, rmo, e = (find(tex_names.get(k)) for k in ('diffuse', 'normal', 'rmo', 'emissive'))
     rmo_a = _load(rmo) if rmo else None
     if rmo_a is not None and layout == 'MRO': rmo_a = rmo_a[..., [1, 0, 2, 3]]
+    if rmo_a is not None and layout == 'ORM': rmo_a = rmo_a[..., [1, 2, 0, 3]]   # (R occlusion, G roughness, B metal)
     if d:
         c = _load(d)[..., :3]
         if rmo_a is not None:

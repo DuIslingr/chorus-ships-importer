@@ -11,3 +11,5 @@ __pycache__/
 # The contact sheet (tools/sheet.py): renders of Chorus models, never commit or share it
 *_sheet.png
 *_sheet_*.png
+# Comparison renders against Chorus screenshots: Chorus models and footage, never commit or share them
+*_check.png
