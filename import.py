@@ -1,17 +1,19 @@
 #!/usr/bin/env python3
 """Builds the chorus_ships mod for the Galaxy on Fire 2 Unity Remake from your own copy of Chorus.
 
-    python3 import.py --game "<Chorus install folder>" [--out chorus_ships] [--cue4parse <CUE4Parse checkout>]
+    python3 import.py --game "<Chorus install folder>" [--out chorus_ships] [--cue4parse <CUE4Parse checkout>] [--mobile] [--zip]
 
 Steps: build the exporter (.NET, CUE4Parse) -> find the pak's AES key in your game's exe -> export the ships' meshes,
 materials and textures -> convert them -> write the mod (mod.json, ships.json, models/, maps/, icons/, preview.png).
-Settings may also come from config.json (see config.example.json); the command line wins.
+Settings may also come from config.json (see config.example.json); the command line wins. --mobile: also a lighter
+version for phones in <out>_phone and <out>_phone.zip (Blender decimates the models to --ratio of their triangles, the
+textures are halved: tools/mobile.py). --zip: also zip the desktop mod.
 """
 import argparse, json, os, shutil, subprocess, sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-from tools import ships, sounds, weapons, kit, npcs, mi, rig, turrets, world  # noqa: E402
+from tools import ships, sounds, weapons, kit, npcs, mi, rig, turrets, world, mobile  # noqa: E402
 
 MASTER_DATA = 'SpacePrototype/Content/UnleashedPrototype/Core/PlayerEquipment/BP_PlayerEquipmentMasterData.uasset'
 EXPORTS = [ships.PHOENIX + '/skelmesh/SK_Phoenix',      # what the mod needs from the pak (materials and textures come along)
@@ -37,6 +39,11 @@ def options():
                     help="how the ships fly in the remake: Chorus's flight (default), free flight, the original, or the player's option")
     ap.add_argument('--no-kit', action='store_true', default=cfg.get('no_kit', False),
                     help="a plain ship, without the ship kit that shows Chorus's weapon models on it")
+    ap.add_argument('--mobile', action='store_true', default=cfg.get('mobile', False),
+                    help='also make a lighter version for phones (needs Blender): <out>_phone and its zip')
+    ap.add_argument('--ratio', type=float, default=cfg.get('ratio', 0.25),
+                    help='the phone version keeps this share of the triangles (default 0.25)')
+    ap.add_argument('--zip', action='store_true', default=cfg.get('zip', False), help='also zip the desktop mod')
     ap.add_argument('--no-world', action='store_true', default=cfg.get('no_world', False),
                     help="leave out the Chorus systems (skies, planets: tools/world.py)")
     ap.add_argument('--bake-hulls', action='store_true', default=cfg.get('bake_hulls', False),
@@ -164,6 +171,12 @@ def main():
     entries += enemies   # (no icons or sounds: only the traffic flies them)
     json.dump(entries, open(os.path.join(a.out, 'ships.json'), 'w', encoding='utf-8'), indent=1)
     print(f'Done: {a.out}. Copy (or link) it into the remake\'s Mods folder.')
+    if a.zip:
+        print(f'  zipped: {mobile.zip_folder(a.out, a.out.rstrip(os.sep) + ".zip")}')
+    if a.mobile:
+        print('Making the phone version...')
+        phone = mobile.make_mobile(a.out, a.out.rstrip(os.sep) + '_phone', a.ratio, a.blender)
+        print(f'  the phone version: {mobile.zip_folder(phone, phone + ".zip")} (on a phone: Mods > Import mod, and pick it)')
 
 
 if __name__ == '__main__':

@@ -53,6 +53,23 @@ folder (or link it) into the remake's **Mods** folder. Later runs reuse the expo
 
 Settings can also go in `config.json` (copy `config.example.json`); the command line wins.
 
+### For phones
+
+`--mobile` also writes a lighter copy for phones, `chorus_ships_phone/` and `chorus_ships_phone.zip` (on the phone: Mods >
+Import mod, and pick the zip). It has the same mod id, so saves move between devices. It needs Blender (4.2 or newer:
+`--blender`, or on the PATH). `tools/mobile.py` and `tools/decimate_blender.py`, after the ES2 importer's:
+
+- **Models:** Blender decimates the stations, the rocks and the NPC hulls without animations to `--ratio` of their
+  triangles (default 0.25). It works on each material on its own, so none is lost. Engine flames, lights,
+  holograms and any material with under 1500 triangles stay whole. Every UV set and the vertex colours are kept for
+  Chorus's layers. The player ships, the rigged and skinned NPCs, the weapons and the turrets stay as built (their
+  bones, clips and marker nodes must stay exactly).
+- **Textures:** every image is halved, but Chorus's palettes (`maps/chorus/pal_*`, read texel by texel) and the planets'
+  curve rows (`planets/*_curves.png`) stay as they are.
+
+The Chorus systems' world part goes from about 1 GB to about 240 MB (2.8 million triangles to 750 000). The remake's
+Low preset (a phone's default) draws the Chorus skies from their baked panoramas. `--zip` zips the desktop mod too.
+
 ## What the conversion does
 
 - **Model:** the skeletal mesh becomes a static `.glb` in its rest pose, one primitive per material. It's sized at 3.6×
