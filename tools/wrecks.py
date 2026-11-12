@@ -98,8 +98,16 @@ def build(export, mod, resolver, sid, nose, sc, size, override=None):
     os.makedirs(os.path.join(mod, 'models', 'wrecks'), exist_ok=True)
     keep = npcs.CHORUS_KEEP if any('chorus' in e for e in mats) else glb.KEEP
     rig.save(os.path.join(mod, rel), nodes, list(range(len(nodes))), meshes, [], f'{sid}_wreck', keep=keep)
+    # its burn: the wreck materials' Burn_Amount (MF_WreckBurn; the Forsaken's 0.95), the strongest of them
+    burns = []
+    for m in {m for m, _, _ in prims}:
+        _, path = npcs._find_mi(export, m)
+        q = npcs._params(export, path, resolver) if path and resolver is not None else None
+        if q is not None and 'Burn_Amount' in q.scalars: burns.append(float(q.scalars['Burn_Amount']))
     print(f'  {sid}: its wreck in {len(nodes)} pieces')
-    return {'model': rel, 'seconds': SECONDS.get(sid, 6.0), 'speed': 1.0, 'spin': 1.0}, mats
+    w = {'model': rel, 'seconds': SECONDS.get(sid, 6.0), 'speed': 1.0, 'spin': 1.0}
+    if burns: w['burn'] = round(min(1.0, max(burns)), 3)
+    return w, mats
 
 
 def apply(e, s, export, mod, resolver, nose, sc, size):

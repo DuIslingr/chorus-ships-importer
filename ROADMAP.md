@@ -120,7 +120,8 @@ Next, roughly in order:
     wreck burn and cut (HullWreck.hlsl: the pieces glow, cool by halfway and disintegrate over the last 40 %); the
     gunships break into the wreck of the configuration they fly (their death configs' Expl_04: Gunship01 with its gun pod,
     Gunship02 with its mine thrower, the Elite with its gun pod; the pirates' without). Left: the burn's own noise
-    (T_DamageSurface01_D in Chorus, value noise in the remake) and the wreck materials' Burn_Amount per ship (all 1).
+    (T_DamageSurface01_D in Chorus, value noise in the remake); each wreck's "burn" is its materials' strongest
+    Burn_Amount.
 14. **The player capital ship, done** (`tools/capital.py`): the Shield Overcharge (device 22), the hull regeneration
     ("hullRegen"), the Death Ray as a wide beam held on (beamRadius / beamReach, its heat), all 14 artillery barrels as
     turret slots, the braking flaps (its own model from SK_PlayerControlledLargeShip01, the LoopBraking pose) and its shop
