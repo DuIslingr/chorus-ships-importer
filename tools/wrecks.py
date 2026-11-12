@@ -98,15 +98,30 @@ def build(export, mod, resolver, sid, nose, sc, size, override=None):
     os.makedirs(os.path.join(mod, 'models', 'wrecks'), exist_ok=True)
     keep = npcs.CHORUS_KEEP if any('chorus' in e for e in mats) else glb.KEEP
     rig.save(os.path.join(mod, rel), nodes, list(range(len(nodes))), meshes, [], f'{sid}_wreck', keep=keep)
-    # its burn: the wreck materials' Burn_Amount (MF_WreckBurn; the Forsaken's 0.95), the strongest of them
-    burns = []
-    for m in {m for m, _, _ in prims}:
+    # its burn: the wreck materials' Burn_Amount (MF_WreckBurn; the Forsaken's 0.95), the strongest of them; and Chorus's own
+    # burn from MF_WreckBurn's compiled base pass: its Burn_Noise map (T_DamageSurface01_D), tiling, offset, falloff and
+    # temperature, over UV1 where the master says so (Burn_Noise_UseUV1: the trim masters'), the vertex colour's red keeping
+    # parts from burning (saturate(1 - red)) where the model keeps its colours. The first material with a map sets them.
+    burns, burn_map = [], None
+    attrs = {k for ps in meshes.values() for _, a, _ in ps for k in a}
+    for m in sorted({m for m, _, _ in prims}):
         _, path = npcs._find_mi(export, m)
         q = npcs._params(export, path, resolver) if path and resolver is not None else None
-        if q is not None and 'Burn_Amount' in q.scalars: burns.append(float(q.scalars['Burn_Amount']))
+        if q is None: continue
+        if 'Burn_Amount' in q.scalars: burns.append(float(q.scalars['Burn_Amount']))
+        name = q.textures.get('Burn_Noise')
+        if burn_map is None and name:
+            if name in q.texture_paths: resolver.fetch_textures([q.texture_paths[name]], export)
+            rel_map = npcs._chorus_map(mod, npcs._png(export, name), 1024, 'data')
+            if rel_map:
+                uv1 = bool(q.switches.get('Burn_Noise_UseUV1')) and 'TEXCOORD_1' in attrs and 'TEXCOORD_1' in keep
+                burn_map = {'burnMap': rel_map, 'burnTiling': q.scalar('Burn_NoiseTiling', 1.0), 'burnOffset': q.scalar('Burn_Noise_Offset', 0.0),
+                            'burnFalloff': q.scalar('Burn_Falloff', 3.0), 'burnTemperature': q.scalar('Burn_Temperature', 1500.0),
+                            'burnVertexRed': 'COLOR_0' in attrs and 'COLOR_0' in keep, 'burnUv1': uv1}
     print(f'  {sid}: its wreck in {len(nodes)} pieces')
     w = {'model': rel, 'seconds': SECONDS.get(sid, 6.0), 'speed': 1.0, 'spin': 1.0}
     if burns: w['burn'] = round(min(1.0, max(burns)), 3)
+    if burn_map: w.update({k: (round(v, 5) if isinstance(v, float) else v) for k, v in burn_map.items()})
     return w, mats
 
 

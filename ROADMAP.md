@@ -132,9 +132,11 @@ Next, roughly in order:
     `apply_players`): the burning and disintegrating materials (MF_WreckBurn, the masters' Dissolve) are the remake's
     wreck burn and cut (HullWreck.hlsl: the pieces glow, cool by halfway and disintegrate over the last 40 %); the
     gunships break into the wreck of the configuration they fly (their death configs' Expl_04: Gunship01 with its gun pod,
-    Gunship02 with its mine thrower, the Elite with its gun pod; the pirates' without). Left: the burn's own noise
-    (T_DamageSurface01_D in Chorus, value noise in the remake); each wreck's "burn" is its materials' strongest
-    Burn_Amount.
+    Gunship02 with its mine thrower, the Elite with its gun pod; the pirates' without). The burn is Chorus's own
+    (MF_WreckBurn decompiled: its Burn_Noise T_DamageSurface01_D, over UV1 on the trims, the vertex red keeping parts
+    cool, its blackbody at Burn_Temperature; the remake's "burnMap"); each wreck's "burn" is its materials' strongest
+    Burn_Amount, its map and numbers the first material's that has one. Left: the cut's noise (the remake's value noise:
+    its depth passes carry no UVs); the Omen wrecks have no burn map (their value-noise burn stands).
 14. **The player capital ship, done** (`tools/capital.py`): the Shield Overcharge (device 22), the hull regeneration
     ("hullRegen"), the Death Ray as a wide beam held on (beamRadius / beamReach, its heat), all 14 artillery barrels as
     turret slots, the braking flaps (its own model from SK_PlayerControlledLargeShip01, the LoopBraking pose) and its shop
