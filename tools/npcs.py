@@ -51,7 +51,7 @@ in Unity's terms, so approximations where Chorus's shaders layer more):
 import glob, json, os, re
 import numpy as np
 from PIL import Image
-from . import glb, rig, textures, warships
+from . import capital, glb, rig, textures, warships
 from .ships import K, SCALE, _tex, _params, _colours, nozzle_faces
 
 UP = 'SpacePrototype/Content/UnleashedPrototype/'
@@ -1258,6 +1258,7 @@ def build(export, mod, resolver=None, only=None, work=None, anims=None):
     shown = names(resolver, work or os.path.dirname(os.path.abspath(export)))
     socks = sockets(resolver, work or os.path.dirname(os.path.abspath(export)))
     warships.blueprints(resolver, work or os.path.dirname(os.path.abspath(export)))
+    capital.blueprints(resolver, work or os.path.dirname(os.path.abspath(export)))
     out = []
     for s in SHIPS:
         sid = s['id']
@@ -1402,4 +1403,7 @@ def build(export, mod, resolver=None, only=None, work=None, anims=None):
             e.update({'skinned': True, 'animations': {'idle': 'idle'}})
         print(f'  {sid} ({name}): {role}, {length_m * shrink:.0f} m{" (from %.0f)" % length_m if shrink < 1 else ""}, nose {nose}, {len(mats)} materials')
         out.append(e)
+        if sid == capital.HOST:   # (Chorus's player capital ship on the same model: tools/capital.py)
+            pe = capital.player_entry(e, s, work or os.path.dirname(os.path.abspath(export)), prims, nose, sc, k)
+            if pe: out.append(pe)
     return out

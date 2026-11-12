@@ -13,7 +13,7 @@ import argparse, json, os, shutil, subprocess, sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-from tools import ships, sounds, weapons, kit, npcs, mi, rig, turrets, world, mobile, factions  # noqa: E402
+from tools import ships, sounds, weapons, kit, npcs, mi, rig, turrets, world, mobile, factions, capital  # noqa: E402
 
 MASTER_DATA = 'SpacePrototype/Content/UnleashedPrototype/Core/PlayerEquipment/BP_PlayerEquipmentMasterData.uasset'
 EXPORTS = [ships.PHOENIX + '/skelmesh/SK_Phoenix',      # what the mod needs from the pak (materials and textures come along)
@@ -130,6 +130,7 @@ def main():
     items = weapons.build(fmod if not a.no_sounds else '', a.out, master)
     print("Converting Chorus's turrets...")
     items += turrets.build(export, a.out, resolver)   # (the capital ships' npcTurrets: npcs.CHORUS_TURRETS)
+    items += capital.items(items)   # (the player capital ship's weapons, its artillery on the light turret's model)
     look = None
     if not a.no_world:
         print("Converting Chorus's regions (skies, planets) into the Chorus systems...")

@@ -242,6 +242,11 @@ world part is large (about 1 GB, most of it the five stations).
   and the reactor core (stage 2) whose destruction destroys the ship, the small warship's hangar launching Circle
   fighters. The hull itself shrugs hits off (`"hullDamage": 0`), as Chorus's does. The devices' meshes are prop ships
   (`chorus_part_*`, race -1, never flown), each set at its full turn (`"turretForward"`).
+- **A capital ship of your own** (`tools/capital.py`): Chorus's player capital ship (the PCLS, BP_Player_Ship_Capital) as
+  the Spirit-class Capital Ship, sold in a lounge late in the game (rank 18, 25 million): 2500 armour, slow to turn, on
+  the Captured Warship's model, with its own weapons as items: the PCLS Artillery (an automatic turret on six of its
+  artillery sockets), the PCLS Death Ray (a slow, heavy primary) and the PCLS Broadside Barrage (homing missile salvos
+  with a wide blast). The remake fits its camera to the hull and shrinks it on the hangar's turntable (a hull over 150 m).
 - **The Rift** (`tools/rift.py`): Chorus's rift vortex (SM_Rift_Vortex with M_PortalRift_2, Nimika's
   MI_PortalRift_2_LocAST_Outside, as a material `"rift"` block: its swirl, red centre, lightning flipbooks and clouds,
   added). In the Chorus systems a rift run looks like Chorus's Rift (the `encounters.json` rift entry's `"look"`): the

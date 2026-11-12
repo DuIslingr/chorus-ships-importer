@@ -98,6 +98,10 @@ Next, roughly in order:
     (BP_TurretMount_*_Shield) are plain turrets; only configuration A of each size (Small_C, Medium_B / C, the frigate and
     the civilian capital ships' configs not read); the parts' share of the hull (WEAK_SHARE 0.1, death damage / 4000) is
     the remake's balance, to tune in play.
+14. **The player capital ship, still open** (`tools/capital.py`): Chorus's Shield Overcharge (5 s, 10 s cooldown) and its
+    250 / s hull regeneration aren't there; the Death Ray is a heavy shot, not a 200 m wide beam held on; the artillery is
+    6 of its 14 barrels; its skeletal braking animation (A_PlayerControlledLargeShip01_Braking) is left out; no shop icon
+    (Blender renders the Forsaken's only). Its stats are this importer's balance against GoF2's hulls, to tune in play.
 12. **The Chorus systems, next areas:** Nimika Prime's broken planet (SM_Planet_Destroyed_LocAST parts, M_Planet_Broken),
     Stega Belt's and the Tarris Wormhole's own stations (or other levels' structures: LocASP03's military platform,
     LocRSB14's antenna array), then the bosses, wrecks and effects that need the remake (the rift look and Nimika's dormant
