@@ -59,7 +59,9 @@ SMALL, LARGE, NPC = UP + 'ArtAssets/Vehicles/Small/', UP + 'ArtAssets/Vehicles/L
 PLAYER = UP + 'ArtAssets/Vehicles/Playerships/'
 OMEN_GLOW = [1.0, 0.1, 0.05]   # (the engine glow: the Omen's Inner Glow Color, dimmed)
 CIRCLE_GLOW, PIRATE_GLOW, TER_GLOW = [1.0, 0.25, 0.1], [0.6, 0.8, 0.1], [0.05, 0.45, 1.0]
-FREIGHT_RACES = [0, 1, 2, 3]
+# (Chorus's freighters are human-built, "TER" in their files: they fly the Terran systems, the Chorus systems among them,
+# and leave the Vossk, Nivelian and Midorian orbits to their own races' freighters)
+FREIGHT_RACES = [0]
 MAX_TRAFFIC, MAX_BOSS, MAX_CAPITAL = 150.0, 400.0, 4500.0   # metres (Modding/README)
 
 
@@ -110,7 +112,8 @@ SHIPS = [
       bp=NPC + 'GunshipElite/BP_NPC_Ship_GunshipElite'),
     S('student_gunship', 'Student Gunship', SMALL + 'TG_Gunship_Elite_Cerene/SM_TG_Gunship_Elite_Cerene', 'boss', [8], 1200, CIRCLE_GLOW,
       bp=NPC + 'FactionStudent/BP_NPC_Ship_Cerene_Student', name_from='bp'),
-    S('terran_gunship', 'Terran Gunship', SMALL + 'TG_terrangunship_MK2/SM_TS_terran_gunship2', 'boss', [8], 950, TER_GLOW),
+    # (no blueprint flies this mesh, TG_terrangunship_MK2: "Terran" is only the files' tag; Chorus's gunships are its Vultures)
+    S('terran_gunship', 'Vulture Mk II', SMALL + 'TG_terrangunship_MK2/SM_TS_terran_gunship2', 'boss', [8], 950, TER_GLOW),
     S('pirate_gunship', 'Pirate Gunship', [SMALL + 'TG_Gunship_Pirate/TG_Gunship_Pirate', SMALL + 'TG_Gunship/SM_TG_Gunship_ThrusterCheap'], 'boss', [8], 900, PIRATE_GLOW,
       bp=NPC + 'Pirate/GunshipPirate/BP_NPC_Ship_Gunship_Pirate'),
     S('pirate_queen', 'Pirate Leader', [SMALL + 'TF_Fighter_Sniper_Pirate/TF_Fighter_Sniper_Pirate', SMALL + 'TF_terranfighter/SM_TF_Fighter_ThrusterCheap'], 'boss', [8], 1200, PIRATE_GLOW,
@@ -1422,7 +1425,7 @@ def build(export, mod, resolver=None, only=None, work=None, anims=None):
         if role == 'fighter' and length_m > MAX_TRAFFIC: role = 'boss'
         cap = {'boss': MAX_BOSS, 'capital': MAX_CAPITAL, 'freighter': MAX_CAPITAL}.get(role)
         shrink = min(1.0, cap / length_m) if cap else 1.0
-        size = 2048 if length_m > 500 else 1024
+        size = 2048 if length_m > 500 and s['role'] != 'freighter' else 1024   # (the freighters' bakes at 1024: the mod's size)
         # (a skinned ship's file keeps its mesh unscaled: its shell's lengths in those units, 1 / the blueprint's scale)
         skinned = bool(s.get('skinned') and CHORUS_LAYERS and s.get('idle'))
         prims, mats = _convert(export, mod, sid, meshes, resolver, size, s.get('override'), (1.0 / s.get('scale', 1.0)) if skinned else None)

@@ -78,8 +78,7 @@ Next, roughly in order:
    Unreal's noise texture; the tissue's warp-in dissolve edge is the remake's "warpIn" (its Edge Thickness and Edge
    Glow Color, tools/npcs.py WARP_IN; the Driver's 2 s and the WarpStretchFactor stretch are the remake's / left out). M_Phoenix's glow lines are done too: decompiled, the Emissive02 Min / Max wave along the hex pattern,
    the remake's "wave" block, tools/ships.py _wave; its hit flash too, the remake's "hit" block (MF_HitEffect decoded,
-   T_Lu_Noise_29 in the wave map's alpha, tools/ships.py _hit); its AFX pattern left out.) The Omen tissue's pulse, parallax and scroll and the faceless dissolve edge
-   would want a remake shader like the Chorus layers. Guilt's shell normal (the base pass's, from the flowing noise) is
+   T_Lu_Noise_29 in the wave map's alpha, tools/ships.py _hit); its AFX pattern left out.) Guilt's shell normal (the base pass's, from the flowing noise) is
    left flat, and its shadow is the whole, unpushed shell; the core's portal threads are a scrolling glow, not the
    portal's own formula (M_Warpin_Omen_Portal not decompiled).
 8. **The other trim permutations:** decompiled so far: the Cult's trim (no emissive, no kicker), the Cult's emissive
@@ -87,9 +86,11 @@ Next, roughly in order:
    (MI_TER_NPC_Ship02: accent, emissive, kicker). A TrimLayers instance with "Enable Accent 1 (Wear)" on is drawn with
    the fighters' accent formula, unchecked; the Disruptor's emissive trim not dumped. Guilt's radial portal core is
    still left out.
-9. **Smaller things:** rename the "Terran Gunship" ("Terran" is only Chorus's internal file tag); decide whether Chorus
-   freighters stay out of the Vossk / Nivelian / Midorian systems; the Sentinels' near-black bones; smaller bakes for the
-   freighters (the mod is about 500 MB).
+9. **Smaller things, done:** the "Terran Gunship" is the Vulture Mk II (no blueprint flies TG_terrangunship_MK2; "Terran"
+   is only its files' tag, Chorus's gunships are Vultures); Chorus's freighters stay in the Terran systems (the Chorus
+   systems among them: FREIGHT_RACES [0], they are human-built); the freighters' bakes are 1024; the Sentinels' near-black
+   bones are Chorus's own (M_OmenBoneMaster's base pass: the dark albedo, its normal and RMO, no glow; Chorus lights them
+   with its baked indirect light, which the remake doesn't have).
 11. **Guilt as Chorus plays it** (left out of the mod: not a ship): an invincible pursuer for the remake's event graphs
    or a special encounter: it picks the player and chases at stepped speeds (BT_Guilt: x0.5 up to x3 / x5 / x7, inside
    its area), its proximity screen effect (PP_Guilt) within 1.5 km, its wither (BP_Guilt_Debuff, MaxWither 5) within
