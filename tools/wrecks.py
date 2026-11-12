@@ -29,7 +29,13 @@ WRECKS = {
     'omen_support': UP + 'NPC/Ships/OmenSupport/Art/SK_OmenSupport_02_Wreck',
     'atlas': SMALL + 'TG_Atlas/SK_TG_Atlas_Wreck',
 }
-EXPORTS = sorted(set(WRECKS.values()))
+PLAYER = UP + 'ArtAssets/Vehicles/Playerships/'
+# the player ships' wrecks: (wreck, its scale to the hull: the Elder Buddy's is made at twice the Forsaken's size); their
+# hulls aren't turned (tools/ships.py: nose +X as exported)
+PLAYER_WRECKS = {'forsaken': (PLAYER + 'Phoenix/wreck/SK_PhoenixWreck', 1.0),
+                 'elder_buddy': (PLAYER + 'Phoenix/wreck/SK_PhoenixWreck_Buddy', 0.5),
+                 'argus': (PLAYER + 'TF_Argus/Wreck_SK/SK_TF_Argus_Wreck', 1.0)}
+EXPORTS = sorted(set(WRECKS.values()) | {w for w, _ in PLAYER_WRECKS.values()})
 # the pirates' hulls are the Circle's in other paint (MI_TER_NPC_Ship04 for Ship02, its lights Lights03 for Lights01): the
 # wreck's materials (the Circle's, "_Wreck" / "_Dissolve") repainted the same way; the burn and damage surfaces kept
 PIRATE_PAINT = [('NPC_Ship02', 'MI_TER_NPC_Ship04'), ('Lights01', 'MI_TER_NPC_Ship_Lights03')]
@@ -63,7 +69,7 @@ def build(export, mod, resolver, sid, nose, sc, size, override=None):
     """-> (ships.json "wreck", its materials) for ship 'sid' (turned by 'nose', scaled by 'sc' as its hull; 'override' its
     repaint, npcs.SHIPS "override": the pirates' hulls), or (None, [])."""
     from . import npcs
-    path = WRECKS.get(sid)
+    path = WRECKS.get(sid) or (PLAYER_WRECKS[sid][0] if sid in PLAYER_WRECKS else None)
     src = os.path.join(export, (path or '') + '.glb')
     if not path or not os.path.exists(src): return None, []
     prims = npcs._turn(_pieces(src), nose)
@@ -107,3 +113,11 @@ def apply(e, s, export, mod, resolver, nose, sc, size):
     e['wreck'] = w
     have = {m['material'] for m in e.get('materials', [])}
     e['materials'] = e.get('materials', []) + [m for m in mats if m['material'] not in have]
+
+
+def apply_players(entries, export, mod, resolver):
+    """The player ships' wrecks (PLAYER_WRECKS) on their ships.json entries (the Forsaken's kit ships, the Argus, the Elder
+    Buddy; the supercharged Forsaken is another hull)."""
+    for e in entries:
+        if e.get('id') in PLAYER_WRECKS:
+            apply(e, {'id': e['id']}, export, mod, resolver, '+x', PLAYER_WRECKS[e['id']][1], 1024)

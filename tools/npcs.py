@@ -754,6 +754,114 @@ def _jtu_blend(export, mod, stem, mat, mi, p, low):
     return entry
 
 
+def _breath_row(resolver, mod, row, mat):
+    """A CA_BaseVFX row (the crystal's and the tissue's breath: R G B its curves) as maps/chorus/breath_<row>.png, 256 x 1."""
+    from . import gate as _gate, planets as _planets
+    try:
+        rows = _planets._atlas_rows(resolver, _gate.VFX_ATLAS)
+        a = _planets._curve_row(resolver, rows, row)
+        rel = f'maps/chorus/breath_{int(round(row))}.png'
+        os.makedirs(os.path.join(mod, 'maps', 'chorus'), exist_ok=True)
+        Image.fromarray(np.clip(np.round(np.asarray(a)[None] * 255), 0, 255).astype(np.uint8), 'RGBA').save(os.path.join(mod, rel))
+        return rel
+    except Exception as e:
+        print(f'  {mat}: the breath curve not baked ({e})')
+        return None
+
+
+def _chorus_file(export, mod, name, kind):
+    """A Chorus map into maps/chorus/ (shared by every ship): 'colour' as it is, 'normal' Unreal's green flipped and z rebuilt
+    (two-channel normal maps export it empty), 'data' as it is."""
+    src = _png(export, name)
+    if not src: return None
+    rel = f'maps/chorus/{name.lower()}.png'
+    dst = os.path.join(mod, rel)
+    if not os.path.exists(dst):
+        os.makedirs(os.path.dirname(dst), exist_ok=True)
+        a = textures._load(src)
+        if kind == 'normal':
+            n = textures.flip_normal(a)[..., :3]
+            xy = n[..., :2] * 2 - 1
+            n[..., 2] = (np.sqrt(np.clip(1 - (xy ** 2).sum(-1), 0, 1)) + 1) / 2
+            textures._save(n, dst, 2048, 'RGB')
+        else:
+            textures._save(a[..., :3], dst, 2048, 'RGB')
+    return rel
+
+
+def _faceless_tissue(export, mod, mat, p, resolver):
+    """Omen tissue (M_JTU_Faceless) drawn as its compiled base pass draws it, moving: the remake's Chorus layer "tissue"
+    (GoF2/Hull's ChorusTissue): the ice mask scrolling, the breath rippling out from the origin, the variations through the
+    thickness parallax, the inverse fresnel; its maps into maps/chorus/ (the hard-wired T_Dirt_02 and the ice mask too)."""
+    tex = lambda n: _chorus_file(export, mod, p.texture(n), 'data') if p.texture(n) else None
+    c = {'kind': 'tissue', 'thickness': tex('Thickness Map'), 'outerVariation': tex('Outer Variation'),
+         'innerVariation': tex('Inner Variation'), 'ao': tex('Ambient Occlusion'),
+         'normal': _chorus_file(export, mod, p.texture('Normal'), 'normal') if p.texture('Normal') else None,
+         'dirt': _chorus_file(export, mod, 'T_Dirt_02', 'data'),
+         'ice': _chorus_file(export, mod, 'Ice_Substance_ColorMask-Crack-RoughnessBLend', 'data'),
+         'outerGlow': list(p.vector('Outer Glow Color', [0.17, 0.0, 0.0]))[:3], 'innerGlow': list(p.vector('Inner Glow Color', [3.0, 0.0, 0.08]))[:3],
+         'noiseTiling': p.scalar('NoiseTiling', 1.0), 'depth': p.scalar('Depth', 0.1), 'strength': p.scalar('Strength', 1.0),
+         'roughnessIntensity': p.scalar('RoughnessIntensity', 1.0), 'breathInterval': p.scalar('Breath Interval', 0.0),
+         'pulsePeriod': p.scalar('Pulse Wave Period UU', 4000000.0),
+         'breath': _breath_row(resolver, mod, p.scalar('Breath Color Curve', 0.0), mat)}
+    if not c['thickness']: return None
+    peak = max(max(c['innerGlow']), max(c['outerGlow']))
+    if peak > CHORUS_EMISSION_PEAK: c['emissionScale'] = round(CHORUS_EMISSION_PEAK / peak, 4)
+    c = {k: (round(v, 6) if isinstance(v, float) else v) for k, v in c.items() if v is not None}
+    return {'material': mat, 'chorus': c}
+
+
+def _jtu_crystal(export, mod, mat, p, resolver):
+    """Omen crystal (M_JTU_Blend: the Prophet's crown) drawn as its compiled base pass draws it: the remake's Chorus layer
+    "crystal" (its two world-mapped surfaces blended by the vertex colours, the veins' inner glow through a parallax
+    heightmap, the breath rippling out from the origin; GoF2/Hull's ChorusCrystal). Its maps into maps/chorus/ (shared by
+    every ship that uses them), the breath row baked from CA_BaseVFX."""
+    from . import gate as _gate, planets as _planets
+    out = os.path.join(mod, 'maps', 'chorus'); os.makedirs(out, exist_ok=True)
+    def copy(param, kind):
+        name = p.texture(param) if p else None
+        src = _png(export, name)
+        if not src: return None
+        rel = f'maps/chorus/{name.lower()}.png'
+        dst = os.path.join(mod, rel)
+        if not os.path.exists(dst):
+            a = textures._load(src)
+            if kind == 'normal':   # (Unreal's green flipped; z rebuilt: the exports of two-channel normal maps leave it empty)
+                n = textures.flip_normal(a)[..., :3]
+                xy = n[..., :2] * 2 - 1
+                n[..., 2] = (np.sqrt(np.clip(1 - (xy ** 2).sum(-1), 0, 1)) + 1) / 2
+                textures._save(n, dst, 2048, 'RGB')
+            elif kind == 'colour':
+                textures._save(a[..., :3], dst, 2048, 'RGB')
+            else:
+                textures._save(a[..., :3], dst, 2048, 'RGB')
+        return rel
+    s_ = (lambda n, d: p.scalar(n, d)) if p else (lambda n, d: d)
+    v_ = (lambda n, d: list((p.vector(n) or d))[:3]) if p else (lambda n, d: d)
+    c = {'kind': 'crystal', 'diffuseA': copy('A - D', 'colour'), 'normalA': copy('A - N', 'normal'), 'mroA': copy('A - MRO', 'data'),
+         'maskA': copy('A - EmissiveMask', 'data'), 'diffuseB': copy('B - D', 'colour'), 'normalB': copy('B - N', 'normal'),
+         'mroB': copy('B - MRO', 'data'), 'maskB': copy('B - EmissiveMask', 'data'), 'heightmap': copy('Inner Heightmap', 'data'),
+         'variation': copy('Inner Variation', 'data'),
+         'scaleA': s_('A - Surface Textures World Scale', 25000.0), 'scaleB': s_('B - Surface Textures World Scale', 30000.0),
+         'normalIntensityA': s_('A - NormalIntensity', 1.0), 'normalIntensityB': s_('B - NormalIntensity', 1.0),
+         'roughnessBiasA': s_('A - Roughness Bias', 0.0), 'roughnessBiasB': s_('B - Roughness Bias', 0.0),
+         'macroColor': v_('Macro Color', [0.0, 0.0, 0.0]), 'macroAmount': s_('Macro Color Amt', 1.0), 'macroTiling': s_('Macro Tiling Factor', 0.05),
+         'macroRoughness': s_('Macro Roughness', 0.2), 'macroRoughnessAmount': s_('Macro Roughness Amt', 0.5),
+         'innerGlow': v_('Inner Glow Color', [1.0, 0.05, 0.05]), 'glowA': s_('A - Emissive Intensity', 2.0),
+         'glowPulseB': s_('B - Emissive Pulse Intensity', 1.0), 'glowB': s_('B - Emissive Intensity', 5.0),
+         'innerRefraction': s_('Inner Refraction from Normal', 1.0), 'innerHeightRatio': s_('Inner HeightRatio', 0.37),
+         'innerScale': s_('Inner Variation World Scale', 150000.0), 'noiseScale': s_('Noise World Scale', 50000.0),
+         'noiseContrast': s_('Noise Contrast', 0.1), 'noiseOffset': s_('NoiseLeveOffset', 0.0),
+         'breathInterval': s_('Breath Interval', 8.0), 'pulsePeriod': s_('Pulse Wave Period UU', 4000000.0),
+         'breathAmount': s_('Breath Amount', 1.0), 'transitionSoftness': s_('VC Transition Softness', 0.44)}
+    # the breath: its CA_BaseVFX row (R the glow, G the blend), 256 x 1
+    c['breath'] = _breath_row(resolver, mod, s_('Breath Color Curve', 0.0), mat)
+    peak = max(c['innerGlow']) * max(c['glowA'], c['glowPulseB'] * c['glowB'])
+    if peak > CHORUS_EMISSION_PEAK: c['emissionScale'] = round(CHORUS_EMISSION_PEAK / peak, 4)
+    c = {k: (round(v, 6) if isinstance(v, float) else v) for k, v in c.items() if v is not None}
+    return {'material': mat + '__chorus', 'chorus': c}
+
+
 def _decal(export, mod, mat, p):
     """Decals (M_DecalMaster_Labels: labels, hull numbers, hazard stripes, emblems on thin meshes over the hull, translucent
     in Chorus): the decal sheet with its alpha, cut out (alphaClip, Chorus's own mask clip value). One map per sheet,
@@ -925,6 +1033,12 @@ def _convert(export, mod, sid, meshes, resolver=None, size=1024, override=None, 
                 if mat not in done: mats.append(_guilt_core(export, mod, sid, mat, p)); done.add(mat)
                 keep.append((mat, dict(attrs, COLOR_0=colour) if colour is not None else attrs, idx)); continue
             r = _recipe(export, p, master) if p else None
+            if master == 'M_JTU_Blend' and CHORUS_LAYERS and p is not None and resolver is not None:
+                # (the crystal as its compiled base pass draws it: the remake's Chorus layer "crystal", with the vertex colours)
+                name = mat + '__chorus'
+                if name not in done:
+                    mats.append(_jtu_crystal(export, mod, mat, p, resolver)); done.add(name)
+                keep.append((name, dict(attrs, COLOR_0=colour) if colour is not None else attrs, idx)); continue
             if r is not None and CHORUS_LAYERS and r['kind'] in ('trim', 'plating') and r.get('colors') and r.get('data'):
                 # drawn by the remake's Chorus layers over the hull's own UV sets (TRIM_SHADER), not baked
                 name = mat + '__chorus'   # (the remake matches entries by "name contains": ..._Cult in ..._Cult_Emissive)
@@ -960,7 +1074,10 @@ def _convert(export, mod, sid, meshes, resolver=None, size=1024, override=None, 
                         e.update({'emissionColor': _norm(p.vector('Emissive Color')), 'emissionIntensity': 0.15})
                     mats.append(e)
                 elif master in FACELESS:
-                    mats.append(_faceless(export, mod, stem, mat, p))
+                    # (moving, as its compiled base pass draws it: the remake's Chorus layer "tissue"; the cores and builds
+                    # without the layers: the bake)
+                    t_ = _faceless_tissue(export, mod, mat, p, resolver) if CHORUS_LAYERS and resolver is not None and not p.switch('Enable Core') else None
+                    mats.append(t_ or _faceless(export, mod, stem, mat, p))
                 elif master == 'M_NPC_Floater_Simple' and p is not None:
                     # Sav's and Ree's floater panels: one sheet (colour, normal, ORMA: R occlusion, G roughness, B
                     # metal) over UV set 1, which becomes their UV

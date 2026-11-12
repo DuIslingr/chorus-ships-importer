@@ -168,6 +168,7 @@ def main():
         kits, kit_ships = kit.build(export, a.out, forsaken, skinned=[elder])
         entries = kit_ships + ([argus] if argus else []) + players
         json.dump(kits, open(os.path.join(a.out, 'shipkits.json'), 'w', encoding='utf-8'), indent=1)
+    wrecks.apply_players(entries, export, a.out, resolver)   # (the Forsaken's, the Elder Buddy's and the Argus's wrecks)
     capitals = npcs.npc_ships(enemies)   # (their ships.json traffic set to 0: npcships.json spawns them, with escorts)
     # Chorus's death explosions (tools/explosions.py): its fighters' and its big ships' own, every built ship's
     print("Converting Chorus's death explosions...")

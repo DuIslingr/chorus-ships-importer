@@ -72,8 +72,10 @@ Next, roughly in order:
 6. **Station lights' channels:** their vertex colours' red steps (0.21, 0.5, 0.58, 0.74, 1) pick among four colours;
    which step is which isn't in the cooked files (they stay the first channel). Footage of lit freighters would tell.
 7. **Still read by parameter names, to decompile the same way** (the exporter's `shaders`, then d3dcompiler): the faceless cores (Enable Core) and the
-   breath curve (CA_BaseVFX, a curve atlas the exporter doesn't write: the bake takes it at rest), M_JTU_Blend (the
-   Prophet's crown). (M_Phoenix's glow lines are done: decompiled, the Emissive02 Min / Max wave along the hex pattern,
+   breath curve (CA_BaseVFX, a curve atlas the exporter doesn't write: the bake takes it at rest). (M_JTU_Blend, the
+   Prophet's crown, and the Omen tissue's pulse, parallax and scroll are done: the remake's Chorus layer kinds "crystal"
+   and "tissue", tools/npcs.py _jtu_crystal / _faceless_tissue; the crystal's turbulence is a value noise standing in for
+   Unreal's noise texture; the tissue's warp-in dissolve edge is left out. M_Phoenix's glow lines are done too: decompiled, the Emissive02 Min / Max wave along the hex pattern,
    the remake's "wave" block, tools/ships.py _wave; its hit flash and AFX pattern left out.) The Omen tissue's pulse, parallax and scroll and the faceless dissolve edge
    would want a remake shader like the Chorus layers. Guilt's shell normal (the base pass's, from the flowing noise) is
    left flat, and its shadow is the whole, unpushed shell; the core's portal threads are a scrolling glow, not the
@@ -103,9 +105,8 @@ Next, roughly in order:
     impostor debris (MI_ImposterDebris's sheet isn't in its instance), trails spawned along a path and vector fields are
     left out; the fireball's smoke is added (its dark coverage isn't drawn); the death effect configs' timing (a 5 s
     tumble before the main blast) is the remake's own dying time; the brightness squeeze (8 / (8 + x)) wants checking.
-15. **Wrecks, still open** (`tools/wrecks.py`): the player's own wrecks (SK_PhoenixWreck for the Forsaken, its Buddy
-    variant, SK_TF_Argus_Wreck) aren't given yet (the Forsaken's ships.json entry is the kit's, tools/kit.py); the
-    wrecks' burning and dissolving materials (MF_WreckBurn / MF_WreckDisintegrate) are drawn as the converter makes them,
+15. **Wrecks, still open** (`tools/wrecks.py`; the player's own, SK_PhoenixWreck / _Buddy / SK_TF_Argus_Wreck, are
+    given now, `apply_players`): the wrecks' burning and dissolving materials (MF_WreckBurn / MF_WreckDisintegrate) are drawn as the converter makes them,
     not animated; the gunship's gun pod and mine wrecks (ABP_Explosion_TG_Gunship_Wreck_GunPod / _Mine) left out.
 14. **The player capital ship, still open** (`tools/capital.py`): Chorus's Shield Overcharge (5 s, 10 s cooldown) and its
     250 / s hull regeneration aren't there; the Death Ray is a heavy shot, not a 200 m wide beam held on; the artillery is

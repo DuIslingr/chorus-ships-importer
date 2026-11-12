@@ -117,6 +117,11 @@ which the remake doesn't have, so each slot takes the waves that fit it. `--no-s
 - **Forsaken** (`tools/ships.py`, `tools/kit.py`): a ship kit with one hull part and Chorus's weapon model of each mounted
   Chorus gun (the Talon, Guardian Fang, ... models) on its platforms; other primaries a Talon or a Glow (energy weapons),
   secondaries none (their mount is inside the hull). The Customize screen can hide them. `--no-kit`: a plain ship.
+- **Omen materials, moving** (`tools/npcs.py` `_jtu_crystal`, `_faceless_tissue`): the Prophet's crown and Omen crystal
+  (M_JTU_Blend) and the Faceless tissue (M_JTU_Faceless) drawn as their compiled shaders draw them, by the remake's Chorus
+  layer kinds "crystal" and "tissue": the crown's two surfaces blended by its vertex colours with red veins glowing
+  beneath, the tissue's ice scrolling and its glow breathing out from the ship's middle. (Without the remake's layers:
+  the bakes as before.)
 - **Glow lines** (`tools/ships.py` `_wave`): the Forsaken's and the Elder Buddy's hex lines pulse as Chorus draws them
   (M_Phoenix's compiled base pass: Emissive02 Min / Max along a wave over T_HexPatternNoise_01_A), the remake's material
   `"wave"` block; the rest of their glow baked into the emission map as before.
@@ -245,8 +250,8 @@ world part is large (about 1 GB, most of it the five stations).
   and the reactor core (stage 2) whose destruction destroys the ship, the small warship's hangar launching Circle
   fighters. The hull itself shrugs hits off (`"hullDamage": 0`), as Chorus's does. The devices' meshes are prop ships
   (`chorus_part_*`, race -1, never flown), each set at its full turn (`"turretForward"`).
-- **Wrecks** (`tools/wrecks.py`): the Circle's and the pirates' fighter, scout and gunship, the Disruptor, the Omen Support
-  and the Atlas break into Chorus's own wreck pieces where they explode (ships.json `"wreck"`): each wreck's skeletal mesh
+- **Wrecks** (`tools/wrecks.py`): the Circle's and the pirates' fighter, scout and gunship, the Disruptor, the Omen Support,
+  the Atlas, and your own Forsaken, Elder Buddy and Argus break into Chorus's own wreck pieces where they explode (ships.json `"wreck"`): each wreck's skeletal mesh
   (SK_*_Wreck, a bone a piece) cut into pieces in its hull's frame, the pirates' repainted in the pirates' colours.
 - **Death explosions** (`tools/explosions.py`): every ship explodes as Chorus's do (ships.json `"deathFx"`): its
   fighters' fireball (P_Explosion_Main: the 16 x 8 fireball flipbook, sparks streaking out, tumble sparks) with
