@@ -75,8 +75,11 @@ Next, roughly in order:
    tune the pose rate and the 3 s weapons hold.
 6. **Station lights' channels:** their vertex colours' red steps (0.21, 0.5, 0.58, 0.74, 1) pick among four colours;
    which step is which isn't in the cooked files (they stay the first channel). Footage of lit freighters would tell.
-7. **Still read by parameter names, to decompile the same way** (the exporter's `shaders`, then d3dcompiler): the faceless cores (Enable Core) and the
-   breath curve (CA_BaseVFX, a curve atlas the exporter doesn't write: the bake takes it at rest). (M_JTU_Blend, the
+7. **Decompiled the same way** (the exporter's `shaders`, then d3dcompiler): the faceless cores (Enable Core,
+   MI_JTU_OmenDroneCore's base pass: the tissue + m x (the tissue + N.V^Inner Contrast x Inner Core Color), m the sphere's
+   falloff x Thickness.r x the inverse fresnel^5; the tissue layer's core, tools/npcs.py _faceless_tissue; the bat
+   swarms' Inner Core Color 250 held to the mod's glow peak) and the breath curve (CA_BaseVFX's rows baked from the
+   atlas; only the bake without the layers takes it at rest). (M_JTU_Blend, the
    Prophet's crown, and the Omen tissue's pulse, parallax and scroll are done: the remake's Chorus layer kinds "crystal"
    and "tissue", tools/npcs.py _jtu_crystal / _faceless_tissue; the crystal's turbulence is a value noise standing in for
    Unreal's noise texture; the tissue's warp-in dissolve edge is the remake's "warpIn" (its Edge Thickness and Edge

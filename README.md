@@ -162,8 +162,9 @@ which the remake doesn't have, so each slot takes the waves that fit it. `--no-s
     (each pane lit or dimmed) or their glass mask; lights and thruster glows as flat glows (a station light's channel
     by its UV quadrant, as the compiled shader picks it).
   - The Omen's tissue (M_JTU_Faceless) is all glow, as its shader has it (a black, unlit base): its outer glow mixed at
-    least half with its inner glow over the variation maps, baked as seen head-on with its breathing pulse at rest; the
-    cores glow through their thin parts. The Prophet's crystal crown glows red through its veins (its blueprint's lights
+    least half with its inner glow over the variation maps, the ice scrolling and the breath rippling out (the remake's
+    Chorus "tissue" layer; a build without the layers bakes it head-on, the breath at rest); the drones' and swarms'
+    cores burn yellow where they face you, within their sphere. The Prophet's crystal crown glows red through its veins (its blueprint's lights
     override applied by hand).
   - Guilt isn't in the traffic: in Chorus it's not a ship but an invincible Faceless that hunts Nara through the temples
     and tombs. It comes as a pursuer instead (see **Guilt** below).

@@ -39,7 +39,7 @@ in Unity's terms, so approximations where Chorus's shaders layer more):
   a blueprint's material overrides by hand (the table's override): the Prophet's lights
   Omen tissue (M_JTU_Faceless, no colour map): the Outer Glow Color as the base colour times the ambient occlusion, and
     the Inner Glow Color glowing through the thin parts (the thickness map, to the power of its Inner Contrast); the cores
-    (Enable Core) glow in the Inner Core Color
+    (Enable Core) glow in the Inner Core Color (with the Chorus layers: the remake's "tissue" layer, the cores' term too)
   Sav's and Ree's hulls (M_NPC_Trim_SavRee): a layer per panel from an RGB index mask (UV set 3), the coat tiled and tinted
     in the instance's Coat01 tints, bare metal for blue; their floaters (M_NPC_Floater_Simple) a sheet over UV set 1
   decals (M_DecalMaster_Labels: hull numbers, labels, emblems): their sheet cut out by its alpha (alphaClip), one map per
@@ -816,7 +816,10 @@ def _warp_in(p):
 def _faceless_tissue(export, mod, mat, p, resolver):
     """Omen tissue (M_JTU_Faceless) drawn as its compiled base pass draws it, moving: the remake's Chorus layer "tissue"
     (GoF2/Hull's ChorusTissue): the ice mask scrolling, the breath rippling out from the origin, the variations through the
-    thickness parallax, the inverse fresnel; its maps into maps/chorus/ (the hard-wired T_Dirt_02 and the ice mask too)."""
+    thickness parallax, the inverse fresnel; its maps into maps/chorus/ (the hard-wired T_Dirt_02 and the ice mask too).
+    With Enable Core (the Omen drones' and the bat swarms' cores, MI_JTU_OmenDroneCore's compiled base pass) its core too:
+    Inner Core Color ^ Inner Contrast by N.V within the sphere (Sphere Offset, sphere radius), its colour held to the mod's
+    glow peak (Chorus's 250 on the bat swarms: the remake's bloom)."""
     tex = lambda n: _chorus_file(export, mod, p.texture(n), 'data') if p.texture(n) else None
     c = {'kind': 'tissue', 'thickness': tex('Thickness Map'), 'outerVariation': tex('Outer Variation'),
          'innerVariation': tex('Inner Variation'), 'ao': tex('Ambient Occlusion'),
@@ -831,6 +834,13 @@ def _faceless_tissue(export, mod, mat, p, resolver):
     if not c['thickness']: return None
     peak = max(max(c['innerGlow']), max(c['outerGlow']))
     if peak > CHORUS_EMISSION_PEAK: c['emissionScale'] = round(CHORUS_EMISSION_PEAK / peak, 4)
+    if p.switch('Enable Core') and p.vector('Inner Core Color'):
+        core = [float(v) for v in list(p.vector('Inner Core Color'))[:3]]
+        top = max(core) * c.get('emissionScale', 1.0)
+        if top > CHORUS_EMISSION_PEAK: core = [v * CHORUS_EMISSION_PEAK / top for v in core]
+        c.update({'coreColor': [round(v, 5) for v in core], 'coreContrast': p.scalar('Inner Contrast', 1.0),
+                  'sphereOffset': [round(float(v), 3) for v in list(p.vector('Sphere Offset') or [0, 0, 0])[:3]],
+                  'sphereRadius': p.scalar('sphere radius', 1000000.0)})
     c = {k: (round(v, 6) if isinstance(v, float) else v) for k, v in c.items() if v is not None}
     return {'material': mat, 'chorus': c}
 
@@ -1117,9 +1127,9 @@ def _convert(export, mod, sid, meshes, resolver=None, size=1024, override=None, 
                         e.update({'emissionColor': _norm(p.vector('Emissive Color')), 'emissionIntensity': 0.15})
                     mats.append(e)
                 elif master in FACELESS:
-                    # (moving, as its compiled base pass draws it: the remake's Chorus layer "tissue"; the cores and builds
+                    # (moving, as its compiled base pass draws it: the remake's Chorus layer "tissue", the cores too; builds
                     # without the layers: the bake)
-                    t_ = _faceless_tissue(export, mod, mat, p, resolver) if CHORUS_LAYERS and resolver is not None and not p.switch('Enable Core') else None
+                    t_ = _faceless_tissue(export, mod, mat, p, resolver) if CHORUS_LAYERS and resolver is not None else None
                     mats.append(t_ or _faceless(export, mod, stem, mat, p))
                     if p is not None and sid not in WARP_IN and _warp_in(p): WARP_IN[sid] = _warp_in(p)
                 elif master == 'M_NPC_Floater_Simple' and p is not None:
