@@ -51,7 +51,7 @@ in Unity's terms, so approximations where Chorus's shaders layer more):
 import glob, json, os, re
 import numpy as np
 from PIL import Image
-from . import capital, glb, rig, textures, warships
+from . import capital, glb, rig, textures, warships, wrecks
 from .ships import K, SCALE, _tex, _params, _colours, nozzle_faces
 
 UP = 'SpacePrototype/Content/UnleashedPrototype/'
@@ -1387,6 +1387,8 @@ def build(export, mod, resolver=None, only=None, work=None, anims=None):
             kinds = CHORUS_TURRETS.get(sid, CHORUS_TURRETS_DEFAULT)
             e['npcTurrets'] = [f'{MOD_ID}:{kinds[i % len(kinds)]}' for i in range(n_turrets)]
         if smoke: e['smoke'] = [game(p_) for p_ in smoke]
+        if sid in wrecks.WRECKS:   # (Chorus's wreck: the ship breaks into its pieces where it explodes)
+            wrecks.apply(e, s, export, mod, resolver, nose, sc, size)
         if sid in warships.CONFIGS:   # (Chorus's warships: their parts as subsystems, its turrets among them)
             warships.apply(e, s, work or os.path.dirname(os.path.abspath(export)), mats, nose, sc, k, shrink)
         # its own idle (rig.NPC_CLIPS), looped: a rigid skin as parts on its skeleton's nodes (tools/rig.py)

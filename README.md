@@ -242,6 +242,9 @@ world part is large (about 1 GB, most of it the five stations).
   and the reactor core (stage 2) whose destruction destroys the ship, the small warship's hangar launching Circle
   fighters. The hull itself shrugs hits off (`"hullDamage": 0`), as Chorus's does. The devices' meshes are prop ships
   (`chorus_part_*`, race -1, never flown), each set at its full turn (`"turretForward"`).
+- **Wrecks** (`tools/wrecks.py`): the Circle's and the pirates' fighter, scout and gunship, the Disruptor, the Omen Support
+  and the Atlas break into Chorus's own wreck pieces where they explode (ships.json `"wreck"`): each wreck's skeletal mesh
+  (SK_*_Wreck, a bone a piece) cut into pieces in its hull's frame, the pirates' repainted in the pirates' colours.
 - **A capital ship of your own** (`tools/capital.py`): Chorus's player capital ship (the PCLS, BP_Player_Ship_Capital) as
   the Spirit-class Capital Ship, sold in a lounge late in the game (rank 18, 25 million): 2500 armour, slow to turn, on
   the Captured Warship's model, with its own weapons as items: the PCLS Artillery (an automatic turret on six of its

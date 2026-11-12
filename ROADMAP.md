@@ -98,6 +98,10 @@ Next, roughly in order:
     (BP_TurretMount_*_Shield) are plain turrets; only configuration A of each size (Small_C, Medium_B / C, the frigate and
     the civilian capital ships' configs not read); the parts' share of the hull (WEAK_SHARE 0.1, death damage / 4000) is
     the remake's balance, to tune in play.
+15. **Wrecks, still open** (`tools/wrecks.py`): the player's own wrecks (SK_PhoenixWreck for the Forsaken, its Buddy
+    variant, SK_TF_Argus_Wreck) aren't given yet (the Forsaken's ships.json entry is the kit's, tools/kit.py); the
+    wrecks' burning and dissolving materials (MF_WreckBurn / MF_WreckDisintegrate) are drawn as the converter makes them,
+    not animated; the gunship's gun pod and mine wrecks (ABP_Explosion_TG_Gunship_Wreck_GunPod / _Mine) left out.
 14. **The player capital ship, still open** (`tools/capital.py`): Chorus's Shield Overcharge (5 s, 10 s cooldown) and its
     250 / s hull regeneration aren't there; the Death Ray is a heavy shot, not a 200 m wide beam held on; the artillery is
     6 of its 14 barrels; its skeletal braking animation (A_PlayerControlledLargeShip01_Braking) is left out; no shop icon
