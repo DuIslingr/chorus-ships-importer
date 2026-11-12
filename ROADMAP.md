@@ -90,7 +90,9 @@ Next, roughly in order:
    Unreal's noise texture; the tissue's warp-in dissolve edge is the remake's "warpIn" (its Edge Thickness and Edge
    Glow Color, tools/npcs.py WARP_IN; the Driver's 2 s and the WarpStretchFactor stretch are the remake's / left out). M_Phoenix's glow lines are done too: decompiled, the Emissive02 Min / Max wave along the hex pattern,
    the remake's "wave" block, tools/ships.py _wave; its hit flash too, the remake's "hit" block (MF_HitEffect decoded,
-   T_Lu_Noise_29 in the wave map's alpha, tools/ships.py _hit); its AFX pattern left out.) Guilt's shell is done too: its
+   T_Lu_Noise_29 in the wave map's alpha, tools/ships.py _hit). Its "AFX" layer (T_Noise_Tiled03 at Scale_AFX over the
+   object, panned by MEOW / Cat, ^ EmissiveContrast x EmissiveAmmount) is the Exalted State's glow: gated by
+   MPC_SetBonus.ExaltedState_Alpha, 0 outside Chorus's set bonus, which the remake doesn't have, so it is rightly dark.) Guilt's shell is done too: its
    normal is the base pass's (the noise map's red and green at the flowed UVs), its shadow and depth are pushed and
    dissolved as drawn, and its maps follow the masked depth pass's five textures in the master's order (each was one slot
    off before: phase Noise_01, flow T_Guilt_Flow, noise the obsidian norm_spec_diff, glow its _ao, mask T_Guilt_A). Its
