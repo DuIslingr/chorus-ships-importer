@@ -13,7 +13,7 @@ import argparse, json, os, shutil, subprocess, sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-from tools import ships, sounds, weapons, kit, npcs, mi, rig, turrets, world, mobile, factions, capital, wrecks  # noqa: E402
+from tools import ships, sounds, weapons, kit, npcs, mi, rig, turrets, world, mobile, factions, capital, wrecks, explosions  # noqa: E402
 
 MASTER_DATA = 'SpacePrototype/Content/UnleashedPrototype/Core/PlayerEquipment/BP_PlayerEquipmentMasterData.uasset'
 EXPORTS = [ships.PHOENIX + '/skelmesh/SK_Phoenix',      # what the mod needs from the pak (materials and textures come along)
@@ -169,6 +169,9 @@ def main():
         entries = kit_ships + ([argus] if argus else []) + players
         json.dump(kits, open(os.path.join(a.out, 'shipkits.json'), 'w', encoding='utf-8'), indent=1)
     capitals = npcs.npc_ships(enemies)   # (their ships.json traffic set to 0: npcships.json spawns them, with escorts)
+    # Chorus's death explosions (tools/explosions.py): its fighters' and its big ships' own, every built ship's
+    print("Converting Chorus's death explosions...")
+    explosions.apply(enemies + entries, explosions.build(export, a.out, resolver, a.work))
     # Chorus's factions (the Circle, the Omen) as mod races, and its bosses in the rift runs (tools/factions.py)
     factions.apply(enemies, capitals)
     json.dump(factions.RACES, open(os.path.join(a.out, 'races.json'), 'w', encoding='utf-8'), indent=1)

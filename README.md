@@ -245,6 +245,10 @@ world part is large (about 1 GB, most of it the five stations).
 - **Wrecks** (`tools/wrecks.py`): the Circle's and the pirates' fighter, scout and gunship, the Disruptor, the Omen Support
   and the Atlas break into Chorus's own wreck pieces where they explode (ships.json `"wreck"`): each wreck's skeletal mesh
   (SK_*_Wreck, a bone a piece) cut into pieces in its hull's frame, the pirates' repainted in the pirates' colours.
+- **Death explosions** (`tools/explosions.py`): every ship explodes as Chorus's do (ships.json `"deathFx"`): its
+  fighters' fireball (P_Explosion_Main: the 16 x 8 fireball flipbook, sparks streaking out, tumble sparks) with
+  sub-explosions and sparks over the death tumble (P_Explosion_Sub, P_Explosion_Small_Sparks), the big ships' (over
+  400 m) P_Explosion_Large_M, read from the Cascade systems' emitters (their baked curves) into particle emitters.
 - **A capital ship of your own** (`tools/capital.py`): Chorus's player capital ship (the PCLS, BP_Player_Ship_Capital) as
   the Spirit-class Capital Ship, sold in a lounge late in the game (rank 18, 25 million): 2500 armour, slow to turn, on
   the Captured Warship's model, with its own weapons as items: the PCLS Artillery (an automatic turret on six of its

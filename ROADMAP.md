@@ -98,6 +98,10 @@ Next, roughly in order:
     (BP_TurretMount_*_Shield) are plain turrets; only configuration A of each size (Small_C, Medium_B / C, the frigate and
     the civilian capital ships' configs not read); the parts' share of the hull (WEAK_SHARE 0.1, death damage / 4000) is
     the remake's balance, to tune in play.
+16. **Death explosions, still open** (`tools/explosions.py`): the lights-only emitters (Chorus's flash lights), the
+    impostor debris (MI_ImposterDebris's sheet isn't in its instance), trails spawned along a path and vector fields are
+    left out; the fireball's smoke is added (its dark coverage isn't drawn); the death effect configs' timing (a 5 s
+    tumble before the main blast) is the remake's own dying time; the brightness squeeze (8 / (8 + x)) wants checking.
 15. **Wrecks, still open** (`tools/wrecks.py`): the player's own wrecks (SK_PhoenixWreck for the Forsaken, its Buddy
     variant, SK_TF_Argus_Wreck) aren't given yet (the Forsaken's ships.json entry is the kit's, tools/kit.py); the
     wrecks' burning and dissolving materials (MF_WreckBurn / MF_WreckDisintegrate) are drawn as the converter makes them,
