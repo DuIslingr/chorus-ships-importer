@@ -66,7 +66,10 @@ Next, roughly in order:
    their first (traffic "primaries", npcs.primaries: each hull's BP_NPC_Weapon_* FireInterval and ProjectileDamage
    through its parents, its damage a second against the Circle fighter's, the look the mod's nearest Chorus gun; the
    NPC projectiles' own effects and speeds stay the remake's; the bat swarm's damage isn't in its blueprint: the
-   remake's gun). Left: the scouts' and gunships' own trees (they take the fighters'), the EQS queries' scoring.
+   remake's gun). The scouts and gunships fly their own trees (npcs.ai_kind by the blueprint's: "chorusScout",
+   BT_Scout_CombatRoam's aligned-nose break; "chorusGunship", BT_Gunship_CombatRoam_New's turret hold at 600 m), and the
+   passes and run aways fly to EQQuery_PassByPosition's scored point (its weights; the native tests' curves the remake's
+   linear reading). Left: the gunships' line-of-sight repositioning, the other hulls' own trees (they take the fighters').
 4. **Still unchecked against Chorus** (no footage shows them clearly; they rest on reading the materials): the trim
    emissive's UV-shift mask; which colour of Sav's and Ree's layer mask picks which coat (they are allies' large ships
    in "Defend the Naiara Citadel", BP_NPC_Ship_Sav / _Ree confirm SM_Sav / SM_Ree, but neither hull is in frame long

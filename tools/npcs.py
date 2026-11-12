@@ -1441,6 +1441,16 @@ def _weapon_values(folder, name, resolver, seen=()):
     return interval, damage
 
 
+def ai_kind(s, work):
+    """The remake's "ai" for NPC ship entry 's' by its blueprint's behaviour tree: BT_Scout_* "chorusScout", BT_Gunship*
+    "chorusGunship" (their own trees in Flight.ChorusDogfight), else "chorus" (BT_Fighter_CombatRoam's)."""
+    f = os.path.join(work, 'bp', s['bp'].rsplit('/', 1)[1] + '.json') if s.get('bp') else None
+    trees = re.findall(r"BehaviorTree'(BT_[A-Za-z0-9_]+)'", open(f, encoding='utf-8').read()) if f and os.path.exists(f) else []
+    if any(t.startswith('BT_Scout') for t in trees): return 'chorusScout'
+    if any(t.startswith('BT_Gunship') for t in trees): return 'chorusGunship'
+    return 'chorus'
+
+
 def primaries(s, work, resolver):
     """ships.json "traffic.primaries" for NPC ship entry 's' (PRIMARY_*), or None."""
     if not s.get('bp'): return None
@@ -1601,7 +1611,8 @@ def build(export, mod, resolver=None, only=None, work=None, anims=None):
             print(f'  {sid}: player ship, {length_m:.0f} m, nose {nose}, {len(mats)} materials')
             out.append(e); continue
         if role == 'fighter':
-            traffic = {'weight': s.get('weight', 1), 'races': s['races'], 'ai': 'chorus'}   # (BT_Fighter_CombatRoam: the remake's "chorus")
+            traffic = {'weight': s.get('weight', 1), 'races': s['races'],   # (its tree: the remake's "chorus" / "chorusScout" / "chorusGunship")
+                       'ai': ai_kind(s, work or os.path.dirname(os.path.abspath(export)))}
             if s.get('traffic_role'): traffic['role'] = s['traffic_role']
             traffic['secondaries'] = SECONDARIES['fighter']
             prim = primaries(s, work or os.path.dirname(os.path.abspath(export)), resolver)
