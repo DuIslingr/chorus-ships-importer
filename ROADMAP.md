@@ -128,9 +128,12 @@ Next, roughly in order:
 16. **Death explosions, done further** (`tools/explosions.py`): the lights-only emitters as point lights ("light"), the
     impostor debris (MI_ImposterDebris's T_Debris_D, found through its parent's parameter) and each fireball's smoke
     (its coverage, dark) alpha-blended ("blend": "alpha"), the fire trails along the unseen debris (SpawnPerUnit at
-    another emitter's particles: "trail"; their flipbook, RGB diffuse / A emissive, baked as the fireballs') and the
+    another emitter's particles: "trail"; their M_LoopFireSmoke decompiled: the particle colour as parameters, R the
+    erosion threshold, G its softness, B the glow, its colour only the blackbody at the eroded mask x 3500 K, baked
+    alpha-blended at the puff's start with B over life as its brightness: _firesmoke) and the
     sparks' vector fields as turbulence ("noise"). (No mesh emitter is in these systems: DB1 is ERM_None, the trails'
-    source.) Left: the death effect configs' timing (a 5 s tumble before the main blast) is the remake's own dying time;
+    source; the curve objects without a baked table read from their points now.) Left: the threshold's rise over a puff's
+    life (its glow fades instead), the death effect configs' timing (a 5 s tumble before the main blast) is the remake's own dying time;
     the brightness squeezes (8 / (8 + x), the lights' 3 x sqrt(brightness / 1e9)) and the smoke's and debris' greys
     want checking in play.
 15. **Wrecks, done** (`tools/wrecks.py`; the player's own, SK_PhoenixWreck / _Buddy / SK_TF_Argus_Wreck, too,

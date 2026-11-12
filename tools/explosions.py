@@ -11,8 +11,14 @@ the particle's size x RadiusScale; Chorus's brightness, 1e9 - 4e9 in its physica
 1e9); the impostor debris (MI_ImposterDebris: T_Debris_D, a 2 x 2 sheet of rocks with alpha, through its parent
 MI_ImposterSplinters' parameter) alpha-blended ("blend": "alpha"), a dim grey (Chorus lights them, with burning edges);
 each fireball's smoke (its flipbook's coverage, A, drawn dark under the fire: Chorus's translucent fireball shows its
-base colour where the fire, G, is weak) as an alpha-blended companion. Left out: the mesh emitters, trails spawned along
-a path, vector fields.
+base colour where the fire, G, is weak) as an alpha-blended companion; the trails along the debris (SpawnPerUnit at a
+LocationEmitter's particles: "trail") and the vector fields as turbulence ("noise"). The trails' M_LoopFireSmoke (its
+compiled translucent pass, MI_P_Explosion_01_GPU_02) takes the particle colour as parameters: R the erosion threshold,
+G its softness, B the glow's strength, A the opacity; its colour only the blackbody (Mix BlackBody/Diffuse Emissive 1)
+at smoothstep(saturate((flipbook A x the fractal detail - R) / G)) x Color Temperature, x (K / 2500)^4, 20 %
+desaturated; its opacity flipbook A x the detail: baked (_firesmoke) at the particle's start (R, G) as an alpha-blended
+image (RGB the glow, A the coverage), B over life its brightness; its flipbook (wall-clock time in Chorus) a random
+frame a puff. Left out: the mesh emitters, the threshold's rise over life (the glow fades instead).
 
 Units: Chorus centimetres -> game units at the ships' scale (SCALE 3.6: 0.72 a centimetre). Brightness: Chorus's HDR
 colours (its fireball 10 000 at its start: colour x colour scale x the material's Tint) squeezed into the remake's bloom
@@ -64,6 +70,15 @@ class _Dist:
             p = o.get('Properties') or {}
             if 'Constant' in p: self.const = p['Constant']
             elif 'Max' in p or 'Min' in p: self.vals = np.array([p.get('Min', 0.0), p.get('Max', 0.0)]); self.op, self.stride = 2, 2
+            elif (p.get('ConstantCurve') or {}).get('Points'):   # (a curve object without its table: its points, linear)
+                pts = p['ConstantCurve']['Points']
+                key = lambda o: [o['X'], o['Y'], o['Z']] if isinstance(o, dict) else [o]
+                xs = np.array([float(q.get('InVal', 0.0)) for q in pts])
+                ys = np.array([key(q.get('OutVal', 0.0)) for q in pts], np.float64)
+                grid = np.linspace(0.0, 1.0, SAMPLES)
+                table = np.stack([np.interp(grid, xs, ys[:, c]) for c in range(ys.shape[1])], -1)
+                self.vals, self.stride, self.n = table.reshape(-1), ys.shape[1], SAMPLES
+                self.scale, self.bias, self.op = float(SAMPLES - 1), 0.0, 1
 
     def range(self, comp=0):
         """(min, max) of component 'comp' at time 0 (a uniform's two ends, else the constant)."""
@@ -159,6 +174,59 @@ def _smoke(export, mod, resolver, mi_path):
     return rel
 
 
+def _blackbody(k):
+    """Chorus's blackbody (MF_WreckBurn's and M_LoopFireSmoke's Planckian-locus fit) x (k / 2500)^4, linear RGB, k array."""
+    k = np.asarray(k, np.float64); k2 = k * k
+    u = (0.860117757 + 1.54118254e-4 * k + 1.28641212e-7 * k2) / (1.0 + 8.42420235e-4 * k + 7.08145163e-7 * k2)
+    v = (0.317398726 + 4.22806245e-5 * k + 4.20481691e-8 * k2) / (1.0 - 2.89741816e-5 * k + 1.61456053e-7 * k2)
+    d = 2.0 * u - 8.0 * v + 4.0
+    x, y = 3.0 * u / d, 2.0 * v / d
+    X, Z = x / y, (1.0 - x - y) / y
+    rgb = np.stack([3.2404542 * X - 1.5371385 - 0.4985314 * Z, -0.969266 * X + 1.8760108 + 0.041556 * Z,
+                    0.0556434 * X - 0.2040259 + 1.0572252 * Z], -1)
+    return np.maximum(rgb, 0.0) * ((k * 4e-4) ** 4)[..., None]
+
+
+def _firesmoke(export, mod, resolver, mi_path, threshold, softness):
+    """An M_LoopFireSmoke instance's flipbook baked at threshold R / softness G (see the header): -> (its path, its peak
+    linear glow at full B = 1, the sheet's columns, rows), or None."""
+    p = resolver.get(mi_path)
+    if not p: return None
+    book = p.textures.get('None') or next(iter(p.textures.values()), None)
+    detail = p.textures.get('Texture (T2d)')
+    paths = [p.texture_paths[t] for t in (book, detail) if t and t in p.texture_paths]
+    resolver.fetch_textures(paths, export)
+    src = os.path.join(export, p.texture_paths.get(book, '') + '.png') if book in p.texture_paths else None
+    if not src or not os.path.exists(src): return None
+    cols, rows = int(p.scalars.get('FlipbookColumns', 8)), int(p.scalars.get('FlipbookRows', 8))
+    rel = f'fx/{os.path.basename(src)[:-4].lower()}_firesmoke.png'
+    out = os.path.join(mod, rel)
+    temp = float(p.scalars.get('Color Temperature', 3500.0))
+    im = Image.open(src).convert('RGBA'); im = im.resize((im.width // 2, im.height // 2), Image.LANCZOS)
+    a = np.asarray(im, np.float32)[..., 3] / 255.0
+    h, w = a.shape
+    n = np.full_like(a, 0.66)
+    dsrc = os.path.join(export, p.texture_paths.get(detail, '') + '.png') if detail in p.texture_paths else None
+    if dsrc and os.path.exists(dsrc):   # (the detail: 4 samples summed x Divisor ~ one sample x 4 x Divisor, over each cell x Tiling)
+        dn = np.asarray(Image.open(dsrc).convert('L'), np.float32) / 255.0
+        tile = float(p.scalars.get('Detail Texture Tiling', 8.0))
+        yy, xx = np.mgrid[0:h, 0:w]
+        cu = (xx % (w // cols)) / (w / cols) * tile; cv = (yy % (h // rows)) / (h / rows) * tile
+        n = dn[(cv * dn.shape[0]).astype(int) % dn.shape[0], (cu * dn.shape[1]).astype(int) % dn.shape[1]] * 4.0 * float(p.scalars.get('Detail Texture Divisor', 0.33))
+    st = float(p.scalars.get('Detail Texture Strength', 0.2))
+    cover = np.clip(a * (st + n * (1.0 - st)), 0, 1)
+    e = np.clip((cover - threshold) / max(softness, 1e-3), 0, 1); e = e * e * (3 - 2 * e)
+    glow = _blackbody(e * temp)
+    lum = (glow * np.array([0.3, 0.59, 0.11])).sum(-1, keepdims=True)
+    glow = glow + float(p.scalars.get('Desaturation Amount', 0.2)) * (lum - glow)
+    peak = float(glow.max()) or 1.0
+    if not os.path.exists(out):
+        os.makedirs(os.path.dirname(out), exist_ok=True)
+        rgb = (np.clip(glow / peak, 0, 1) ** (1 / 2.2) * 255).astype(np.uint8)   # (sRGB, as the other fx images)
+        Image.fromarray(np.dstack([rgb, (cover * 255).astype(np.uint8)]), 'RGBA').save(out, optimize=True)
+    return rel, peak, cols, rows
+
+
 def _debris(export, mod, resolver, mi_path):
     """MI_ImposterDebris' rock sheet (its AO_Alpha texture, T_Debris_D), halved: -> its path in the mod."""
     src = _texture(export, mod, resolver, mi_path, 'T_Debris_D')
@@ -207,6 +275,7 @@ def _emitters(export, mod, resolver, d, scale=1.0):
             m = objs(mr)
             if m and (m.get('Properties') or {}).get('bEnabled', True) is not False: mods.setdefault(m['Type'].replace('ParticleModule', ''), m.get('Properties') or {})
         trail_of = sources.get(name) if 'SpawnPerUnit' in mods else None
+        fire_smoke = None
         if 'SpawnPerUnit' in mods and not trail_of: continue   # (a trail along a moving emitter: not one of this system's)
         mat = (req.get('Material') or {}).get('ObjectName', '')
         mat_name = mat.split("'")[1] if "'" in mat else mat
@@ -214,6 +283,12 @@ def _emitters(export, mod, resolver, d, scale=1.0):
         tint, image, blend = [1.0, 1.0, 1.0], None, None
         if lights_only:
             if 'Light' not in mods: continue   # (a lights-only emitter without its light draws nothing)
+        elif resolver.get(mat_path) and (resolver.get(mat_path).chain or [None])[-1] == 'M_LoopFireSmoke':
+            # (the particle colour as parameters: its start's R / G the bake's threshold, B the glow over life)
+            dc = _Dist((mods.get('ColorOverLife') or {}).get('ColorOverLife'), objs)
+            r0 = dc.range(0); g0 = dc.range(1)
+            fire_smoke = _firesmoke(export, mod, resolver, mat_path, r0[0] if r0 else 0.1, g0[0] if g0 else 0.5)
+            if fire_smoke: image, blend = fire_smoke[0], 'alpha'
         elif 'Explosion' in mat_name and 'Spark' not in mat_name:
             image, t, _ = _fireball(export, mod, resolver, mat_path)
             if t: tint = list(t)[:3]
@@ -279,6 +354,15 @@ def _emitters(export, mod, resolver, d, scale=1.0):
         norm = colour / np.maximum(peak_rgb, 1e-9)
         if over is not None: e['colorOverLife'] = [round(float(v), 4) for v in np.clip(norm, 0, 1).reshape(-1)]
         if alpha: e['alphaOverLife'] = [round(float(np.clip(v, 0, 1)), 4) for v in alpha]
+        if fire_smoke:   # (its colour B the glow's strength: the baked glow x B, squeezed; R / G were baked in)
+            dc = _Dist((mods.get('ColorOverLife') or {}).get('ColorOverLife'), objs)
+            b = dc.curve(2)
+            bmax = max(b) if b else ((dc.range(2) or (1.0, 1.0))[1])
+            hot = fire_smoke[1] * max(bmax, 1e-6)
+            e['color'] = [round(_squeeze(hot), 4)] * 3
+            if b: e['colorOverLife'] = [round(float(np.clip(v / max(bmax, 1e-6), 0, 1)), 4) for v in b for _ in range(3)]
+            else: e.pop('colorOverLife', None)
+            e['sheet'] = [fire_smoke[2], fire_smoke[3]]; e['randomFrame'] = True; e.pop('frames', None)
         # speed: along X (the emitter's forward), else outward, else from its spawn sphere
         sphere = mods.get('LocationPrimitiveSphere')
         radius = _Dist(sphere.get('StartRadius'), objs).range() if sphere else None
