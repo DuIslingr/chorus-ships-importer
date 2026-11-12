@@ -162,5 +162,7 @@ Next, roughly in order:
     Rift are done: tools/rift.py, with the vortex's world position offset and, for the runs inside the Rift, LocRFA's
     vortex in M_PortalRift_BOTTOM; its exposure 0.4 wants checking in the remake, the inside one's too). Check
     the skies', planets', stations' and rocks' brightness and size against Chorus in the remake (Chorus's auto exposure
-    isn't there; the magma rocks' Master Brightness makes them very dark). The stations are 80-120 MB each: a lower
-    triangle budget or quantised positions if the mod's size matters.
+    isn't there; the magma rocks' Master Brightness makes them very dark). The stations are written quantized (glb.save
+    quantize: normals, tangents and vertex colours in bytes, KHR_mesh_quantization, as Unreal keeps them; the remake's
+    glTFast reads it): a third smaller (Stega Belt 85.6 -> 55.6 MB); positions and UVs stay floats (a station is up to
+    12 km across).

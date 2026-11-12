@@ -26,6 +26,7 @@ SKIP = ('Decal', 'Interior', 'ForceField', 'Window', 'Traffic', 'BarrierField') 
 # a station's triangles at most (Chorus's merged meshes are 2-4 million at LOD 0): the exporter writes every LOD
 # (`export <list> <out> all`: <name>_LOD1.glb ...) and the largest meshes step down until the station fits
 BUDGET = 350_000
+QUANTIZE = True   # (glb.save: normals, tangents and vertex colours in bytes, as Unreal keeps them: a third smaller files)
 
 
 def _tris(path):
@@ -93,7 +94,7 @@ def build(export, mod, resolver, paths):
         centre = (lo + hi) / 2
         for _, a, _ in prims: a['POSITION'] = (np.asarray(a['POSITION']) - centre).astype(np.float32)
         rel = f'models/stations/{sid}.glb'
-        glb.save(os.path.join(mod, rel), prims, sid, keep=npcs.CHORUS_KEEP, split=True)
+        glb.save(os.path.join(mod, rel), prims, sid, keep=npcs.CHORUS_KEEP, split=True, quantize=QUANTIZE)
         size = float((hi - lo).max())
         out[sid] = {'model': rel, 'materials': mats, 'size': size}
         print(f'  station {sid}: {len(srcs)} meshes, {tris} triangles, {len(mats)} materials, {size:.0f} m across')

@@ -100,24 +100,36 @@ def joint_positions(path):
     return out
 
 
-def save(path, prims, name='hull', nodes=None, keep=KEEP, split=False):
+def save(path, prims, name='hull', nodes=None, keep=KEEP, split=False, quantize=False):
     """Writes the primitives as one mesh on one root node, de-interleaved, 16-bit indices where they fit; `nodes`
     {name: [x, y, z]} adds empty child nodes there (a weapon's "muzzle"); `keep` the attributes written (the Chorus
     layers' hulls: UV sets 0 - 3 and the vertex colours too). `split`: the primitives grouped by their attribute sets,
-    each group its own mesh on a child node (a station's plain parts without the layers' four UV sets and colours)."""
+    each group its own mesh on a child node (a station's plain parts without the layers' four UV sets and colours).
+    `quantize`: the normals and tangents as normalized bytes (KHR_mesh_quantization, required) and the vertex colours as
+    normalized unsigned bytes, as Unreal keeps them (its tangent basis and vertex colours are 8-bit): about a third smaller;
+    positions and UVs stay floats."""
     out = bytearray(); views = []; accs = []
+    quantized = [False]
 
-    def add(arr, target, kind, comp):
+    def add(arr, target, kind, comp, normalized=False, stride=None, width=None):
         arr = np.ascontiguousarray(arr)
         while len(out) % 4: out.append(0)
         data = arr.tobytes()
-        views.append({'buffer': 0, 'byteOffset': len(out), 'byteLength': len(data), 'target': target})
+        view = {'buffer': 0, 'byteOffset': len(out), 'byteLength': len(data), 'target': target}
+        if stride: view['byteStride'] = stride
+        views.append(view)
         out.extend(data)
         acc = {'bufferView': len(views) - 1, 'componentType': comp, 'count': int(arr.shape[0]), 'type': kind}
-        if kind == 'VEC3' and target == 34962:
-            acc['min'] = [float(v) for v in arr.min(0)]; acc['max'] = [float(v) for v in arr.max(0)]
+        if normalized: acc['normalized'] = True
+        if kind == 'VEC3' and target == 34962 and comp == 5126:
+            acc['min'] = [float(v) for v in arr[:, :3].min(0)]; acc['max'] = [float(v) for v in arr[:, :3].max(0)]
         accs.append(acc)
         return len(accs) - 1
+
+    def snorm8(v, width):   # (each element padded to 4 bytes: vertex attributes stay 4-byte aligned)
+        q = np.round(np.clip(v, -1.0, 1.0) * 127.0).astype(np.int8)
+        if q.shape[1] < width: q = np.concatenate([q, np.zeros((len(q), width - q.shape[1]), np.int8)], 1)
+        return q
 
     materials, primitives, groups = [], [], {}
     for mat, attrs, idx in prims:
@@ -125,7 +137,15 @@ def save(path, prims, name='hull', nodes=None, keep=KEEP, split=False):
         for k in keep:
             if k in attrs:
                 v = attrs[k].astype(np.float32)
-                a[k] = add(v, 34962, {2: 'VEC2', 3: 'VEC3', 4: 'VEC4'}[v.shape[1]], 5126)
+                kind = {2: 'VEC2', 3: 'VEC3', 4: 'VEC4'}[v.shape[1]]
+                if quantize and k in ('NORMAL', 'TANGENT'):
+                    a[k] = add(snorm8(v, 4), 34962, kind, 5120, normalized=True, stride=4); quantized[0] = True
+                elif quantize and k == 'COLOR_0':
+                    c = np.round(np.clip(v, 0.0, 1.0) * 255.0).astype(np.uint8)
+                    if c.shape[1] < 4: c = np.concatenate([c, np.full((len(c), 4 - c.shape[1]), 255, np.uint8)], 1)
+                    a[k] = add(c, 34962, 'VEC4', 5121, normalized=True)
+                else:
+                    a[k] = add(v, 34962, kind, 5126)
         small = int(idx.max()) < 65535
         i = add(idx.astype(np.uint16 if small else np.uint32), 34963, 'SCALAR', 5123 if small else 5125)
         if mat not in materials: materials.append(mat)
@@ -141,6 +161,7 @@ def save(path, prims, name='hull', nodes=None, keep=KEEP, split=False):
          'nodes': node_list, 'meshes': meshes,
          'materials': [{'name': m, 'pbrMetallicRoughness': {'metallicFactor': 0.0, 'roughnessFactor': 0.6}} for m in materials],
          'accessors': accs, 'bufferViews': views, 'buffers': [{'byteLength': len(out)}]}
+    if quantized[0]: g['extensionsUsed'] = g['extensionsRequired'] = ['KHR_mesh_quantization']
     for n, pos in (nodes or {}).items():
         g['nodes'].append({'name': n, 'translation': [float(v) for v in pos]})
         g['nodes'][0].setdefault('children', []).append(len(g['nodes']) - 1)
