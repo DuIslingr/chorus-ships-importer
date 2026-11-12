@@ -256,7 +256,8 @@ world part is large (about 1 GB, most of it the five stations).
 - **Death explosions** (`tools/explosions.py`): every ship explodes as Chorus's do (ships.json `"deathFx"`): its
   fighters' fireball (P_Explosion_Main: the 16 x 8 fireball flipbook, sparks streaking out, tumble sparks) with
   sub-explosions and sparks over the death tumble (P_Explosion_Sub, P_Explosion_Small_Sparks), the big ships' (over
-  400 m) P_Explosion_Large_M, read from the Cascade systems' emitters (their baked curves) into particle emitters.
+  400 m) P_Explosion_Large_M, read from the Cascade systems' emitters (their baked curves) into particle emitters: the
+  fireballs with their dark smoke, the sparks, the flying rock impostors and the explosions' light flashes.
 - **A capital ship of your own** (`tools/capital.py`): Chorus's player capital ship (the PCLS, BP_Player_Ship_Capital) as
   the Spirit-class Capital Ship, sold in a lounge late in the game (rank 18, 25 million): 2500 armour mending by 125 a
   second (Chorus's 250 of 5000), slow to turn, on the Captured Warship's hull with its own braking flaps (its skeletal

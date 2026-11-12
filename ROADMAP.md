@@ -99,10 +99,12 @@ Next, roughly in order:
     ExplosionDamageRadius, "deathThroes"), the barriers blocking the way in ("shieldBlocks"), the shielded turret mounts'
     own shields ("shield" 0.75), the other configurations as ships of their own (Small C, Medium B with an Omen hangar,
     Medium C). Still the remake's: the parts' share of the hull, to tune in play.
-16. **Death explosions, still open** (`tools/explosions.py`): the lights-only emitters (Chorus's flash lights), the
-    impostor debris (MI_ImposterDebris's sheet isn't in its instance), trails spawned along a path and vector fields are
-    left out; the fireball's smoke is added (its dark coverage isn't drawn); the death effect configs' timing (a 5 s
-    tumble before the main blast) is the remake's own dying time; the brightness squeeze (8 / (8 + x)) wants checking.
+16. **Death explosions, done further** (`tools/explosions.py`): the lights-only emitters as point lights ("light"), the
+    impostor debris (MI_ImposterDebris's T_Debris_D, found through its parent's parameter) and each fireball's smoke
+    (its coverage, dark) alpha-blended ("blend": "alpha"). Left out: the mesh emitters, trails spawned along a path and
+    vector fields; the death effect configs' timing (a 5 s tumble before the main blast) is the remake's own dying time;
+    the brightness squeezes (8 / (8 + x), the lights' 3 x sqrt(brightness / 1e9)) and the smoke's and debris' greys
+    want checking in play.
 15. **Wrecks, still open** (`tools/wrecks.py`; the player's own, SK_PhoenixWreck / _Buddy / SK_TF_Argus_Wreck, are
     given now, `apply_players`): the wrecks' burning and dissolving materials (MF_WreckBurn / MF_WreckDisintegrate) are drawn as the converter makes them,
     not animated; the gunship's gun pod and mine wrecks (ABP_Explosion_TG_Gunship_Wreck_GunPod / _Mine) left out.

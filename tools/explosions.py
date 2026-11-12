@@ -6,8 +6,13 @@ its modular explosions, each a Cascade particle system: the fighters' "Explosion
 warships' and big ships' P_Explosion_Large_M. Each emitter's level 0 read here (the exporter's JSON: every distribution
 comes with its baked lookup table): its material's image, flipbook and frames over life, bursts and rate, life, size and
 size over life, colour and alpha over life, speed (along the emitter's X, outward, or from its spawn sphere), drag, the
-parent's velocity, rotation. Left out: the lights-only and mesh emitters, trails spawned along a path, the impostor debris
-(its sheet isn't in an instance), vector fields.
+parent's velocity, rotation. The lights-only emitters (ParticleModuleLight) as the remake's "light" emitters (their range
+the particle's size x RadiusScale; Chorus's brightness, 1e9 - 4e9 in its physical units, as 3 x its square root over
+1e9); the impostor debris (MI_ImposterDebris: T_Debris_D, a 2 x 2 sheet of rocks with alpha, through its parent
+MI_ImposterSplinters' parameter) alpha-blended ("blend": "alpha"), a dim grey (Chorus lights them, with burning edges);
+each fireball's smoke (its flipbook's coverage, A, drawn dark under the fire: Chorus's translucent fireball shows its
+base colour where the fire, G, is weak) as an alpha-blended companion. Left out: the mesh emitters, trails spawned along
+a path, vector fields.
 
 Units: Chorus centimetres -> game units at the ships' scale (SCALE 3.6: 0.72 a centimetre). Brightness: Chorus's HDR
 colours (its fireball 10 000 at its start: colour x colour scale x the material's Tint) squeezed into the remake's bloom
@@ -27,6 +32,8 @@ EFFECTS = {
     'large': {'main': ['P_Explosion_Large_M'], 'dying': ['P_Explosion_Sub'], 'dyingCount': [4, 10], 'dyingScale': 4.0},
 }
 LARGE_M = 400.0           # metres: a hull longer gets the big ships' explosion
+SMOKE = [0.07, 0.065, 0.06]   # the fireball's smoke, unlit in space (Chorus's lit base colour, dimmed)
+DEBRIS = [0.42, 0.4, 0.38]    # the impostor rocks' grey
 EXPORTS = []   # (the systems are read as JSON, their images exported on demand)
 
 
@@ -121,6 +128,50 @@ def _fireball(export, mod, resolver, mi_path):
     return rel, p.vector('Tint') or [1.0, 1.0, 1.0], power
 
 
+def _texture(export, mod, resolver, mi_path, want=None):
+    """The first texture (or the one named 'want') of an instance's chain, exported: -> its PNG path, or None."""
+    resolver.prefetch([mi_path])
+    p = resolver.get(mi_path)
+    if not p: return None
+    path = p.texture_paths.get(want) if want else next((v for k, v in p.texture_paths.items() if k in p.textures.values()), None)
+    if not path: return None
+    resolver.fetch_textures([path], export)
+    src = os.path.join(export, path + '.png')
+    return src if os.path.exists(src) else None
+
+
+def _smoke(export, mod, resolver, mi_path):
+    """The fireball flipbook's smoke: white where it covers (A), for an alpha-blended, dark-tinted companion."""
+    p = resolver.get(mi_path)
+    tex = next(iter(p.textures.values()), None) if p else None
+    path = p.texture_paths.get(tex) if tex else None
+    src = os.path.join(export, path + '.png') if path else None
+    if not src or not os.path.exists(src): return None
+    rel = f'fx/{os.path.basename(path).lower()}_smoke.png'
+    out = os.path.join(mod, rel)
+    if not os.path.exists(out):
+        im = Image.open(src).convert('RGBA')
+        im = im.resize((im.width // 2, im.height // 2), Image.LANCZOS)
+        a = (np.asarray(im, np.uint8)[..., 3]).copy()
+        w = np.full_like(a, 255)
+        os.makedirs(os.path.dirname(out), exist_ok=True)
+        Image.fromarray(np.stack([w, w, w, a], -1), 'RGBA').save(out, optimize=True)
+    return rel
+
+
+def _debris(export, mod, resolver, mi_path):
+    """MI_ImposterDebris' rock sheet (its AO_Alpha texture, T_Debris_D), halved: -> its path in the mod."""
+    src = _texture(export, mod, resolver, mi_path, 'T_Debris_D')
+    if not src: return None
+    rel = 'fx/t_debris_d.png'
+    out = os.path.join(mod, rel)
+    if not os.path.exists(out):
+        im = Image.open(src).convert('RGBA')
+        os.makedirs(os.path.dirname(out), exist_ok=True)
+        im.resize((im.width // 2, im.height // 2), Image.LANCZOS).save(out, optimize=True)
+    return rel
+
+
 def _emitters(export, mod, resolver, d, scale=1.0):
     """CustomFxEmitter entries of one Cascade system (its JSON 'd')."""
     def objs(ref):
@@ -132,7 +183,8 @@ def _emitters(export, mod, resolver, d, scale=1.0):
         em = objs(r)
         if not em: continue
         ep = em.get('Properties') or {}
-        if ep.get('EmitterRenderMode') in ('ERM_LightsOnly', 'ERM_None'): continue
+        if ep.get('EmitterRenderMode') == 'ERM_None': continue
+        lights_only = ep.get('EmitterRenderMode') == 'ERM_LightsOnly'
         lods = [objs(l) for l in ep.get('LODLevels', [])]
         lod = next((l for l in lods if l and l['Name'].endswith('_0')), lods[0] if lods else None)
         if not lod: continue
@@ -147,14 +199,19 @@ def _emitters(export, mod, resolver, d, scale=1.0):
         mat = (req.get('Material') or {}).get('ObjectName', '')
         mat_name = mat.split("'")[1] if "'" in mat else mat
         mat_path = (req.get('Material') or {}).get('ObjectPath', '').rsplit('.', 1)[0]
-        tint, image = [1.0, 1.0, 1.0], None
-        if 'Explosion' in mat_name and 'Spark' not in mat_name:
+        tint, image, blend = [1.0, 1.0, 1.0], None, None
+        if lights_only:
+            if 'Light' not in mods: continue   # (a lights-only emitter without its light draws nothing)
+        elif 'Explosion' in mat_name and 'Spark' not in mat_name:
             image, t, _ = _fireball(export, mod, resolver, mat_path)
             if t: tint = list(t)[:3]
+        elif 'ImposterDebris' in mat_name:
+            image, blend = _debris(export, mod, resolver, mat_path), 'alpha'
         elif 'Spark' in mat_name:
             image = _spark(mod)
-        if not image: continue
-        e = {'image': image}
+        if not image and not lights_only: continue
+        e = {'image': image} if image else {}
+        if blend: e['blend'] = blend
         cols, rows = req.get('SubImages_Horizontal') or 1, req.get('SubImages_Vertical') or 1
         if cols * rows > 1:
             e['sheet'] = [cols, rows]
@@ -235,6 +292,28 @@ def _emitters(export, mod, resolver, d, scale=1.0):
         if rr:
             sp = _Dist(rr.get('StartRotationRate'), objs).range()
             if sp: e['spin'] = [round(sp[0] * 360.0, 1), round(sp[1] * 360.0, 1)]
+        if lights_only:
+            # the light: its range the particle's size x RadiusScale, its brightness squeezed (3 at Chorus's 1e9)
+            lm = mods['Light']
+            rs = (_Dist(lm.get('RadiusScale'), objs).range() or (1.0, 1.0))[1]
+            br = (_Dist(lm.get('BrightnessOverLife'), objs).range() or (1e9, 1e9))[1]
+            size = e.pop('size', None)
+            if not size: continue
+            e['light'] = round(size[1] * rs, 1)
+            e['lightIntensity'] = round(3.0 * float(np.sqrt(max(br, 0.0) / 1e9)), 2)
+            for k in ('speed', 'forward', 'sphere', 'drag', 'stretch', 'spin', 'randomRotation', 'sheet', 'frames', 'randomFrame'):
+                e.pop(k, None)
+            out.append(e); continue
+        if blend == 'alpha':   # (a plain tint, not a glow)
+            e['color'] = DEBRIS
+            e.pop('colorOverLife', None)
+            if 'sheet' in e: e['randomFrame'] = True; e.pop('frames', None)
+        if 'Explosion' in mat_name and 'Spark' not in mat_name:
+            sm = _smoke(export, mod, resolver, mat_path)
+            if sm:   # (its smoke first: drawn behind the fire)
+                smoke = {k: v for k, v in e.items() if k not in ('colorOverLife',)}
+                smoke.update({'image': sm, 'blend': 'alpha', 'color': SMOKE})
+                out.append(smoke)
         out.append(e)
     return out
 
