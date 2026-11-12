@@ -105,9 +105,12 @@ Next, roughly in order:
     vector fields; the death effect configs' timing (a 5 s tumble before the main blast) is the remake's own dying time;
     the brightness squeezes (8 / (8 + x), the lights' 3 x sqrt(brightness / 1e9)) and the smoke's and debris' greys
     want checking in play.
-15. **Wrecks, still open** (`tools/wrecks.py`; the player's own, SK_PhoenixWreck / _Buddy / SK_TF_Argus_Wreck, are
-    given now, `apply_players`): the wrecks' burning and dissolving materials (MF_WreckBurn / MF_WreckDisintegrate) are drawn as the converter makes them,
-    not animated; the gunship's gun pod and mine wrecks (ABP_Explosion_TG_Gunship_Wreck_GunPod / _Mine) left out.
+15. **Wrecks, done** (`tools/wrecks.py`; the player's own, SK_PhoenixWreck / _Buddy / SK_TF_Argus_Wreck, too,
+    `apply_players`): the burning and disintegrating materials (MF_WreckBurn, the masters' Dissolve) are the remake's
+    wreck burn and cut (HullWreck.hlsl: the pieces glow, cool by halfway and disintegrate over the last 40 %); the
+    gunships break into the wreck of the configuration they fly (their death configs' Expl_04: Gunship01 with its gun pod,
+    Gunship02 with its mine thrower, the Elite with its gun pod; the pirates' without). Left: the burn's own noise
+    (T_DamageSurface01_D in Chorus, value noise in the remake) and the wreck materials' Burn_Amount per ship (all 1).
 14. **The player capital ship, done** (`tools/capital.py`): the Shield Overcharge (device 22), the hull regeneration
     ("hullRegen"), the Death Ray as a wide beam held on (beamRadius / beamReach, its heat), all 14 artillery barrels as
     turret slots, the braking flaps (its own model from SK_PlayerControlledLargeShip01, the LoopBraking pose) and its shop

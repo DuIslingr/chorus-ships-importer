@@ -19,12 +19,18 @@ SMALL = UP + 'ArtAssets/Vehicles/Small/'
 FIGHTER = SMALL + 'TF_terranfighter/Wreck/SK_TF_Fighter_Wreck'
 SCOUT = SMALL + 'TS_Scout01/TS_Scout01_Wreck'
 GUNSHIP = SMALL + 'TG_Gunship/SK_TG_Gunship_Wreck'
+# the gunships as they fly (their death configs' Expl_04, the wreck of that configuration: the hull with its gun pod or mine
+# thrower, npcs.SHIPS "place"): Gunship01 with its gun pod, Gunship02 with its mine thrower, the Elite with its gun pod
+GUNSHIP_POD = SMALL + 'TG_Gunship/Wreck/SK_TG_Gunship_Wreck_GunPod'
+GUNSHIP2_MINE = SMALL + 'TG_Gunship_02/Wreck/SK_TG_Gunship_02_Wreck_Mine'
+GUNSHIP_ELITE_POD = SMALL + 'TG_Gunship_Elite/Wreck/SK_TG_Gunship_Elite_Wreck_GunPod'
 # ship id: its wreck (the pirates' fighter, scout and gunship are the Circle's hulls repainted: the same wrecks; Chorus keeps
 # the fighter's wreck blueprint in the pirate fighter's folder)
 WRECKS = {
     'circle_fighter': FIGHTER, 'pirate_fighter': FIGHTER,
     'circle_scout': SCOUT, 'pirate_scout': SCOUT,
-    'circle_gunship': GUNSHIP, 'pirate_gunship': GUNSHIP,
+    'circle_gunship': GUNSHIP_POD, 'pirate_gunship': GUNSHIP,   # (the pirates' fly without the pod: npcs.SHIPS)
+    'circle_gunship_apex': GUNSHIP2_MINE, 'circle_gunship_elite': GUNSHIP_ELITE_POD,
     'disruptor': UP + 'ArtAssets/Affordances/SM_TER_Disruptor/SK_TER_Disruptor_Wreck_02',
     'omen_support': UP + 'NPC/Ships/OmenSupport/Art/SK_OmenSupport_02_Wreck',
     'atlas': SMALL + 'TG_Atlas/SK_TG_Atlas_Wreck',
@@ -39,7 +45,7 @@ EXPORTS = sorted(set(WRECKS.values()) | {w for w, _ in PLAYER_WRECKS.values()})
 # the pirates' hulls are the Circle's in other paint (MI_TER_NPC_Ship04 for Ship02, its lights Lights03 for Lights01): the
 # wreck's materials (the Circle's, "_Wreck" / "_Dissolve") repainted the same way; the burn and damage surfaces kept
 PIRATE_PAINT = [('NPC_Ship02', 'MI_TER_NPC_Ship04'), ('Lights01', 'MI_TER_NPC_Ship_Lights03')]
-SECONDS = {'atlas': 10.0, 'circle_gunship': 8.0, 'pirate_gunship': 8.0}
+SECONDS = {'atlas': 10.0, 'circle_gunship': 8.0, 'pirate_gunship': 8.0, 'circle_gunship_apex': 8.0, 'circle_gunship_elite': 8.0}
 
 
 def _pieces(src):

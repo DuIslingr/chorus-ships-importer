@@ -250,9 +250,11 @@ world part is large (about 1 GB, most of it the five stations).
   and the reactor core (stage 2) whose destruction destroys the ship, the small warship's hangar launching Circle
   fighters. The hull itself shrugs hits off (`"hullDamage": 0`), as Chorus's does. The devices' meshes are prop ships
   (`chorus_part_*`, race -1, never flown), each set at its full turn (`"turretForward"`).
-- **Wrecks** (`tools/wrecks.py`): the Circle's and the pirates' fighter, scout and gunship, the Disruptor, the Omen Support,
-  the Atlas, and your own Forsaken, Elder Buddy and Argus break into Chorus's own wreck pieces where they explode (ships.json `"wreck"`): each wreck's skeletal mesh
-  (SK_*_Wreck, a bone a piece) cut into pieces in its hull's frame, the pirates' repainted in the pirates' colours.
+- **Wrecks** (`tools/wrecks.py`): the Circle's and the pirates' fighter, scout and gunships (each with its gun pod or mine
+  thrower), the Disruptor, the Omen Support, the Atlas, and your own Forsaken, Elder Buddy and Argus break into Chorus's
+  own wreck pieces where they explode (ships.json `"wreck"`): each wreck's skeletal mesh (SK_*_Wreck, a bone a piece) cut
+  into pieces in its hull's frame, the pirates' repainted in the pirates' colours; the pieces glow where they burn, cool
+  and disintegrate as Chorus's do.
 - **Death explosions** (`tools/explosions.py`): every ship explodes as Chorus's do (ships.json `"deathFx"`): its
   fighters' fireball (P_Explosion_Main: the 16 x 8 fireball flipbook, sparks streaking out, tumble sparks) with
   sub-explosions and sparks over the death tumble (P_Explosion_Sub, P_Explosion_Small_Sparks), the big ships' (over
