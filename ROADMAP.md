@@ -76,7 +76,8 @@ Next, roughly in order:
    Prophet's crown, and the Omen tissue's pulse, parallax and scroll are done: the remake's Chorus layer kinds "crystal"
    and "tissue", tools/npcs.py _jtu_crystal / _faceless_tissue; the crystal's turbulence is a value noise standing in for
    Unreal's noise texture; the tissue's warp-in dissolve edge is left out. M_Phoenix's glow lines are done too: decompiled, the Emissive02 Min / Max wave along the hex pattern,
-   the remake's "wave" block, tools/ships.py _wave; its hit flash and AFX pattern left out.) The Omen tissue's pulse, parallax and scroll and the faceless dissolve edge
+   the remake's "wave" block, tools/ships.py _wave; its hit flash too, the remake's "hit" block (MF_HitEffect decoded,
+   T_Lu_Noise_29 in the wave map's alpha, tools/ships.py _hit); its AFX pattern left out.) The Omen tissue's pulse, parallax and scroll and the faceless dissolve edge
    would want a remake shader like the Chorus layers. Guilt's shell normal (the base pass's, from the flowing noise) is
    left flat, and its shadow is the whole, unpushed shell; the core's portal threads are a scrolling glow, not the
    portal's own formula (M_Warpin_Omen_Portal not decompiled).

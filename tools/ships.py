@@ -59,6 +59,8 @@ def _colours(p, force=False, skip=()):
 
 
 WAVE_PATTERN = 'T_HexPatternNoise_01_A'
+HIT_PATTERN = 'T_Lu_Noise_29'   # (M_Phoenix's referenced texture 1: its hit flash's noise, in the wave pattern's alpha)
+HIT_CM = 0.72                   # (game units a Chorus centimetre at the ships' scale)
 
 
 def _wave(export, mod, p, tex_dir, mask, name, resolver):
@@ -76,7 +78,18 @@ def _wave(export, mod, p, tex_dir, mask, name, resolver):
     if not path or not os.path.exists(psrc): return None
     maps = os.path.join(mod, 'maps')
     prel = f'maps/{pattern.lower()}.png'
-    if not os.path.exists(os.path.join(mod, prel)): shutil.copyfile(psrc, os.path.join(mod, prel))
+    # (its alpha the hit flash's noise, T_Lu_Noise_29's red: the remake reads it there, _hit)
+    hpath = getattr(p, 'texture_paths', {}).get(HIT_PATTERN)
+    if hpath and resolver is not None: resolver.fetch_textures([hpath], export)
+    hsrc = os.path.join(export, (hpath or '') + '.png')
+    if hpath and os.path.exists(hsrc):
+        prel = f'maps/{pattern.lower()}_hit.png'
+        if not os.path.exists(os.path.join(mod, prel)):
+            im = Image.open(psrc).convert('RGBA')
+            noise = Image.open(hsrc).convert('RGBA').split()[0].resize(im.size, Image.LANCZOS)
+            r, g, b, _ = im.split()
+            Image.merge('RGBA', (r, g, b, noise)).save(os.path.join(mod, prel), optimize=True)
+    elif not os.path.exists(os.path.join(mod, prel)): shutil.copyfile(psrc, os.path.join(mod, prel))
     # (the masks' green alone, at the emission map's size)
     m = Image.open(src).convert('RGBA').split()[1]
     if m.width > 1024: m = m.resize((1024, 1024 * m.height // m.width), Image.LANCZOS)
@@ -84,6 +97,20 @@ def _wave(export, mod, p, tex_dir, mask, name, resolver):
     m.convert('RGB').save(os.path.join(maps, f'{name}_wave.png'), optimize=True)
     return {'pattern': prel, 'mask': mrel, 'channel': 1, 'tiling': p.scalar('Magnetic Pattern Tiling', 1.0), 'speed': 1.0,
             'multiplier': mult, 'min': [round(v, 4) for v in lo[:3]], 'max': [round(v, 4) for v in hi[:3]]}
+
+
+def _hit(p, wave):
+    """M_Phoenix's hit flash (MF_HitEffect, its compiled base pass) as the material's "hit" block, or None: HitColor x
+    HitEmissiveStrength squeezed into the remake's bloom range (x 8 / (8 + x), as the explosions), HitRadius at the ships'
+    scale, HitEffectDuration; its noise where the wave pattern carries it (_wave)."""
+    col = p.vector('HitColor') if p else None
+    if not col: return None
+    c = np.array(col[:3], np.float64) * p.scalar('HitEmissiveStrength', 1.0)
+    peak = float(c.max())
+    if peak <= 0: return None
+    c = c * (8.0 / (8.0 + peak))
+    return {'color': [round(float(v), 4) for v in c], 'radius': round(p.scalar('HitRadius', 900.0) * HIT_CM, 1),
+            'duration': round(p.scalar('HitEffectDuration', 0.04), 4), 'pattern': bool(wave and wave['pattern'].endswith('_hit.png'))}
 
 
 def nozzle_faces(prims, material, depth=0.6):
@@ -146,6 +173,8 @@ def forsaken(export, mod, resolver=None, anims=None):
         wave = _wave(export, mod, p, tex_dir, names['emissive'], 'forsaken_' + short, resolver) if short != 'thruster' and resolver is not None else None
         entry.update(textures.convert_material(tex_dir, names, _colours(p, force=short == 'thruster', skip=(1,) if wave else ()), os.path.join(mod, 'maps'), 'forsaken_' + short))
         if wave: entry['wave'] = wave
+        hit = _hit(p, wave)
+        if hit: entry['hit'] = hit
         if short == 'thruster' and 'emission' in entry:
             # The nozzles' glow multipliers are 0 in the asset (the game drives them with the thrust at run time):
             # here the glow follows the engines (dim at idle, full at full throttle).
@@ -227,6 +256,8 @@ def elder_buddy(export, mod, forsaken_entry, resolver=None):
         entry = {'material': mat}
         entry.update(textures.convert_material(tex_dir, names, colours, os.path.join(mod, 'maps'), 'elder_' + short))
         if wave: entry['wave'] = wave
+        hit = _hit(p, wave)
+        if hit: entry['hit'] = hit
         if short == 'thruster' and 'emission' in entry:
             entry.update({'engine': True, 'engineIdle': 0.25, 'emissionIntensity': 4.0})
         materials.append(entry)
