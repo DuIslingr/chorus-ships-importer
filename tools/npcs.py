@@ -51,7 +51,7 @@ in Unity's terms, so approximations where Chorus's shaders layer more):
 import glob, json, os, re
 import numpy as np
 from PIL import Image
-from . import glb, rig, textures
+from . import glb, rig, textures, warships
 from .ships import K, SCALE, _tex, _params, _colours, nozzle_faces
 
 UP = 'SpacePrototype/Content/UnleashedPrototype/'
@@ -172,11 +172,13 @@ SHIPS = [
       nose='+z'),
     # (the Resistance admiral's frigate, named by its asset)
     S('kardoh', 'Resistance Frigate', LARGE + 'SM_NPC_Kardoh/SM_NPC_Kardoh', 'capital', [0], 9000, TER_GLOW, name_from='mesh'),
-    S('circle_warship', 'Circle Warship', LARGE + 'SM_SmallWarship/SM_SmallWarship', 'capital', [8], 9000, CIRCLE_GLOW),
-    S('circle_destroyer', 'Circle Destroyer', LARGE + 'SM_MediumWarship/SM_MediumWarship', 'capital', [8], 12000, CIRCLE_GLOW),
-    S('circle_dreadnought', 'Circle Dreadnought', LARGE + 'SM_LargeWarship/SM_LargeWarship', 'capital', [8], 16000, CIRCLE_GLOW),
+    S('circle_warship', 'Circle Warship', [LARGE + 'SM_SmallWarship/SM_SmallWarship', warships.CONFIGS['circle_warship'][2]], 'capital', [8], 9000, CIRCLE_GLOW),
+    S('circle_destroyer', 'Circle Destroyer', [LARGE + 'SM_MediumWarship/SM_MediumWarship', warships.CONFIGS['circle_destroyer'][2]], 'capital', [8], 12000, CIRCLE_GLOW),
+    S('circle_dreadnought', 'Circle Dreadnought', [LARGE + 'SM_LargeWarship/SM_LargeWarship', warships.CONFIGS['circle_dreadnought'][2]], 'capital', [8], 16000, CIRCLE_GLOW),
     # (the warship the player takes over in the story: a Terran capital ship here)
     S('captured_warship', 'Captured Warship', PLAYER + 'PlayerControlledLargeShip/SM_PlayerControlledLargeShip01', 'capital', [0], 7000, TER_GLOW),
+    # -- the warships' parts (tools/warships.py): models for their subsystems, flown by no one ---------------------------
+] + [S(pid, pname, mesh, 'prop', [-1], 1000, CIRCLE_GLOW, nose='+x') for pid, pname, mesh in warships.PROPS] + [
     # -- flown by the player -------------------------------------------------------------------------------------------
     S('forsaken_supercharged', 'Forsaken (Supercharged)', PLAYER + 'SuperchargedShip/SK_SuperChargedShip', 'player', [0], 640,
       [0.0, 0.61, 1.0], nose='+x', rig=True),   # (its glowing wing sheaths, "thruster" too, would turn it round; the Forsaken's skeleton: its drift)
@@ -1255,6 +1257,7 @@ def build(export, mod, resolver=None, only=None, work=None, anims=None):
     _PNG.clear()   # (textures exported since the last call)
     shown = names(resolver, work or os.path.dirname(os.path.abspath(export)))
     socks = sockets(resolver, work or os.path.dirname(os.path.abspath(export)))
+    warships.blueprints(resolver, work or os.path.dirname(os.path.abspath(export)))
     out = []
     for s in SHIPS:
         sid = s['id']
@@ -1312,6 +1315,14 @@ def build(export, mod, resolver=None, only=None, work=None, anims=None):
             glb.save(os.path.join(mod, 'models', 'npc', sid + '.glb'),
                      [(m, {k_: v for k_, v in a.items() if k_ not in ('TEXCOORD_1', 'TEXCOORD_2', 'TEXCOORD_3')}, i) for m, a, i in prims], sid)
         game = lambda v: [round(-float(v[2]) * k, 1), round(float(v[1]) * k, 1), round(float(v[0]) * k, 1)]
+        if role == 'prop':   # (a warship part's model: no race, never flown; its origin the device's, tools/warships.py)
+            out.append({'id': sid, 'name': name, 'description': f"A part of a Chorus warship: its {name.lower()}.", 'race': -1,
+                        'armor': 1000, 'cargo': 0, 'handling': 10, 'price': 0, 'priceDefault': 0,
+                        'slots': {'primary': 0, 'secondary': 0, 'turret': 0, 'equipment': 0},
+                        'model': f'models/npc/{sid}.glb', 'modelLength': max(1, round(length_m / 0.05)), 'modelYaw': 90,
+                        'materials': mats, 'traffic': {'weight': 0}, 'explosionScale': 2.0})
+            print(f'  {sid} ({name}): warship part, {length_m:.0f} m')
+            continue
         mid_y = float(lo[1] + hi[1]) / 2
         half = float(min(hi[1] - lo[1], hi[2] - lo[2])) / 6
         mounts = [{'slotType': 0, 'position_engine': game([hi[0], mid_y, 0.0])}]
@@ -1375,6 +1386,8 @@ def build(export, mod, resolver=None, only=None, work=None, anims=None):
             kinds = CHORUS_TURRETS.get(sid, CHORUS_TURRETS_DEFAULT)
             e['npcTurrets'] = [f'{MOD_ID}:{kinds[i % len(kinds)]}' for i in range(n_turrets)]
         if smoke: e['smoke'] = [game(p_) for p_ in smoke]
+        if sid in warships.CONFIGS:   # (Chorus's warships: their parts as subsystems, its turrets among them)
+            warships.apply(e, s, work or os.path.dirname(os.path.abspath(export)), mats, nose, sc, k, shrink)
         # its own idle (rig.NPC_CLIPS), looped: a rigid skin as parts on its skeleton's nodes (tools/rig.py)
         idle = rig.npc_clip(work or os.path.dirname(os.path.abspath(export)), s['idle']) if s.get('idle') else None
         if idle is not None and nose == '+x' and s.get('scale', 1.0) == 1.0 and len(srcs) == 1 and rig.is_rigid(srcs[0]):

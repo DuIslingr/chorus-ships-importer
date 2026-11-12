@@ -214,11 +214,11 @@ switch (args[0])
         break;
     }
     case "jsonall":
-        // jsonall <regex> <outdir>: every matching .uasset's exports as <outdir>/<name>.json
+        // jsonall <regex> <outdir>: every matching .uasset's or .umap's exports as <outdir>/<name>.json
         var rxa = new System.Text.RegularExpressions.Regex(args[1], System.Text.RegularExpressions.RegexOptions.IgnoreCase);
         Directory.CreateDirectory(args[2]);
         int nj = 0;
-        foreach (var f in provider.Files.Keys.Where(k => k.EndsWith(".uasset") && rxa.IsMatch(k)).ToList())
+        foreach (var f in provider.Files.Keys.Where(k => (k.EndsWith(".uasset") || k.EndsWith(".umap")) && rxa.IsMatch(k)).ToList())
         {
             try
             {

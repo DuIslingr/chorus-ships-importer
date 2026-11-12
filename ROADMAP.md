@@ -92,6 +92,12 @@ Next, roughly in order:
 10. **Level-placed parts and wrecks:** the capital ships' thrusters are placed by Chorus's levels (read the .umap actors
    that place them); the wreck skeletal meshes and their explosion anim blueprints (ships breaking apart) would need the
    remake to swap a destroyed mod ship for its wreck.
+13. **Warships, still open** (`tools/warships.py`): Chorus's death throes (the reactor's countdown, BP_<Size>Warship_Base's
+    ExplosionDamageRadius 800 m / knockback 2.5 km, Warship_Countdown sounds) are the remake's plain capital explosion;
+    the barriers don't block the way in (an additive field has no hull); the turret mounts' frontal shields
+    (BP_TurretMount_*_Shield) are plain turrets; only configuration A of each size (Small_C, Medium_B / C, the frigate and
+    the civilian capital ships' configs not read); the parts' share of the hull (WEAK_SHARE 0.1, death damage / 4000) is
+    the remake's balance, to tune in play.
 12. **The Chorus systems, next areas:** Nimika Prime's broken planet (SM_Planet_Destroyed_LocAST parts, M_Planet_Broken),
     Stega Belt's and the Tarris Wormhole's own stations (or other levels' structures: LocASP03's military platform,
     LocRSB14's antenna array), then the bosses, wrecks and effects that need the remake (the rift look and Nimika's dormant

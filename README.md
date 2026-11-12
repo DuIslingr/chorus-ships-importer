@@ -235,6 +235,13 @@ world part is large (about 1 GB, most of it the five stations).
   name both as raiders, and a rift stage can be theirs. Chorus's bosses join the remake's rift runs (`encounters.json`
   `rift` `bosses`): the Omen's elite fortress and the Circle's dreadnought, destroyer and warship as capital bosses, the
   Omen fortress, the Prophet, Sav, Ree and Aryana as fighter bosses with Chorus's guns.
+- **Warships as boss fights** (`tools/warships.py`): the Circle's warship, destroyer and dreadnought carry Chorus's
+  parts as the remake's capital ship subsystems, read from their blueprints (BP_<Size>Warship_Base and its configuration:
+  the modules' weakpoints on the hull's sockets): turrets (at most 8, the heavier first), energy arrays shielding the core
+  (stage 1; the barriers, SM_<Size>WarshipBarriers, shown as an energy field until they fall), the thrusters as weak spots
+  and the reactor core (stage 2) whose destruction destroys the ship, the small warship's hangar launching Circle
+  fighters. The hull itself shrugs hits off (`"hullDamage": 0`), as Chorus's does. The devices' meshes are prop ships
+  (`chorus_part_*`, race -1, never flown), each set at its full turn (`"turretForward"`).
 - **The Rift** (`tools/rift.py`): Chorus's rift vortex (SM_Rift_Vortex with M_PortalRift_2, Nimika's
   MI_PortalRift_2_LocAST_Outside, as a material `"rift"` block: its swirl, red centre, lightning flipbooks and clouds,
   added). In the Chorus systems a rift run looks like Chorus's Rift (the `encounters.json` rift entry's `"look"`): the
