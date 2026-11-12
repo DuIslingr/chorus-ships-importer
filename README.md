@@ -265,9 +265,9 @@ world part is large (about 1.1 GB, most of it the seven stations).
 - **A capital ship of your own** (`tools/capital.py`): Chorus's player capital ship (the PCLS, BP_Player_Ship_Capital) as
   the Spirit-class Capital Ship, sold in a lounge late in the game (rank 18, 25 million): 2500 armour mending by 125 a
   second (Chorus's 250 of 5000), slow to turn, on the Captured Warship's hull with its own braking flaps (its skeletal
-  mesh: A_PlayerControlledLargeShip01_LoopBraking's pose laid over by the brake) and its own shop icon, with its own
+  mesh: Chorus's braking clips opening, holding and closing them as you brake) and its own shop icon, with its own
   weapons and device as items: the PCLS Artillery (an automatic turret, a turret slot on each of its 14 artillery
-  sockets), the PCLS Death Ray (a beam held on, a hit every 0.05 s on everything within 360 m of its line out to 21 km,
+  sockets), the PCLS Death Ray (charging for a second, then a beam held on, a hit every 0.05 s on everything within 360 m of its line out to 21 km,
   overheating after 6.5 s for 6 s), the PCLS Broadside Barrage (homing missile salvos with a wide blast) and the PCLS
   Shield Overcharge (the remake's device 22: the shield full and nothing past it for 5 s, every 10 s). The remake fits its
   camera to the hull and shrinks it on the hangar's turntable (a hull over 150 m).

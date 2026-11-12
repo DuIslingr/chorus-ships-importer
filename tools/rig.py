@@ -100,7 +100,9 @@ _NPC = 'SpacePrototype/Content/UnleashedPrototype/NPC/Ships/'
 NPC_CLIPS = [_NPC + 'OmenSupport/Art/A_OmenSupport_Idle', _NPC + 'Guilt/Art/Anims/A_Guilt_Idle03',
              # the player capital ship's idle and its braking flaps (tools/capital.py)
              'SpacePrototype/Content/UnleashedPrototype/ArtAssets/Vehicles/Playerships/PlayerControlledLargeShip/A_PlayerControlledLargeShip01_Idle',
-             'SpacePrototype/Content/UnleashedPrototype/ArtAssets/Vehicles/Playerships/PlayerControlledLargeShip/A_PlayerControlledLargeShip01_LoopBraking']
+             'SpacePrototype/Content/UnleashedPrototype/ArtAssets/Vehicles/Playerships/PlayerControlledLargeShip/A_PlayerControlledLargeShip01_LoopBraking',
+             'SpacePrototype/Content/UnleashedPrototype/ArtAssets/Vehicles/Playerships/PlayerControlledLargeShip/A_PlayerControlledLargeShip01_Braking',
+             'SpacePrototype/Content/UnleashedPrototype/ArtAssets/Vehicles/Playerships/PlayerControlledLargeShip/A_PlayerControlledLargeShip01_StopBraking']
 EXPORTS = [p for p in list(CLIPS.values()) + list(POSES.values()) + [REFERENCE] + NPC_CLIPS if p]
 
 

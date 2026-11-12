@@ -55,7 +55,7 @@ ITEMS = [
      # (15 a hit: Chorus's 30 at the hull's share, 2500 of its 5000; the range is a beam's life, under the reload: held on)
      'stats': {'damage': 15, 'loadingTimeMs': 50, 'range': 40, 'projectileSpeed': 60, 'shieldDamage': 150,
                'beamRadius': round(BEAM_RADIUS_CM * 0.72), 'beamReach': round(BEAM_REACH_CM * 0.72),
-               'heatShots': 130, 'heatCoolMs': 12000, 'overheatMs': 6000}, 'color': [1.0, 0.1, 0.35]},
+               'heatShots': 130, 'heatCoolMs': 12000, 'overheatMs': 6000, 'chargeMs': 1000}, 'color': [1.0, 0.1, 0.35]},
     {'id': 'chorus_capital_barrage', 'base': 37, 'name': 'PCLS Broadside Barrage',
      'description': "The capital ship's broadside missiles: homing salvos that blow up over a wide area. (Chorus)",
      'techLevel': 9, 'occurrence': 3, 'price': [900, 950],
@@ -132,8 +132,8 @@ def rigged(export, mod, work, host_prims, convert):
     when its clips or mesh weren't exported, or its materials don't come out as the warship's."""
     from . import glb, npcs, rig
     src = os.path.join(export, SK_MESH + '.glb')
-    idle, brake = (rig.npc_clip(work, ANIMS + n) for n in ('Idle', 'LoopBraking'))
-    if not os.path.exists(src) or idle is None or brake is None:
+    clips = {n: rig.npc_clip(work, ANIMS + n) for n in ('Idle', 'Braking', 'LoopBraking', 'StopBraking')}
+    if not os.path.exists(src) or any(c is None for c in clips.values()):
         print(f'  {SHIP_ID}: its skeletal mesh or braking clips not exported (no flaps)'); return None
     raw = [(SK_MATERIALS.get(m, m), a, i) for m, a, i in glb.static_mesh(src, keep=npcs.KEEP)]
     conv = convert([raw])
@@ -150,21 +150,14 @@ def rigged(export, mod, work, host_prims, convert):
     sources = [source(a) for _, a, _ in conv]
     if None in sources: print(f'  {SHIP_ID}: its converted mesh lost track of its skin (no flaps)'); return None
     nodes, roots, meshes = rig.rigid_parts(src, conv, sources)
-    out = rig.clips({'brake': brake, '_reference': idle}, nodes, poses={'brake'})
-    channels = out[0][1]
-    if not channels: print(f'  {SHIP_ID}: its braking moves nothing'); return None
-    # the idle: the flaps the brake moves, held at Chorus's idle pose (two keys, one second)
-    by_name = {n['name']: i for i, n in enumerate(nodes)}
-    rest = {}
-    for bone, fr in idle['bones'].items():
-        if bone in by_name: rest[by_name[bone]] = (rig._ue_t(fr[0]), rig._ue_q(fr[0]))
-    held = []
-    for node, path_, _, values in channels:
-        v = rest.get(node, (values[0], values[0]))[0 if path_ == 'translation' else 1]
-        held.append((node, path_, np.array([0.0, 1.0]), np.array([v, v], np.float64)))
+    # the idle and the braking state (Chorus's Braking, LoopBraking, StopBraking: the flaps opening, held, closing), every
+    # clip keying the flaps
+    out = rig.clips({'idle': clips['Idle'], 'brakeStart': clips['Braking'], 'brakeLoop': clips['LoopBraking'],
+                     'brakeEnd': clips['StopBraking']}, nodes)
+    if not any(ch for _, ch in out if _ != 'idle'): print(f'  {SHIP_ID}: its braking moves nothing'); return None
     rel = 'models/npc/' + SHIP_ID + '.glb'
-    rig.save(os.path.join(mod, rel), nodes, roots, meshes, [('idle', held), ('brake', channels)], SHIP_ID, keep=npcs.KEEP)
-    print(f'  {SHIP_ID}: its own model, {len(channels) // 2} braking parts')
+    rig.save(os.path.join(mod, rel), nodes, roots, meshes, out, SHIP_ID, keep=npcs.KEEP)
+    print(f'  {SHIP_ID}: its own model, {len(out[1][1]) // 2} braking parts')
     return rel
 
 
@@ -210,7 +203,7 @@ def player_entry(host, s, work, prims, nose, sc, k, export=None, mod=None, conve
          'lounge': {'systemRace': -1, 'minCampaign': 50, 'minRank': 18, 'chance': 2}, 'flightStyle': 'chorus'}
     if export and mod and convert:
         braked = rigged(export, mod, work, prims, convert)
-        if braked: e['model'], e['animations'] = braked, {'idle': 'idle', 'brake': 'brake'}
+        if braked: e['model'], e['animations'] = braked, {'idle': 'idle', 'braking': {'start': 'brakeStart', 'loop': 'brakeLoop', 'end': 'brakeEnd'}}
     print(f"  {SHIP_ID}: player capital ship on {HOST}'s model, {count(0)} primaries, {count(1)} secondaries, "
           f"{count(2)} turrets, {count(3)} thrusters")
     return e

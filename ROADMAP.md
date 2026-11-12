@@ -124,9 +124,9 @@ Next, roughly in order:
 14. **The player capital ship, done** (`tools/capital.py`): the Shield Overcharge (device 22), the hull regeneration
     ("hullRegen"), the Death Ray as a wide beam held on (beamRadius / beamReach, its heat), all 14 artillery barrels as
     turret slots, the braking flaps (its own model from SK_PlayerControlledLargeShip01, the LoopBraking pose) and its shop
-    icon (render_blender.py "fit"). Left: Chorus's Braking / StopBraking clips as the flaps' opening and closing (the pose
-    follows the brake input instead), the Death Ray's 1 s charge-up and the shield overcharge's own effect
-    (BP_Effect_Auxiliary_Shield_PlayerCapitalShip); its stats are this importer's balance, to tune in play.
+    icon (render_blender.py "fit"), Chorus's Braking / LoopBraking / StopBraking as the remake's "braking" state, the
+    Death Ray's 1 s charge-up ("chargeMs"), the overcharge shown by the remake's shield bubble (Chorus's own
+    BP_Effect_Auxiliary_Shield_PlayerCapitalShip not converted); its stats are this importer's balance, to tune in play.
 12. **The Chorus systems, next areas:** (Nimika Prime's broken planet is done: tools/brokenplanet.py, M_Planet_Broken and
     M_BrokenPlanet_Core decompiled and baked, the lava's flow frozen; very dark as Chorus's own values make it, its
     auto exposure aside; Stega Belt's and the Tarris Wormhole's stations are done too: LocASP03's military platform, one
