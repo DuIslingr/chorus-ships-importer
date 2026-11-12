@@ -109,9 +109,9 @@ Next, roughly in order:
    with its baked indirect light, which the remake doesn't have).
 11. **Guilt as Chorus plays it, done:** back in the mod with the remake's "pursuer" role (BT_Guilt's chase steps and speeds,
    BP_Guilt_Debuff's wither, PP_Guilt's screen near it, never harmed, never in the traffic); npcships.json sends it now
-   and then into Nimika Prime's and the Tarris Wormhole's orbits from rank 10 (npcs.PURSUERS). Left: the mission's
-   MTAction_ManageGuiltNPC (parking or stopping it) is an event graph's to do; the wither is the remake's reading of
-   MaxWither 5. Its radial portal core is done (npcs._guilt_core, MP_Guilt_Core_Radial_02 on M_Warpin_Omen_Portal, its
+   and then into Nimika Prime's and the Tarris Wormhole's orbits from rank 10 (npcs.PURSUERS). The mission's
+   MTAction_ManageGuiltNPC (parking or stopping it; its logic native) is the remake's event-graph orders: a hold parks it,
+   any order pauses its chase and wither. Left: the wither is the remake's reading of MaxWither 5. Its radial portal core is done (npcs._guilt_core, MP_Guilt_Core_Radial_02 on M_Warpin_Omen_Portal, its
    compiled translucent base pass): the card's UVs pinched by Threads Pinch Max, in polar coordinates x Tiling, T_Lu_Noise_17
    read twice panned by (+-Speed U, Speed V), the core (1 - e^-(2.333 edge)^2)^Core Power x Core Mult, the colour CA_BaseVFX's
    row 26 (C_Omen_Warp, baked from the atlas) at threads + core, alpha-blended with its depth fade (Fade Distance). Left
