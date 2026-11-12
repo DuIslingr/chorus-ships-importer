@@ -16,8 +16,12 @@ STATIONS = {
     'eos': ('Maps/LocTRN/LocTRN31_GeoLOD', 'SM_MERGED_Eos'),
     'nimika_prime': ('Maps/LocASP/LocASP06_GeoLOD', 'SM_MERGED_'),   # (Nimika's ring station)
     'achunal_labs': ('Maps/LocMIF/LocMIF07_GeoLOD', 'SM_MERGED_'),   # (Tarris's big station, its tower and scaffolds)
+    # (no station of their own in Chorus: other levels' structures) Stega Belt's: LocASP03's military platform (its towers,
+    # docking port and platforms); the Tarris Wormhole's: one of LocRSB14's antenna array, watching the wormhole
+    'stega_belt': ('Maps/LocASP/LocASP03_GeoLOD', 'SM_MERGED_LocASP03_', ('PowerCables', 'StationLights01Cult')),
+    'tarris_wormhole': ('Maps/LocRSB/LocRSB14_GeoLOD', 'SM_MERGED_LocRSB14PartitionAntenna01'),
 }
-SKIP = ('Decal', 'Interior', 'ForceField', 'Window', 'Traffic')   # (decals, the insides no one flies into, glass and
+SKIP = ('Decal', 'Interior', 'ForceField', 'Window', 'Traffic', 'BarrierField')   # (decals, the insides no one flies into, glass and
 # shields, the traffic ships merged into a level)
 # a station's triangles at most (Chorus's merged meshes are 2-4 million at LOD 0): the exporter writes every LOD
 # (`export <list> <out> all`: <name>_LOD1.glb ...) and the largest meshes step down until the station fits
@@ -64,9 +68,10 @@ def _clustered(srcs):
 def mesh_paths(listing):
     """{station: [pak paths]} from the pak's SM_MERGED_ listing (exporter `list`)."""
     out = {}
-    for sid, (folder, prefix) in STATIONS.items():
+    for sid, (folder, prefix, *own) in STATIONS.items():
+        skip = SKIP + (own[0] if own else ())   # (a station's own leave-outs: Stega's cables and lights kilometres off)
         out[sid] = sorted(p[:-len('.uasset')] for p in listing if p.endswith('.uasset') and f'{folder}/{prefix}' in p
-                          and not any(k in p.rsplit('/', 1)[-1] for k in SKIP))
+                          and not any(k in p.rsplit('/', 1)[-1] for k in skip))
     return out
 
 

@@ -5,7 +5,8 @@ them (tools/planets.py). The game's systems stay as they are.
 
 Names from Chorus's own text (GameUI / Maps locres: MAP_Location_Stega / Amarok / NimikaPrime / Tarris, the map's
 locations). The Enclave, Helios, Eos, Nimika's ring station and Tarris's big station (Achunal Labs) are Chorus's own
-(tools/stations.py); Stega Belt and the Tarris Wormhole look like an original station (looksLike).
+(tools/stations.py); Stega Belt and the Tarris Wormhole other levels' structures (LocASP03's military platform, one of
+LocRSB14's antennas).
 """
 import json, math, os, random
 import numpy as np
@@ -47,7 +48,8 @@ MOON_SHELL = ('SM_Moon_Destroyed_01', 'SM_Moon_Destroyed_02', 'SM_Moon_Destroyed
 GIANT_SIZE = (15000, 45000)
 GIANT_RING = (70000, 160000)   # (their distance from the station: clear of it, the gate and the arrival)
 # Chorus's stations' own models (tools/stations.py) and their size here in game units (the originals are 20 000 - 100 000)
-MODEL_SIZE = {'the_enclave': 100000, 'helios': 70000, 'eos': 60000, 'nimika_prime': 80000, 'achunal_labs': 80000}
+MODEL_SIZE = {'the_enclave': 100000, 'helios': 70000, 'eos': 60000, 'nimika_prime': 80000, 'achunal_labs': 80000,
+              'stega_belt': 60000, 'tarris_wormhole': 50000}
 # Nimika's dormant Rift (tools/rift.py: Chorus's vortex as LocAST's outside instance draws it) high over Nimika Prime, facing
 # the station: (where, game units across)
 DORMANT_RIFT = {'nimika_prime': ((-70000, 60000, 210000), 140000)}

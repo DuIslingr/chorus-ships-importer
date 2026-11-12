@@ -211,7 +211,7 @@ The gun models are on the Forsaken's mounts through its ship kit (above).
 
 `tools/world.py` writes `systems.json` and `stations.json`: four systems (one jumpgate from Pescal Inartu into Stega, the
 four linked among themselves) and seven stations, named from Chorus's own text. The game's systems are unchanged. The
-world part is large (about 1 GB, most of it the five stations).
+world part is large (about 1.1 GB, most of it the seven stations).
 
 - **Skies** (`tools/sky.py`): each region's sky material (MI_Skybox_Loc*) as the remake's `skybox` "chorus" block, drawn
   live by the remake's port of Chorus's sky shader (Options > Graphics "Live mod skies", on from Medium), and the same
@@ -226,8 +226,10 @@ world part is large (about 1 GB, most of it the five stations).
   and Tarris's big station (Achunal Labs) rebuilt from their levels' merged
   meshes (Maps/<region>/<level>_GeoLOD/SM_MERGED_*: Chorus's HLOD proxies, placed in the level's space; the cooked
   prefabs hold no actors), their materials converted as the ships' (Chorus's layers drawn by the remake). Every LOD is
-  exported (`export <list> <out> all`) and the largest meshes step down until a station fits 350 000 triangles. Stega
-  Belt and the Tarris Wormhole look like an original station.
+  exported (`export <list> <out> all`) and the largest meshes step down until a station fits 350 000 triangles (Stega's
+  still 520 000 at its coarsest). Stega Belt and the Tarris Wormhole, which have no station in Chorus, take other levels'
+  structures: LocASP03's military platform (its towers, docking port and platforms; its power cables and Cult lights
+  kilometres off left out) and one of LocRSB14's antenna array.
 - **Asteroids** (`tools/rocks.py`): the field asteroids as the orbits' asteroid fields (mined like the game's), the giant
   rocks and split rocks as props, their M_MaskBlend_Placeholder material (two tiled rock layers blended by a mesh mask,
   the mesh's normal map under the layers' by Unreal's angle-corrected blend) baked per rock over its own UVs. The magma
