@@ -20,7 +20,8 @@ RACES = [
 ]
 CIRCLE = {'circle_fighter', 'circle_fighter_snipe', 'circle_fighter_net', 'student_fighter', 'circle_scout', 'circle_support',
           'circle_support_drone', 'disruptor', 'circle_gunship', 'circle_gunship_apex', 'circle_gunship_elite', 'student_gunship',
-          'prophet', 'sav', 'ree', 'aryana', 'circle_warship', 'circle_destroyer', 'circle_dreadnought', 'dropship'}
+          'prophet', 'sav', 'ree', 'aryana', 'circle_warship', 'circle_destroyer', 'circle_dreadnought', 'dropship',
+          'circle_warship_c', 'circle_destroyer_b', 'circle_destroyer_c'}   # (the warships' other configurations: tools/warships.py)
 OMEN = {'omen_drone', 'omen_bat_swarm', 'omen_support', 'omen_fortress', 'omen_fortress_elite'}
 RAIDERS = [CIRCLE_ID, OMEN_ID]
 # (ship, raiders' hulls, faction, gun, missiles): the rift's bosses

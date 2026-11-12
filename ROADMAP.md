@@ -95,12 +95,10 @@ Next, roughly in order:
 10. **Level-placed parts and wrecks:** the capital ships' thrusters are placed by Chorus's levels (read the .umap actors
    that place them); the wreck skeletal meshes and their explosion anim blueprints (ships breaking apart) would need the
    remake to swap a destroyed mod ship for its wreck.
-13. **Warships, still open** (`tools/warships.py`): Chorus's death throes (the reactor's countdown, BP_<Size>Warship_Base's
-    ExplosionDamageRadius 800 m / knockback 2.5 km, Warship_Countdown sounds) are the remake's plain capital explosion;
-    the barriers don't block the way in (an additive field has no hull); the turret mounts' frontal shields
-    (BP_TurretMount_*_Shield) are plain turrets; only configuration A of each size (Small_C, Medium_B / C, the frigate and
-    the civilian capital ships' configs not read); the parts' share of the hull (WEAK_SHARE 0.1, death damage / 4000) is
-    the remake's balance, to tune in play.
+13. **Warships, done further** (`tools/warships.py`): the death throes (BP_<Size>Warship_Base's PhaseDuration and
+    ExplosionDamageRadius, "deathThroes"), the barriers blocking the way in ("shieldBlocks"), the shielded turret mounts'
+    own shields ("shield" 0.75), the other configurations as ships of their own (Small C, Medium B with an Omen hangar,
+    Medium C). Still the remake's: the parts' share of the hull, to tune in play.
 16. **Death explosions, still open** (`tools/explosions.py`): the lights-only emitters (Chorus's flash lights), the
     impostor debris (MI_ImposterDebris's sheet isn't in its instance), trails spawned along a path and vector fields are
     left out; the fireball's smoke is added (its dark coverage isn't drawn); the death effect configs' timing (a 5 s

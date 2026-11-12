@@ -41,6 +41,14 @@ CONFIGS = {
     'circle_dreadnought': ('NPC/Capitals/LargeWarship/BP_NPC_Warship_Large_ConfigA', 'Core/Ships/Large/LargeWarship/BP_LargeWarship_Base',
                            LARGE + 'SM_LargeWarship/SM_LargeWarshipBarriers'),
 }
+# the other configurations of a size, as ships of their own on the same model: (id suffix, configuration, name: the
+# importer's words, after what they carry)
+VARIANTS = {
+    'circle_warship': [('c', 'NPC/Capitals/SmallWarship/BP_NPC_Warship_Small_C', 'Circle Missile Warship')],
+    'circle_destroyer': [('b', 'NPC/Capitals/MediumWarship/BP_NPC_Warship_Medium_B', 'Circle Carrier Destroyer'),
+                         ('c', 'NPC/Capitals/MediumWarship/BP_NPC_Warship_Medium_C', 'Circle Siege Destroyer')],
+}
+VARIANT_IDS = [f'{sid}_{x}' for sid, vs in VARIANTS.items() for x, _, _ in vs]
 BARRIER_MATERIAL = 'MI_Barrierfield_WarshipMoreOpaque'
 # the barrier as an energy field: added, Chorus's barrier red, no collision (the remake's hulls leave additive meshes out)
 BARRIER = {'additive': True, 'emissionColor': [1.0, 0.28, 0.12], 'emissionIntensity': 0.35, 'ignoreVertexColors': True}
@@ -60,6 +68,7 @@ DEVICES = {
     'BP_Device_Core_Frigate': ('core', 'chorus_part_core', None, 0.0),
     'BP_Device_Core_Large': ('core', 'chorus_part_core_large', (0.0, 0.0, 5130.0), 0.0),
     'BP_Device_ShipSpawner_Terran': ('hangar', None, None, 200.0),
+    'BP_Device_ShipSpawner_Faceless': ('hangar', 'omen', None, 200.0),
 }
 TURRET_DEATH = {'Weak': 10.0}   # (BP_TurretMount_Weak's DeathDamageToOwner; the rest 15)
 # the parts' models: npcs.SHIPS "prop" entries (id, name, mesh)
@@ -82,12 +91,13 @@ MAX_TURRETS = 8
 WEAK_SHARE = 0.1      # (of a part's hits passed on to the hull)
 BONUS_BASE = 4000.0   # (DeathDamageToOwner over this: the share of the hull a part's death takes; a thruster's 100 = 2.5 %)
 HANGAR = {'ships': [f'{MOD}:circle_fighter', f'{MOD}:circle_scout'], 'every': 30, 'perWave': 2, 'maxAlive': 4, 'total': 8}
+OMEN_HANGAR = {'ships': [f'{MOD}:omen_drone', f'{MOD}:omen_bat_swarm'], 'every': 25, 'perWave': 3, 'maxAlive': 6, 'total': 12}
 
 
 def blueprints(resolver, work):
     """The configurations and bases as JSON in <work>/bp_wp (read from the pak once). -> the folder."""
     folder = os.path.join(work, 'bp_wp'); os.makedirs(folder, exist_ok=True)
-    names = [p for c in CONFIGS.values() for p in c[:2]]
+    names = [p for c in CONFIGS.values() for p in c[:2]] + [v[1] for vs in VARIANTS.values() for v in vs]
     todo = [p for p in names if not os.path.exists(os.path.join(folder, p.rsplit('/', 1)[1] + '.json'))]
     if todo and resolver is not None:
         resolver.run('jsonall', '/(' + '|'.join(re.escape(p.rsplit('/', 1)[1]) for p in todo) + r')\.uasset$', folder, capture=True)
@@ -120,10 +130,12 @@ def _modules(folder, config, base):
     return mods
 
 
-def parts(work, sid, hull_mesh):
-    """The warship's parts: [(class, Unreal cm position, row rotation matrix)] in its hull mesh's frame."""
+def parts(work, sid, hull_mesh, config=None):
+    """The warship's parts: [(class, Unreal cm position, row rotation matrix)] in its hull mesh's frame ('config' another
+    configuration of its size, VARIANTS)."""
     from . import npcs
-    config, base, _ = CONFIGS[sid]
+    config0, base, _ = CONFIGS[sid]
+    config = config or config0
     folder = os.path.join(work, 'bp_wp')
     out = []
     for name, (t, infos, off) in _modules(folder, config, base).items():
@@ -144,6 +156,22 @@ def parts(work, sid, hull_mesh):
     return out
 
 
+CM = 0.72              # game units a Chorus centimetre (the ships' SCALE 3.6)
+SHIELD_SHARE = 0.75    # (a shielded turret mount's own shield, x its hull: shot down first, BP_TurretMount_ShieldBreakEffect)
+THROES_BLASTS = 12     # (the countdown's blasts over the hull: BP_NPC_Warship_Base's ExplosionVFX every 0.2 - 0.3 s inside)
+
+
+def _throes(work, sid):
+    """(PhaseDuration s, ExplosionDamageRadius cm) of the warship's size base, or None."""
+    f = os.path.join(work, 'bp_wp', CONFIGS[sid][1].rsplit('/', 1)[1] + '.json')
+    if not os.path.exists(f): return None
+    for e in json.load(open(f, encoding='utf-8')):
+        if e.get('Name', '').startswith('Default__'):
+            p = e.get('Properties') or {}
+            if p.get('PhaseDuration') and p.get('ExplosionDamageRadius'): return float(p['PhaseDuration']), float(p['ExplosionDamageRadius'])
+    return None
+
+
 def _spread(items, n):
     """At most n of the items, spread over the list."""
     if n <= 0: return []
@@ -157,14 +185,14 @@ def _turret(cls):
     return None, None
 
 
-def apply(e, s, work, mats, nose, sc, k, shrink):
+def apply(e, s, work, mats, nose, sc, k, shrink, config=None):
     """Turns the ships.json entry 'e' of a Chorus warship (npcs.SHIPS entry 's'; its hull built by npcs.build: 'nose' its
     turn, 'sc' its blueprint's scale, 'k' game units per model metre, 'shrink' its scale-down) into a boss fight with its
     parts."""
     from . import npcs
     sid = s['id']
     hull_mesh = s['meshes'][0]
-    found = parts(work, sid, hull_mesh)
+    found = parts(work, sid, hull_mesh, config)
     if not found: print(f'  {sid}: no parts (its blueprints not read)'); return
     turn = npcs.ROT[nose]
     def turned(v_cm, point=True):   # Unreal cm in the hull's frame -> its turned model frame (metres, or a unit direction)
@@ -181,14 +209,16 @@ def apply(e, s, work, mats, nose, sc, k, shrink):
             death = TURRET_DEATH.get(word, 15.0)
             turrets.append((TURRETS.index((word, item)), {'kind': 'turret', 'name': f'{word if word != "Weak" else "Light"} turret',
                             'position_engine': game(turned(pos)), 'turretUp': axis(rot[2]), 'item': f'{MOD}:{item}',
-                            'weakspot': WEAK_SHARE, 'bonus': round(death / BONUS_BASE, 4)}))
+                            'weakspot': WEAK_SHARE, 'bonus': round(death / BONUS_BASE, 4),
+                            **({'shield': SHIELD_SHARE} if '_Shield' in cls else {})}))
             continue
         dev = DEVICES.get(cls)
         if dev is None: print(f'  {sid}: {cls} left out'); continue
         kind, prop, mesh_off, death = dev
         if mesh_off is not None: pos = pos + np.asarray(mesh_off) @ rot   # (the device's mesh off its origin: the core's)
         if kind == 'hangar':
-            subs.append({'kind': 'hangar', 'model': 'none', 'position_engine': game(turned(pos)), 'turretUp': axis(rot[2]), **HANGAR})
+            subs.append({'kind': 'hangar', 'model': 'none', 'position_engine': game(turned(pos)), 'turretUp': axis(rot[2]),
+                         **(OMEN_HANGAR if prop == 'omen' else HANGAR)})
             continue
         p = {'kind': 'object', 'name': NAMES[kind], 'model': f'{MOD}:{prop}', 'position_engine': game(turned(pos)),
              'turretUp': axis(rot[2]), 'turretForward': axis(rot[0])}
@@ -204,6 +234,10 @@ def apply(e, s, work, mats, nose, sc, k, shrink):
     room = max(0, MAX_TURRETS - len(heavy))
     picked = heavy[:MAX_TURRETS] + _spread(light, room)
     e['subsystems'] = picked + subs
+    # the reactor going critical (BP_<Size>Warship_Base's PhaseDuration and ExplosionDamageRadius; OnDeathDamageAmount 1000,
+    # a fighter's hull and more: all of a ship's at its middle, falling off to the edge)
+    throes = _throes(work, s['id'])
+    if throes: e['deathThroes'] = {'seconds': throes[0], 'radius': round(throes[1] * CM * shrink), 'damage': 1.0, 'blasts': THROES_BLASTS}
     e['hullDamage'] = 0
     e['shieldedDamage'] = 1
     # (its turret mounts' npcTurrets give way to the turret parts)
@@ -215,7 +249,23 @@ def apply(e, s, work, mats, nose, sc, k, shrink):
                 if key != 'material': del m[key]
             m.update(BARRIER)
             e['shieldMaterial'] = m['material']
+            e['shieldBlocks'] = True   # (Chorus's barriers block the way in until they break)
     counts = {}
     for p in e['subsystems']: counts[p.get('name', p['kind'])] = counts.get(p.get('name', p['kind']), 0) + 1
     print(f'  {sid}: {len(e["subsystems"])} parts ({", ".join(f"{n} {c}" for n, c in counts.items())}; '
           f'{len(turrets) - len(picked)} turrets left out)')
+
+
+def variants(e, s, work, mats, nose, sc, k, shrink):
+    """The other configurations of the warship's size (VARIANTS) as ships.json entries of their own on its model."""
+    import copy
+    out = []
+    for suffix, config, name in VARIANTS.get(s['id'], []):
+        v = copy.deepcopy(e)
+        v.update({'id': f"{s['id']}_{suffix}", 'name': name})
+        vm = copy.deepcopy(mats)
+        v['materials'] = vm
+        for key in ('subsystems', 'deathThroes', 'shieldMaterial', 'shieldBlocks'): v.pop(key, None)
+        apply(v, s, work, vm, nose, sc, k, shrink, config)
+        out.append(v)
+    return out

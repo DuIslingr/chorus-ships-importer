@@ -1508,6 +1508,7 @@ def build(export, mod, resolver=None, only=None, work=None, anims=None):
             wrecks.apply(e, s, export, mod, resolver, nose, sc, size)
         if sid in warships.CONFIGS:   # (Chorus's warships: their parts as subsystems, its turrets among them)
             warships.apply(e, s, work or os.path.dirname(os.path.abspath(export)), mats, nose, sc, k, shrink)
+            variants = warships.variants(e, s, work or os.path.dirname(os.path.abspath(export)), mats, nose, sc, k, shrink)
         # its own idle (rig.NPC_CLIPS), looped: a rigid skin as parts on its skeleton's nodes (tools/rig.py)
         idle = rig.npc_clip(work or os.path.dirname(os.path.abspath(export)), s['idle']) if s.get('idle') else None
         if idle is not None and nose == '+x' and s.get('scale', 1.0) == 1.0 and len(srcs) == 1 and rig.is_rigid(srcs[0]):
@@ -1522,6 +1523,7 @@ def build(export, mod, resolver=None, only=None, work=None, anims=None):
             e.update({'skinned': True, 'animations': {'idle': 'idle'}})
         print(f'  {sid} ({name}): {role}, {length_m * shrink:.0f} m{" (from %.0f)" % length_m if shrink < 1 else ""}, nose {nose}, {len(mats)} materials')
         out.append(e)
+        if sid in warships.CONFIGS: out += variants   # (its other configurations, on the same model)
         if sid == capital.HOST:   # (Chorus's player capital ship on the same model: tools/capital.py)
             pe = capital.player_entry(e, s, work or os.path.dirname(os.path.abspath(export)), prims, nose, sc, k)
             if pe: out.append(pe)
