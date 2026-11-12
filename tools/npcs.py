@@ -1410,6 +1410,53 @@ LAUNCHES = {'dropship': {'ships': ['circle_fighter', 'circle_scout'], 'perWave':
 SECONDARIES = {'fighter': [{'item': f'{MOD_ID}:chorus_missiles_t1', 'maxRank': 9, 'share': 25},
                            {'item': f'{MOD_ID}:chorus_missiles_t2a', 'minRank': 10, 'share': 35}],
                'boss': [{'item': f'{MOD_ID}:chorus_missiles_t3a', 'share': 100}]}
+# Their main gun (ships.json "traffic.primaries"): each hull's own BP_NPC_Weapon_* (its blueprint's weapon component, not
+# the special attacks, scripted targets or snipes), its FireInterval and ProjectileDamage through its parents
+# (BP_NPC_Weapon_Base: 0.25 s); its damage a second against the Circle fighter's (BP_NPC_Weapon_Fighter_Base: 70 every
+# 0.25 s, the remake's NPC gun at the same level), its interval its own. The look the mod's nearest Chorus gun (the NPC
+# projectiles' own BP_NPC_Projectile_* effects aren't converted), by the weapon's family; their speeds stay the remake's
+# NPC gun's (Chorus's 1500 m/s, at the mod's scale, would all but hit at once).
+PRIMARY_LOOKS = [('Scout', 'chorus_gatling_t1'), ('Elder', 'chorus_laser_t2a'), ('Omen', 'chorus_laser_t3b'), ('', 'chorus_laser_t2b')]
+PRIMARY_SKIP = ('SpecialAttack', 'ScriptedTarget', 'Snipe', 'MainAttack')
+WEAPON_BASELINE = 'BP_NPC_Weapon_Fighter_Base'
+
+
+def _weapon_values(folder, name, resolver, seen=()):
+    """(FireInterval, ProjectileDamage) of NPC weapon blueprint 'name', its parents' where it sets none (None unknown)."""
+    f = os.path.join(folder, name + '.json')
+    if not os.path.exists(f) and resolver is not None:
+        resolver.run('jsonall', '/' + re.escape(name) + r'\.uasset$', folder, capture=True)
+    if not os.path.exists(f) or name in seen: return None, None
+    interval = damage = parent = None
+    for e in json.load(open(f, encoding='utf-8')):
+        if e.get('Type') == 'BlueprintGeneratedClass':
+            parent = re.sub(r"^.*'(.*)_C'$", r'\1', (e.get('Super') or e.get('SuperStruct') or {}).get('ObjectName', '')) or None
+        if e.get('Name', '').startswith('Default__'):
+            p = e.get('Properties') or {}
+            interval, damage = p.get('FireInterval'), p.get('ProjectileDamage')
+    if (interval is None or damage is None) and parent and parent.startswith('BP_NPC_Weapon'):
+        pi, pd = _weapon_values(folder, parent, resolver, seen + (name,))
+        interval = interval if interval is not None else pi
+        damage = damage if damage is not None else pd
+    return interval, damage
+
+
+def primaries(s, work, resolver):
+    """ships.json "traffic.primaries" for NPC ship entry 's' (PRIMARY_*), or None."""
+    if not s.get('bp'): return None
+    f = os.path.join(work, 'bp', s['bp'].rsplit('/', 1)[1] + '.json')
+    if not os.path.exists(f): return None
+    found = sorted(set(re.findall(r"(BP_NPC_Weapon_[A-Za-z0-9_]+)_C'", open(f, encoding='utf-8').read())))
+    mains = [w for w in found if not any(k in w for k in PRIMARY_SKIP)]
+    if not mains: return None
+    folder = os.path.join(work, 'bp_npcw'); os.makedirs(folder, exist_ok=True)
+    interval, damage = _weapon_values(folder, mains[0], resolver)
+    bi, bd = _weapon_values(folder, WEAPON_BASELINE, resolver)
+    if not (interval and damage and bi and bd): return None
+    look = next(item for key, item in PRIMARY_LOOKS if key in mains[0])
+    return [{'item': f'{MOD_ID}:{look}', 'factor': round((damage / interval) / (bd / bi), 3), 'reloadMs': round(interval * 1000)}]
+
+
 # the pursuers' (Guilt's) npcships.json spawn: the Omen-haunted orbits, rarely, from rank 10
 PURSUERS = {'guilt': {'chance': 5, 'stations': [f'{MOD_ID}:nimika_prime', f'{MOD_ID}:tarris_wormhole'], 'minRank': 10, 'distance': [6, 10]}}
 
@@ -1557,8 +1604,12 @@ def build(export, mod, resolver=None, only=None, work=None, anims=None):
             traffic = {'weight': s.get('weight', 1), 'races': s['races'], 'ai': 'chorus'}   # (BT_Fighter_CombatRoam: the remake's "chorus")
             if s.get('traffic_role'): traffic['role'] = s['traffic_role']
             traffic['secondaries'] = SECONDARIES['fighter']
+            prim = primaries(s, work or os.path.dirname(os.path.abspath(export)), resolver)
+            if prim: traffic['primaries'] = prim
         elif role == 'boss':
             traffic = {'boss': True, 'ai': 'chorus', 'secondaries': SECONDARIES['boss']}
+            prim = primaries(s, work or os.path.dirname(os.path.abspath(export)), resolver)
+            if prim: traffic['primaries'] = prim
         else:
             traffic = {'capital': 'freighter' if role == 'freighter' else 'battleship', 'weight': s.get('weight', 1)}
             if role == 'freighter': traffic['races'] = s['races']   # (every race's orbits)

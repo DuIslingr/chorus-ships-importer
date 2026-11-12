@@ -62,9 +62,11 @@ Next, roughly in order:
 2. **Listen in the game** and tune the sound volumes and pitch ranges, and the weapons' balance.
 3. **NPC flight from Chorus's NPC steering, done:** the fighters and boss hulls fight the remake's "ai": "chorus" way
    (BT_Fighter_CombatRoam's attack approaches, passes, breaks, retreats and catch-up jumps, Flight.ChorusDogfight), with
-   the mod's Chorus missile launchers as their second weapon (traffic "secondaries"). Left: their primary guns stay the
-   remake's NPC gun (Chorus's BP_NPC_Weapon_* not converted), the scouts' and gunships' own trees (they take the
-   fighters'), the EQS queries' scoring.
+   the mod's Chorus missile launchers as their second weapon (traffic "secondaries") and their own blueprint guns as
+   their first (traffic "primaries", npcs.primaries: each hull's BP_NPC_Weapon_* FireInterval and ProjectileDamage
+   through its parents, its damage a second against the Circle fighter's, the look the mod's nearest Chorus gun; the
+   NPC projectiles' own effects and speeds stay the remake's; the bat swarm's damage isn't in its blueprint: the
+   remake's gun). Left: the scouts' and gunships' own trees (they take the fighters'), the EQS queries' scoring.
 4. **Still unchecked against Chorus** (no footage shows them clearly; they rest on reading the materials): the trim
    emissive's UV-shift mask; which colour of Sav's and Ree's layer mask picks which coat (they are allies' large ships
    in "Defend the Naiara Citadel", BP_NPC_Ship_Sav / _Ree confirm SM_Sav / SM_Ree, but neither hull is in frame long
