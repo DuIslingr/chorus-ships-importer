@@ -789,6 +789,21 @@ def _chorus_file(export, mod, name, kind):
     return rel
 
 
+# ships whose tissue warps in (M_JTU_Faceless: Driver 0 -> 1, its Edge Thickness and Edge Glow Color), by ship id: the
+# remake's ships.json "warpIn" (_convert records it, build writes it); its colour squeezed as the explosions' (8 / (8 + x))
+WARP_IN = {}
+WARP_SECONDS = 2.0   # (the Driver's run: its curve is in the warp-in blueprint's timeline, not read)
+
+
+def _warp_in(p):
+    col = p.vector('Edge Glow Color') if p else None
+    if not col: return None
+    c = np.array(col[:3], np.float64); peak = float(c.max())
+    if peak <= 0: return None
+    return {'seconds': WARP_SECONDS, 'edge': round(p.scalar('Edge Thickness', 0.02), 4),
+            'color': [round(float(v), 4) for v in c * (8.0 / (8.0 + peak))]}
+
+
 def _faceless_tissue(export, mod, mat, p, resolver):
     """Omen tissue (M_JTU_Faceless) drawn as its compiled base pass draws it, moving: the remake's Chorus layer "tissue"
     (GoF2/Hull's ChorusTissue): the ice mask scrolling, the breath rippling out from the origin, the variations through the
@@ -1078,6 +1093,7 @@ def _convert(export, mod, sid, meshes, resolver=None, size=1024, override=None, 
                     # without the layers: the bake)
                     t_ = _faceless_tissue(export, mod, mat, p, resolver) if CHORUS_LAYERS and resolver is not None and not p.switch('Enable Core') else None
                     mats.append(t_ or _faceless(export, mod, stem, mat, p))
+                    if p is not None and sid not in WARP_IN and _warp_in(p): WARP_IN[sid] = _warp_in(p)
                 elif master == 'M_NPC_Floater_Simple' and p is not None:
                     # Sav's and Ree's floater panels: one sheet (colour, normal, ORMA: R occlusion, G roughness, B
                     # metal) over UV set 1, which becomes their UV
@@ -1504,6 +1520,7 @@ def build(export, mod, resolver=None, only=None, work=None, anims=None):
             kinds = CHORUS_TURRETS.get(sid, CHORUS_TURRETS_DEFAULT)
             e['npcTurrets'] = [f'{MOD_ID}:{kinds[i % len(kinds)]}' for i in range(n_turrets)]
         if smoke: e['smoke'] = [game(p_) for p_ in smoke]
+        if sid in WARP_IN: e['warpIn'] = WARP_IN[sid]   # (its Omen tissue materializing where it arrives)
         if sid in wrecks.WRECKS:   # (Chorus's wreck: the ship breaks into its pieces where it explodes)
             wrecks.apply(e, s, export, mod, resolver, nose, sc, size)
         if sid in warships.CONFIGS:   # (Chorus's warships: their parts as subsystems, its turrets among them)
