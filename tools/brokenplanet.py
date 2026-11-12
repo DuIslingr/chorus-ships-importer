@@ -13,7 +13,8 @@ and its loose fragments, SM_Planet_Destroyed_LocAST_Fragment_001-003) as orbit p
       set 1) are read over UV set 0 here. No glow (Overall Emissive Tint 0: only the atmosphere rim, at 0). The normal: the
       mesh's, with the terrain's (x Terrain | Normal Intensity) or the rock's laid over by Unreal's angle-corrected blend.
     M_BrokenPlanet_Core (MI_BrokenPlanet_Core_Part001, on Part_001 by the level's override): the lava, two flowing reads of
-      Core - Flow Emissive Diffuse at uv x Magma Tiling (frozen at rest: one read, the flow left out), mixed toward the
+      Core - Flow Emissive Diffuse at uv x Magma Tiling (flowing in the remake: the material's "lava" block, GoF2/Hull's
+      LavaFlow, its maps packed by _lava; the bake below its fallback, at rest), mixed toward the
       spots (Core - 2nd Flow Emissive Diffuse at uv x 2nd Magma Tiling, x 2nd magma multiply, ^ 2nd magma Exp) by the
       first's (x 2nd core mask multiply)^2nd core mask Exp, x T_Planet_Destroyed_LocAST_Part_001_A's red (twice); its
       temperature Core - Temp Min to Max by that, its glow Unreal's BlackBody x (T / 2500)^4 (tools/rocks.blackbody) where
@@ -121,6 +122,44 @@ def _bake_core(p, png, size):
     return colour, np.zeros(u.shape), np.full(u.shape, 0.9), np.ones(u.shape), rocks._blend_angle_corrected(base, detail), glow
 
 
+def _lava(mod, p, png, stem, glow_scale):
+    """M_BrokenPlanet_Core's flow as the remake's "lava" block (GoF2/Hull LavaFlow): its maps packed into three (emit: the
+    flow emissives' red; flow: the two flowmaps' red and green; masks: the time offsets, the part mask's red and the core
+    mask's blue), its numbers, the flowmaps' mip levels moved with their size. -> the block, or None."""
+    from . import textures as tx
+    s = p.scalar
+    def chans(param, idx, n):
+        a = png(param, False)
+        if a.shape[0] <= 4: return None   # (missing: png's placeholder)
+        im = Image.fromarray((np.clip(a[..., idx], 0, 1) * 255).astype(np.uint8))
+        return np.asarray(im.resize((n, n), Image.LANCZOS), np.float32) / 255.0
+    def size(param):
+        a = png(param, False); return a.shape[0]
+    n_e, n_f, n_m = 1024, 512, 1024
+    e1, e2 = chans('Core - Flow Emissive Diffuse', 0, n_e), chans('Core - 2nd Flow Emissive Diffuse', 0, n_e)
+    f1, f2 = chans('Core - Flowmap', slice(0, 2), n_f), chans('Core - 2nd Flowmap', slice(0, 2), n_f)
+    t1, t2 = chans('FlowMapTimeOffset', 0, n_m), chans('FlowMap 2 TimeOffset', 0, n_m)
+    part, core = chans('Key', 0, n_m), chans('A/B - CORE Mesh Mask', 2, n_m)
+    if any(x is None for x in (e1, e2, f1, f2, part, core)): return None
+    z = np.zeros((n_m, n_m), np.float32)
+    t1 = t1 if t1 is not None else z; t2 = t2 if t2 is not None else z
+    rel = {}
+    for name, arr, mode in (('emit', np.stack([e1, e2, np.zeros_like(e1)], -1), 'RGB'), ('flow', np.concatenate([f1, f2], -1), 'RGBA'),
+                            ('masks', np.stack([t1, t2, part, core], -1), 'RGBA')):
+        rel[name] = f'maps/rocks/{stem}_lava_{name}.png'
+        tx._save(arr, os.path.join(mod, rel[name]), 0, mode)
+    off = p.vector('Flowmap UV Texture Offset') or [0.0, 0.0]
+    mip = lambda param, level: round(level + math.log2(n_f / max(size(param), 1)), 3)
+    return {'emit': rel['emit'], 'flow': rel['flow'], 'masks': rel['masks'],
+            'a': [s('Magma Tiling', 6.0), s('Core - FlowSpeed', 0.05), s('Core - Flowmap Tiling', 1.0), s('Core - FlowIntensity', 0.1)],
+            'b': [s('Magma Flow TimeOffset Tiling', 1.0), s('Magma Flow TimeOffset intensity', 1.0), float(off[0]), float(off[1])],
+            'c': [s('2nd Magma Tiling', 30.0), s('Core - FlowSpeed 2', 0.05), s('Core - Flowmap Tiling 2', 1.0), s('Core - FlowIntensity 2', 0.1)],
+            'd': [s('Magma Flow 2 TimeOffset Tiling', 1.0), s('2nd core mask multiply', 1.0), s('2nd core mask Exp', 1.0), s('2nd magma multiply', 1.0)],
+            'magma2Exp': s('2nd magma Exp', 1.0), 'tempMin': s('Core - Temp  Min', 400.0), 'tempMax': s('Core - Temp  Max', 3000.0),
+            'mip': mip('Core - Flowmap', s('Core - FlowMipLevel', 0.0)), 'mip2': mip('Core - 2nd Flowmap', s('Core - FlowMipLevel 2', 0.0)),
+            'glow': round(glow_scale, 5)}
+
+
 def _material(export, mod, resolver, mat, src, size):
     """One part's baked material entry, or None."""
     from . import npcs, planets, rocks, textures as tx
@@ -153,9 +192,13 @@ def _material(export, mod, resolver, mat, src, size):
         hot = hot[hot > 1e-4]   # (the core is a small part of the layout: its own texels)
         peak = float(np.percentile(hot, 99.5)) if hot.size else 0.0
         if peak > 0.05:
-            rel = f'maps/rocks/{stem}_e.png'
-            tx._save(tx.linear_to_srgb(np.clip(glow / peak, 0, 1)), os.path.join(mod, rel), 0, 'RGB')
-            e.update({'emission': rel, 'emissionColor': [1, 1, 1], 'emissionIntensity': round(min(peak, 3.0), 3)})
+            # (flowing: the "lava" block, its glow held as the bake's, x min(peak, 3) / peak; else the bake at rest)
+            lava = _lava(mod, p, png, stem, min(peak, 3.0) / peak) if p.chain[-1] == 'M_BrokenPlanet_Core' else None
+            if lava: e['lava'] = {k: ([round(float(x), 5) for x in v] if isinstance(v, list) else v) for k, v in lava.items()}
+            else:
+                rel = f'maps/rocks/{stem}_e.png'
+                tx._save(tx.linear_to_srgb(np.clip(glow / peak, 0, 1)), os.path.join(mod, rel), 0, 'RGB')
+                e.update({'emission': rel, 'emissionColor': [1, 1, 1], 'emissionIntensity': round(min(peak, 3.0), 3)})
     return e
 
 

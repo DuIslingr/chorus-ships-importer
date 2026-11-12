@@ -156,7 +156,8 @@ Next, roughly in order:
     the remake's "overcharge" and "shield" block; tools/capital.py _shield); its stats are this importer's balance, to
     tune in play.
 12. **The Chorus systems, next areas:** (Nimika Prime's broken planet is done: tools/brokenplanet.py, M_Planet_Broken and
-    M_BrokenPlanet_Core decompiled and baked, the lava's flow frozen; very dark as Chorus's own values make it, its
+    M_BrokenPlanet_Core decompiled and baked, the lava flowing (the remake's "lava" block, _lava's packed maps); very dark
+    as Chorus's own values make it, its
     auto exposure aside; Stega Belt's and the Tarris Wormhole's stations are done too: LocASP03's military platform, one
     of LocRSB14's antennas), then the bosses, wrecks and effects that need the remake (the rift look and Nimika's dormant
     Rift are done: tools/rift.py, with the vortex's world position offset and, for the runs inside the Rift, LocRFA's
