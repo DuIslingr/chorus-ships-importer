@@ -60,7 +60,11 @@ Next, roughly in order:
 1. **Check in the remake.** Load the mod and look at the ship: orientation, size, mounts, materials. Then tune
    `glowSize`, the hangar height and the camera.
 2. **Listen in the game** and tune the sound volumes and pitch ranges, and the weapons' balance.
-3. **NPC flight from Chorus's NPC steering** and their own weapons (they fly with the remake's NPC hulls and guns).
+3. **NPC flight from Chorus's NPC steering, done:** the fighters and boss hulls fight the remake's "ai": "chorus" way
+   (BT_Fighter_CombatRoam's attack approaches, passes, breaks, retreats and catch-up jumps, Flight.ChorusDogfight), with
+   the mod's Chorus missile launchers as their second weapon (traffic "secondaries"). Left: their primary guns stay the
+   remake's NPC gun (Chorus's BP_NPC_Weapon_* not converted), the scouts' and gunships' own trees (they take the
+   fighters'), the EQS queries' scoring.
 4. **Still unchecked against Chorus** (no footage shows them clearly; they rest on reading the materials): the trim
    emissive's UV-shift mask; which colour of Sav's and Ree's layer mask picks which coat (they are allies' large ships
    in "Defend the Naiara Citadel", BP_NPC_Ship_Sav / _Ree confirm SM_Sav / SM_Ree, but neither hull is in frame long

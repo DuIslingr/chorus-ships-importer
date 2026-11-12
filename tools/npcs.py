@@ -1370,6 +1370,11 @@ RACE_WORD = {0: 'terran', 1: 'vossk', 2: 'nivelian', 3: 'midorian', 8: 'pirates'
 LAUNCHES = {'dropship': {'ships': ['circle_fighter', 'circle_scout'], 'perWave': 3, 'every': 25, 'total': 12}}
 
 
+# Chorus's NPCs fire their own NPC weapons (BP_NPC_Weapon_*); their second weapon here is the mod's Chorus missile
+# launchers (tools/weapons.py), carried by a share of them by the player's rank (ships.json "traffic.secondaries")
+SECONDARIES = {'fighter': [{'item': f'{MOD_ID}:chorus_missiles_t1', 'maxRank': 9, 'share': 25},
+                           {'item': f'{MOD_ID}:chorus_missiles_t2a', 'minRank': 10, 'share': 35}],
+               'boss': [{'item': f'{MOD_ID}:chorus_missiles_t3a', 'share': 100}]}
 # the pursuers' (Guilt's) npcships.json spawn: the Omen-haunted orbits, rarely, from rank 10
 PURSUERS = {'guilt': {'chance': 5, 'stations': [f'{MOD_ID}:nimika_prime', f'{MOD_ID}:tarris_wormhole'], 'minRank': 10, 'distance': [6, 10]}}
 
@@ -1514,10 +1519,11 @@ def build(export, mod, resolver=None, only=None, work=None, anims=None):
             print(f'  {sid}: player ship, {length_m:.0f} m, nose {nose}, {len(mats)} materials')
             out.append(e); continue
         if role == 'fighter':
-            traffic = {'weight': s.get('weight', 1), 'races': s['races']}
+            traffic = {'weight': s.get('weight', 1), 'races': s['races'], 'ai': 'chorus'}   # (BT_Fighter_CombatRoam: the remake's "chorus")
             if s.get('traffic_role'): traffic['role'] = s['traffic_role']
+            traffic['secondaries'] = SECONDARIES['fighter']
         elif role == 'boss':
-            traffic = {'boss': True}
+            traffic = {'boss': True, 'ai': 'chorus', 'secondaries': SECONDARIES['boss']}
         else:
             traffic = {'capital': 'freighter' if role == 'freighter' else 'battleship', 'weight': s.get('weight', 1)}
             if role == 'freighter': traffic['races'] = s['races']   # (every race's orbits)

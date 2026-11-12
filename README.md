@@ -278,6 +278,9 @@ world part is large (about 1.1 GB, most of it the seven stations).
   M_PortalRift_BOTTOM), Chorus's FTL portal opening between its stages, and the inner Rift's sky
   (T_Omen_InnerRift_Cubemap_Tex) while it lasts. The dormant Rift hangs over Nimika Prime (an orbit prop facing the
   station).
+- **Chorus's way of fighting:** its fighters and boss hulls fight as Chorus's do (the remake's `"ai": "chorus"`, from its
+  fighters' behaviour tree: fast attack runs, passes, breaks when you aim at them, retreats, and jumps back when left far
+  behind), some carrying Chorus missile launchers.
 - **Guilt** (`tools/npcs.py`): Chorus's invincible Faceless, skinned and breathing, hunts you now and then in Nimika
   Prime's and the Tarris Wormhole's orbits (npcships.json, from rank 10) with the remake's `"pursuer"` role: it can't be
   harmed, closes in at Chorus's stepped speeds, withers your hull up close and darkens the screen as it nears. Outrun it.
