@@ -73,7 +73,8 @@ Next, roughly in order:
    which step is which isn't in the cooked files (they stay the first channel). Footage of lit freighters would tell.
 7. **Still read by parameter names, to decompile the same way** (the exporter's `shaders`, then d3dcompiler): the faceless cores (Enable Core) and the
    breath curve (CA_BaseVFX, a curve atlas the exporter doesn't write: the bake takes it at rest), M_JTU_Blend (the
-   Prophet's crown), M_Phoenix's glow lines. The Omen tissue's pulse, parallax and scroll and the faceless dissolve edge
+   Prophet's crown). (M_Phoenix's glow lines are done: decompiled, the Emissive02 Min / Max wave along the hex pattern,
+   the remake's "wave" block, tools/ships.py _wave; its hit flash and AFX pattern left out.) The Omen tissue's pulse, parallax and scroll and the faceless dissolve edge
    would want a remake shader like the Chorus layers. Guilt's shell normal (the base pass's, from the flowing noise) is
    left flat, and its shadow is the whole, unpushed shell; the core's portal threads are a scrolling glow, not the
    portal's own formula (M_Warpin_Omen_Portal not decompiled).

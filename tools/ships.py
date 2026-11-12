@@ -4,8 +4,9 @@
 # (x, z, y) / 100). The remake turns the model by modelYaw 90 (nose +X -> +Z) and scales it to modelLength; mounts are
 # game units in the ship's frame (x toward the pilot's left, y up, z forward): (-gz, gy, gx) x k, k = SCALE / 0.05 game
 # units per glTF metre (the same mapping as the EVERSPACE 2 importer's warships.ue_to_game).
-import json, os
+import json, os, shutil
 import numpy as np
+from PIL import Image
 from . import glb, rig, textures
 from . import mi as mip   # (material parameters through the parents; "mi" is the local instance below)
 
@@ -43,16 +44,46 @@ def _params(export, path, resolver=None):
     return p
 
 
-def _colours(p, force=False):
+def _colours(p, force=False, skip=()):
     """The emissive masks' colours: (channel, linear rgb, multiplier) for M_Phoenix's Emissive01 -> R, Emissive02 -> G,
-    Emissive03 -> B, each times its Emissive0N_Multiplier (force: 1, for the thrusters the game drives at run time)."""
+    Emissive03 -> B, each times its Emissive0N_Multiplier (force: 1, for the thrusters the game drives at run time; skip:
+    channels drawn otherwise, the glow lines' wave)."""
     out = []
     for name, ch in (('Emissive01', 0), ('Emissive02', 1), ('Emissive03', 2)):
+        if ch in skip: continue
         c = p.vector(name)
         if c is None: continue
         mult = 1.0 if force else p.scalar(name + '_Multiplier', 1.0)
         if mult > 0: out.append((ch, list(c), mult))
     return out
+
+
+WAVE_PATTERN = 'T_HexPatternNoise_01_A'
+
+
+def _wave(export, mod, p, tex_dir, mask, name, resolver):
+    """M_Phoenix's glow lines (its compiled base pass: Emissive02 isn't read; Emissive02 Min / Max are, along a wave over the
+    Magnetic Plates Pattern) as the material's "wave" block (the remake's GoF2/Hull GlowWave), or None: the masks' green
+    channel x Emissive02_Multiplier, the pattern x Magnetic Pattern Tiling, the wave a cycle a second (View.GameTime)."""
+    mult = p.scalar('Emissive02_Multiplier', 1.0)
+    lo, hi = p.vector('Emissive02 Min'), p.vector('Emissive02 Max')
+    src = os.path.join(tex_dir, (mask or '') + '.png')
+    if mult <= 0 or not lo or not hi or not mask or not os.path.exists(src): return None
+    pattern = p.textures.get('Magnetic Plates Pattern') or WAVE_PATTERN
+    path = getattr(p, 'texture_paths', {}).get(pattern)
+    if path and resolver is not None: resolver.fetch_textures([path], export)
+    psrc = os.path.join(export, (path or '') + '.png')
+    if not path or not os.path.exists(psrc): return None
+    maps = os.path.join(mod, 'maps')
+    prel = f'maps/{pattern.lower()}.png'
+    if not os.path.exists(os.path.join(mod, prel)): shutil.copyfile(psrc, os.path.join(mod, prel))
+    # (the masks' green alone, at the emission map's size)
+    m = Image.open(src).convert('RGBA').split()[1]
+    if m.width > 1024: m = m.resize((1024, 1024 * m.height // m.width), Image.LANCZOS)
+    mrel = f'maps/{name}_wave.png'
+    m.convert('RGB').save(os.path.join(maps, f'{name}_wave.png'), optimize=True)
+    return {'pattern': prel, 'mask': mrel, 'channel': 1, 'tiling': p.scalar('Magnetic Pattern Tiling', 1.0), 'speed': 1.0,
+            'multiplier': mult, 'min': [round(v, 4) for v in lo[:3]], 'max': [round(v, 4) for v in hi[:3]]}
 
 
 def nozzle_faces(prims, material, depth=0.6):
@@ -111,7 +142,10 @@ def forsaken(export, mod, resolver=None, anims=None):
         for key, suffix in (('diffuse', '_D'), ('normal', '_N')):
             if not names[key] and stem: names[key] = stem + suffix
         entry = {'material': mat}
-        entry.update(textures.convert_material(tex_dir, names, _colours(_params(export, mi_path, resolver), force=short == 'thruster'), os.path.join(mod, 'maps'), 'forsaken_' + short))
+        p = _params(export, mi_path, resolver)
+        wave = _wave(export, mod, p, tex_dir, names['emissive'], 'forsaken_' + short, resolver) if short != 'thruster' and resolver is not None else None
+        entry.update(textures.convert_material(tex_dir, names, _colours(p, force=short == 'thruster', skip=(1,) if wave else ()), os.path.join(mod, 'maps'), 'forsaken_' + short))
+        if wave: entry['wave'] = wave
         if short == 'thruster' and 'emission' in entry:
             # The nozzles' glow multipliers are 0 in the asset (the game drives them with the thrust at run time):
             # here the glow follows the engines (dim at idle, full at full throttle).
@@ -187,9 +221,12 @@ def elder_buddy(export, mod, forsaken_entry, resolver=None):
         names = {'diffuse': _tex(mi, 'Albedo', 'PM_Diffuse'), 'normal': _tex(mi, 'Normal', 'PM_Normals'),
                  'rmo': _tex(mi, 'RMO', 'PM_SpecularMasks'), 'emissive': _tex(mi, 'Emissive Masks', 'PM_Emissive')}
         # (their masks' blue is 1 everywhere, unused: Emissive03_Multiplier is 0; green, Emissive02, lights the lines)
-        colours = _colours(_params(export, mi_path, resolver), force=short == 'thruster')
+        p = _params(export, mi_path, resolver)
+        wave = _wave(export, mod, p, tex_dir, names['emissive'], 'elder_' + short, resolver) if short != 'thruster' and resolver is not None else None
+        colours = _colours(p, force=short == 'thruster', skip=(1,) if wave else ())
         entry = {'material': mat}
         entry.update(textures.convert_material(tex_dir, names, colours, os.path.join(mod, 'maps'), 'elder_' + short))
+        if wave: entry['wave'] = wave
         if short == 'thruster' and 'emission' in entry:
             entry.update({'engine': True, 'engineIdle': 0.25, 'emissionIntensity': 4.0})
         materials.append(entry)

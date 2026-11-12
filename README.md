@@ -117,6 +117,9 @@ which the remake doesn't have, so each slot takes the waves that fit it. `--no-s
 - **Forsaken** (`tools/ships.py`, `tools/kit.py`): a ship kit with one hull part and Chorus's weapon model of each mounted
   Chorus gun (the Talon, Guardian Fang, ... models) on its platforms; other primaries a Talon or a Glow (energy weapons),
   secondaries none (their mount is inside the hull). The Customize screen can hide them. `--no-kit`: a plain ship.
+- **Glow lines** (`tools/ships.py` `_wave`): the Forsaken's and the Elder Buddy's hex lines pulse as Chorus draws them
+  (M_Phoenix's compiled base pass: Emissive02 Min / Max along a wave over T_HexPatternNoise_01_A), the remake's material
+  `"wave"` block; the rest of their glow baked into the emission map as before.
 - **Animations** (`tools/rig.py`, the exporter's `anim`): the Forsaken's skin is rigid (every vertex on one bone), so its
   hull is written as parts on its skeleton's nodes, with Chorus's idle and drift clips (phoenix_anim_driftStart / Loop /
   End) as node animations; ships.json `"animations"` has the remake play them while the player drifts. Also: the travel
