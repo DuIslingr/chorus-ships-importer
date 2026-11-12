@@ -278,6 +278,9 @@ world part is large (about 1.1 GB, most of it the seven stations).
   M_PortalRift_BOTTOM), Chorus's FTL portal opening between its stages, and the inner Rift's sky
   (T_Omen_InnerRift_Cubemap_Tex) while it lasts. The dormant Rift hangs over Nimika Prime (an orbit prop facing the
   station).
+- **Guilt** (`tools/npcs.py`): Chorus's invincible Faceless, skinned and breathing, hunts you now and then in Nimika
+  Prime's and the Tarris Wormhole's orbits (npcships.json, from rank 10) with the remake's `"pursuer"` role: it can't be
+  harmed, closes in at Chorus's stepped speeds, withers your hull up close and darkens the screen as it nears. Outrun it.
 - **Nimika Prime's broken planet** (`tools/brokenplanet.py`): LocAST's destroyed planet (its six parts in their shared
   frame, its lava core glowing, a dozen loose fragments) hangs below Nimika Prime's orbit beside its own planet, its
   materials baked from M_Planet_Broken's and M_BrokenPlanet_Core's compiled base passes.

@@ -135,10 +135,11 @@ SHIPS = [
     S('omen_fortress', 'Omen Fortress', NPC + 'Fortress/Art/SM_JTU_Fortress_02_Merged', 'boss', [9], 2000, OMEN_GLOW, bp=NPC + 'Fortress/BP_NPC_Ship_Fortress'),
     S('omen_fortress_elite', 'Omen Elite Fortress', NPC + 'FortressElite/Art/SM_FortressElite_Merged', 'capital', [9], 5000, OMEN_GLOW,
       bp=NPC + 'FortressElite/BP_NPC_Ship_Fortress_Elite'),
-    # (Guilt, SK_Guilt, left out: in Chorus not a ship but an invincible Faceless that hunts Nara through the temples and
-    # tombs. Its handling stays for a mod that wants it: _guilt_shell / _guilt_core, rig.save_skinned, the remake's Chorus
-    # shell and "skinned" ships; its entry was S('guilt', ..., NPC + 'Guilt/Art/SK_Guilt', 'boss', [9], ..., scale=0.17,
-    # idle=NPC + 'Guilt/Art/Anims/A_Guilt_Idle03', skinned=True, traffic=False).)
+    # Guilt (SK_Guilt): in Chorus not a ship but an invincible Faceless that hunts Nara through the temples and tombs: the
+    # remake's "pursuer" role (BT_Guilt's chase, its wither and screen), never in the traffic; npcships.json sends it now and
+    # then into the Omen-haunted orbits (PURSUERS)
+    S('guilt', 'Guilt', NPC + 'Guilt/Art/SK_Guilt', 'boss', [9], 3000, OMEN_GLOW, bp=NPC + 'Guilt/BP_NPC_Guilt', scale=0.17,
+      idle=NPC + 'Guilt/Art/Anims/A_Guilt_Idle03', skinned=True, traffic=False, traffic_role='pursuer'),
     # -- civilians: freighters -----------------------------------------------------------------------------------------
     # Chorus's civilian ship (BP_NPC_Ship_CivilianShip: SM_TG_Atlas_MK2_002 in M_TG_Atlas_01) and its variants' paint
     S('civilian_ship', 'Civilian Ship', [ATLAS2 + 'SM_TG_Atlas_MK2_002', ATLAS2 + 'SM_NPC_Thrusters_CivilianShip'], 'freighter', FREIGHT_RACES, 1500, TER_GLOW,
@@ -1369,11 +1370,20 @@ RACE_WORD = {0: 'terran', 1: 'vossk', 2: 'nivelian', 3: 'midorian', 8: 'pirates'
 LAUNCHES = {'dropship': {'ships': ['circle_fighter', 'circle_scout'], 'perWave': 3, 'every': 25, 'total': 12}}
 
 
+# the pursuers' (Guilt's) npcships.json spawn: the Omen-haunted orbits, rarely, from rank 10
+PURSUERS = {'guilt': {'chance': 5, 'stations': [f'{MOD_ID}:nimika_prime', f'{MOD_ID}:tarris_wormhole'], 'minRank': 10, 'distance': [6, 10]}}
+
+
 def npc_ships(entries):
-    """npcships.json entries for the capital ships among the built ships.json entries (and their traffic set to 0)."""
+    """npcships.json entries for the capital ships among the built ships.json entries (and their traffic set to 0), and the
+    pursuers' (PURSUERS: a "boss" alone, hostile)."""
     ids = {e['id'] for e in entries}
     out = []
     for e in entries:
+        if e['id'] in PURSUERS and (e.get('traffic') or {}).get('role') == 'pursuer':
+            out.append({'id': e['id'], 'kind': 'boss', 'ship': f"{MOD_ID}:{e['id']}", 'name': e['name'], 'race': RACE_WORD.get(e.get('race', 9), 'void'),
+                        'hostile': True, 'escorts': {'count': 0}, 'spawn': dict(PURSUERS[e['id']])})
+            continue
         t = e.get('traffic')
         if not isinstance(t, dict) or t.get('capital') != 'battleship': continue
         race = e.get('race', 0)
@@ -1518,8 +1528,9 @@ def build(export, mod, resolver=None, only=None, work=None, anims=None):
              'model': f'models/npc/{sid}.glb', 'modelLength': round(length_m * shrink / 0.05), 'modelYaw': 90,
              'hangarHeight': round(-float(lo[1]) * k + 20), 'engineGlowColor': s['glow'], 'mounts': mounts, 'materials': mats,
              'traffic': traffic}
-        if s.get('traffic') is False:   # (in the mod, flown by no one: Guilt, a story hazard in Chorus, not a ship)
+        if s.get('traffic') is False:   # (in the mod, flown by no one as traffic: Guilt, a story hazard in Chorus, not a ship)
             del e['traffic']
+            if s.get('traffic_role'): e['traffic'] = {'weight': 0, 'role': s['traffic_role']}   # (its role: npcships.json sends it)
         if s.get('description'): e['description'] = s['description']
         if role in ('capital', 'freighter'): e['explosionScale'] = round(min(20.0, max(2.0, length_m * shrink / 150)), 1)
         n_turrets = sum(1 for m_ in mounts if m_['slotType'] == 2)

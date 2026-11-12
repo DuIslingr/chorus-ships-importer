@@ -92,10 +92,11 @@ Next, roughly in order:
    systems among them: FREIGHT_RACES [0], they are human-built); the freighters' bakes are 1024; the Sentinels' near-black
    bones are Chorus's own (M_OmenBoneMaster's base pass: the dark albedo, its normal and RMO, no glow; Chorus lights them
    with its baked indirect light, which the remake doesn't have).
-11. **Guilt as Chorus plays it** (left out of the mod: not a ship): an invincible pursuer for the remake's event graphs
-   or a special encounter: it picks the player and chases at stepped speeds (BT_Guilt: x0.5 up to x3 / x5 / x7, inside
-   its area), its proximity screen effect (PP_Guilt) within 1.5 km, its wither (BP_Guilt_Debuff, MaxWither 5) within
-   160 m, stopped or parked by the mission (MTAction_ManageGuiltNPC). Needs a new NPC behaviour in the remake.
+11. **Guilt as Chorus plays it, done:** back in the mod with the remake's "pursuer" role (BT_Guilt's chase steps and speeds,
+   BP_Guilt_Debuff's wither, PP_Guilt's screen near it, never harmed, never in the traffic); npcships.json sends it now
+   and then into Nimika Prime's and the Tarris Wormhole's orbits from rank 10 (npcs.PURSUERS). Left: the mission's
+   MTAction_ManageGuiltNPC (parking or stopping it) is an event graph's to do; its radial portal core
+   (M_Warpin_Omen_Portal) is still a scrolling glow; the wither is the remake's reading of MaxWither 5.
 10. **Thrusters and wrecks, done:** the warships' exhausts are at their thruster parts' nozzles (tools/warships.py
    _nozzle: the rear of each BP_Device_Thruster_* mesh along the device's forward, sized by its cross-section; the parts
    themselves are the warship configs', not level actors), the other capital ships' at their thruster sockets or their
