@@ -1,6 +1,7 @@
 # Blender script: the mod's shop icon (180 x 88, transparent, the ship seen from the front-left above) and preview.png,
 # with the ships.json materials (colour, normal, metallic / smoothness, emission) as the remake draws them.
-# blender -b --factory-startup -P render_blender.py -- <mod folder> <ship id> [<preview file name>]
+# blender -b --factory-startup -P render_blender.py -- <mod folder> <ship id> [<preview file name>] [fit]
+# (fit: the icon frames the whole hull as seen, a margin round it, instead of filling the plate with its longest side)
 import bpy, sys, os, json, math, mathutils
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import chorus_blender   # (a ships.json "chorus" entry: Chorus's layers as the remake draws them)
@@ -8,6 +9,7 @@ import chorus_blender   # (a ships.json "chorus" entry: Chorus's layers as the r
 args = sys.argv[sys.argv.index('--') + 1:]
 mod, ship_id = args[:2]
 preview = args[2] if len(args) > 2 else 'preview.png'   # '' = the icon only
+fit = len(args) > 3 and args[3] == 'fit'
 ship = next(s for s in json.load(open(os.path.join(mod, 'ships.json'), encoding='utf-8')) if s['id'] == ship_id)
 bpy.ops.wm.read_factory_settings(use_empty=True)
 bpy.ops.import_scene.gltf(filepath=os.path.join(mod, ship['model']))
@@ -83,12 +85,20 @@ for d, e in (((1, -1, 1.2), 4.0), ((-1, 1, 0.3), 1.2), ((0, 0, -1), 0.4)):
 cam = bpy.data.objects.new('cam', bpy.data.cameras.new('cam')); sc.collection.objects.link(cam); sc.camera = cam
 
 
-def shot(path, w, h, view, film_transparent, fill):
-    """view: the direction the camera looks from (Blender frame of the import: nose +X, up +Z)."""
+def shot(path, w, h, view, film_transparent, fill, fitted=False):
+    """view: the direction the camera looks from (Blender frame of the import: nose +X, up +Z). fitted: the hull's corners
+    as seen, x 1.08, framed whole (fill unused)."""
     cam.data.type = 'ORTHO'
     cam.location = ctr + mathutils.Vector(view).normalized() * r * 4
     cam.rotation_euler = (ctr - cam.location).to_track_quat('-Z', 'Y').to_euler()
     cam.data.ortho_scale = span * fill
+    if fitted:
+        q = cam.rotation_euler.to_quaternion()
+        right, up = q @ mathutils.Vector((1, 0, 0)), q @ mathutils.Vector((0, 1, 0))
+        xs = [(p - ctr).dot(right) for p in pts]; ys = [(p - ctr).dot(up) for p in pts]
+        cx, cy = (max(xs) + min(xs)) / 2, (max(ys) + min(ys)) / 2
+        cam.location = cam.location + right * cx + up * cy
+        cam.data.ortho_scale = max(max(xs) - min(xs), (max(ys) - min(ys)) * w / h) * 1.08
     sc.render.resolution_x, sc.render.resolution_y = w, h
     sc.render.film_transparent = film_transparent
     sc.render.filepath = path
@@ -96,6 +106,6 @@ def shot(path, w, h, view, film_transparent, fill):
 
 
 sc.view_settings.exposure = 1.3
-shot(os.path.join(mod, ship['icon']), 360, 176, (0.35, -1.0, 0.3), True, 0.875)
+shot(os.path.join(mod, ship['icon']), 360, 176, (0.35, -1.0, 0.3), True, 0.875, fit)
 sc.view_settings.exposure = 0.0   # (import.py scales it to 180 x 88)
 if preview: shot(os.path.join(mod, preview), 960, 540, (0.8, -1.0, 0.55), False, 1.57)

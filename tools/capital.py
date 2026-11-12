@@ -4,13 +4,18 @@ player can own in the remake (ships.json), with its three weapons as items (item
 
 - the Artillery (BP_Player_Weapon_Artillery_PlayerCapitalShip: 14 barrels on SK_Artillery_* sockets, each aimed at the
   target, 100 a shot every 0.05 s, 3.15 km) -> an auto turret on the HH-AT "Archimedes" (182), the light turret's model
-  (BP_Player_WeaponMesh_Artillery is SK_A_TER_Turret_Weak01), on six of the sockets (turret slots);
-- the Death Ray (BP_Player_Weapon_DeathRay_PlayerCapitalShip: SK_DeathRay_* sockets, a 200 m wide hitscan, 2 s cooldown)
-  -> a heavy, slow primary on the M6 A3 "Wolverine" (11), the large turret's red;
+  (BP_Player_WeaponMesh_Artillery is SK_A_TER_Turret_Weak01), a turret slot on each of the 14 sockets;
+- the Death Ray (BP_Player_Weapon_DeathRay_PlayerCapitalShip: SK_DeathRay_* sockets, a beam held on, a hit every 0.05 s,
+  30 x 1.5 against shields, 100 m around its line (BeamOcclusionTraceRadius / the shot's ProjectileCollision), 6 km
+  (ProjectileRange), 130 shots of heat (MaxHeat / HeatPerShot) cooling at 10.8 a second, overheated 6 s) -> a beam on the
+  M6 A3 "Wolverine" (11) with the remake's beamRadius / beamReach and heat (heatShots, heatCoolMs, overheatMs);
 - the Broadside Missile Barrage (BP_Player_Weapon_BroadsideMissileBarrage_PlayerCapitalShip: 20 launchers along the sides,
   30 homing missiles over 3 s, each 75 over 500 m when it dies) -> homing missiles in salvos with an area blast on the
   Intelli Jet (37), a secondary.
-The ship: Chorus's 5000 hull (the Forsaken's 1000) and its slow turn (12 deg/s) as GoF2's heaviest hull and slowest
+- the Shield Overcharge (BP_Player_Auxiliary_ShieldOvercharge_PlayerCapitalShip: Duration 5, Cooldown 10) -> the remake's
+  device 22 (the shield full, every hit stopped at it), a seatless cabin (91) like the other devices.
+The ship: Chorus's 5000 hull (the Forsaken's 1000) and its 250 a second of it mending (PlayerHealthComponent
+HealthRegenRate: "hullRegen", the same share of the remake's hull), its slow turn (12 deg/s) as GoF2's heaviest hull and slowest
 handling and then some, 1.5x boost (the game's own); sold in a lounge late in the game. Its model is the NPC Captured
 Warship's (npcs.py), measured from the hull's middle: the remake fits a camera to a hull over 150 m and centres it on its
 pivot (PlayerHull.FitCamera), so its mounts are given from there. Its thrusters' places are the blueprint's
@@ -26,9 +31,15 @@ BLUEPRINT = UP + 'Player/Ships/CapitalShip/Ship/BP_Player_Ship_Capital'
 SKELETON = UP + 'ArtAssets/Vehicles/Playerships/PlayerControlledLargeShip/SK_PlayerControlledLargeShip01_Skeleton'
 MOD = 'chorus_ships'
 GLOW = [0.99, 0.71, 0.94]
-# the six artillery barrels that become turret mounts (of 14: two on top, two below, one a side)
-TURRET_SOCKETS = ['SK_Artillery_Top_1', 'SK_Artillery_Top_2', 'SK_Artillery_Bottom_1', 'SK_Artillery_Bottom_2',
-                  'SK_Artillery_Left_1', 'SK_Artillery_Right_1']
+# the artillery barrels (every SK_Artillery_* socket) are the turret mounts
+TURRET_PREFIX = 'SK_Artillery_'
+ANIMS = UP + 'ArtAssets/Vehicles/Playerships/PlayerControlledLargeShip/A_PlayerControlledLargeShip01_'
+SK_MESH = UP + 'ArtAssets/Vehicles/Playerships/PlayerControlledLargeShip/SK_PlayerControlledLargeShip01'
+# the skeletal mesh's material slots named as the static mesh's (the NPC warship's model, whose materials the entry shares)
+SK_MATERIALS = {'MI_TER_StationLights01': 'MI_TER_StationLights01_PCLS', 'M_TER_SimpleWindows01': 'MI_TER_SimpleWindows01_PCLS'}
+FIT_ICONS = {SHIP_ID}   # (import.py: its icon frames the whole long hull, render_blender.py's "fit")
+CHORUS_HULL, CHORUS_REGEN = 5000.0, 250.0   # (PlayerHealthComponent MaxHull, HealthRegenRate)
+BEAM_RADIUS_CM, BEAM_REACH_CM = 10000.0, 600000.0
 PRIMARY_SOCKETS = ['SK_DeathRay_Top_1', 'SK_DeathRay_Bottom_1']
 SECONDARY_SOCKETS = ['SK_Missile_Left_1', 'SK_Missile_Right_1']
 ITEMS = [
@@ -38,15 +49,24 @@ ITEMS = [
      'stats': {'damage': 14, 'loadingTimeMs': 150, 'range': 3150, 'projectileSpeed': 32},
      'turret': 'chorus_turret_light', 'color': [1.0, 0.18, 0.1]},
     {'id': 'chorus_capital_deathray', 'base': 11, 'name': 'PCLS Death Ray',
-     'description': "The capital ship's death ray: a slow, crushing beam that cuts through anything in front of it. (Chorus)",
+     'description': "The capital ship's death ray: a beam 700 m across, held on, that burns through everything in front of "
+                    "it for 6 s before it overheats. (Chorus)",
      'techLevel': 9, 'occurrence': 2, 'price': [900000, 940000],
-     'stats': {'damage': 320, 'loadingTimeMs': 2500, 'range': 4500, 'projectileSpeed': 60}, 'color': [1.0, 0.1, 0.35]},
+     # (15 a hit: Chorus's 30 at the hull's share, 2500 of its 5000; the range is a beam's life, under the reload: held on)
+     'stats': {'damage': 15, 'loadingTimeMs': 50, 'range': 40, 'projectileSpeed': 60, 'shieldDamage': 150,
+               'beamRadius': round(BEAM_RADIUS_CM * 0.72), 'beamReach': round(BEAM_REACH_CM * 0.72),
+               'heatShots': 130, 'heatCoolMs': 12000, 'overheatMs': 6000}, 'color': [1.0, 0.1, 0.35]},
     {'id': 'chorus_capital_barrage', 'base': 37, 'name': 'PCLS Broadside Barrage',
      'description': "The capital ship's broadside missiles: homing salvos that blow up over a wide area. (Chorus)",
      'techLevel': 9, 'occurrence': 3, 'price': [900, 950],
      'stats': {'damage': 75, 'empDamage': 0, 'loadingTimeMs': 3000, 'range': 9000, 'projectileSpeed': 22, 'salvoShots': 5,
                'salvoCount': 2, 'salvoGapMs': 300, 'echoDelayMs': 80, 'echoPercent': 100, 'echoRadius': 10000},
      'color': [1.0, 0.0, 0.0]},
+    {'id': 'chorus_capital_overcharge', 'base': 91, 'name': 'PCLS Shield Overcharge',
+     'description': "The capital ship's shield overcharge: the shield full at once, and for 5 s nothing gets past it. "
+                    "Ready again 10 s later. (Chorus)",
+     'techLevel': 9, 'occurrence': 3, 'price': [600000, 640000],
+     'stats': {'cabinSize': 0, 'device': 22, 'deviceDurationMs': 5000, 'deviceCooldownMs': 10000}},
 ]
 
 
@@ -57,6 +77,7 @@ def items(turret_items):
     for spec in ITEMS:
         it = {k: v for k, v in spec.items() if k not in ('turret', 'color')}
         it['stats'] = dict(spec['stats'])
+        if 'color' not in spec: out.append(it); continue   # (the device: no weapon look)
         fx = {'projectile': {'color': spec['color'], 'glow': 3 if spec['base'] != 37 else 2}}
         if spec.get('turret'):
             t = by_id.get(spec['turret'])
@@ -104,7 +125,50 @@ def _thrusters(folder):
     return out
 
 
-def player_entry(host, s, work, prims, nose, sc, k):
+def rigged(export, mod, work, host_prims, convert):
+    """The PCLS's own model with its braking flaps: the skeletal mesh (the same hull as the warship's static mesh, its flaps
+    on bones) as rigid parts, its idle and its braking (A_PlayerControlledLargeShip01_LoopBraking's pose, laid over by the
+    brake: ships.json "brake") -> models/npc/chorus_pcls.glb, converted as the warship's (convert: npcs._convert on it); None
+    when its clips or mesh weren't exported, or its materials don't come out as the warship's."""
+    from . import glb, npcs, rig
+    src = os.path.join(export, SK_MESH + '.glb')
+    idle, brake = (rig.npc_clip(work, ANIMS + n) for n in ('Idle', 'LoopBraking'))
+    if not os.path.exists(src) or idle is None or brake is None:
+        print(f'  {SHIP_ID}: its skeletal mesh or braking clips not exported (no flaps)'); return None
+    raw = [(SK_MATERIALS.get(m, m), a, i) for m, a, i in glb.static_mesh(src, keep=npcs.KEEP)]
+    conv = convert([raw])
+    if not {m for m, _, _ in conv} <= {m for m, _, _ in host_prims}:
+        print(f'  {SHIP_ID}: its skeletal mesh\'s materials differ from the warship\'s (no flaps)'); return None
+    # each converted primitive's source (a light split shares its source's vertex arrays; else the same positions)
+    def source(attrs):
+        pos = attrs.get('POSITION')
+        for j, (_, a, _) in enumerate(raw):
+            if a.get('POSITION') is pos: return j
+        for j, (_, a, _) in enumerate(raw):
+            if a.get('POSITION') is not None and pos is not None and a['POSITION'].shape == pos.shape and np.array_equal(a['POSITION'], pos): return j
+        return None
+    sources = [source(a) for _, a, _ in conv]
+    if None in sources: print(f'  {SHIP_ID}: its converted mesh lost track of its skin (no flaps)'); return None
+    nodes, roots, meshes = rig.rigid_parts(src, conv, sources)
+    out = rig.clips({'brake': brake, '_reference': idle}, nodes, poses={'brake'})
+    channels = out[0][1]
+    if not channels: print(f'  {SHIP_ID}: its braking moves nothing'); return None
+    # the idle: the flaps the brake moves, held at Chorus's idle pose (two keys, one second)
+    by_name = {n['name']: i for i, n in enumerate(nodes)}
+    rest = {}
+    for bone, fr in idle['bones'].items():
+        if bone in by_name: rest[by_name[bone]] = (rig._ue_t(fr[0]), rig._ue_q(fr[0]))
+    held = []
+    for node, path_, _, values in channels:
+        v = rest.get(node, (values[0], values[0]))[0 if path_ == 'translation' else 1]
+        held.append((node, path_, np.array([0.0, 1.0]), np.array([v, v], np.float64)))
+    rel = 'models/npc/' + SHIP_ID + '.glb'
+    rig.save(os.path.join(mod, rel), nodes, roots, meshes, [('idle', held), ('brake', channels)], SHIP_ID, keep=npcs.KEEP)
+    print(f'  {SHIP_ID}: its own model, {len(channels) // 2} braking parts')
+    return rel
+
+
+def player_entry(host, s, work, prims, nose, sc, k, export=None, mod=None, convert=None):
     """The ships.json entry of the player's capital ship, on the NPC Captured Warship's built entry 'host' (npcs.SHIPS
     entry 's', its prims as drawn, its turn 'nose', scale 'sc', 'k' game units per model metre)."""
     from . import glb, npcs
@@ -126,7 +190,7 @@ def player_entry(host, s, work, prims, nose, sc, k):
         if name in socks: mounts.append({'slotType': 0, 'position_engine': game(turned(socks[name][0]))})
     for name in SECONDARY_SOCKETS:
         if name in socks: mounts.append({'slotType': 1, 'position_engine': game(turned(socks[name][0]))})
-    for name in TURRET_SOCKETS:
+    for name in sorted(n for n in socks if n.startswith(TURRET_PREFIX)):
         if name in socks:
             loc, rot = socks[name]
             mounts.append({'slotType': 2, 'position_engine': game(turned(loc)), 'turretUp': axis(rot[2])})
@@ -138,12 +202,15 @@ def player_entry(host, s, work, prims, nose, sc, k):
     e = {'id': SHIP_ID, 'name': 'Spirit-class Capital Ship', 'race': 0,
          'description': "The warship Chorus's Nara takes over and flies: a capital ship of your own, slow to turn, with self-aiming "
                         "artillery, a death ray and broadside missile barrages. Its hull and shields dwarf any fighter's. (Chorus)",
-         'armor': 2500, 'cargo': 600, 'handling': 25, 'price': 25000000, 'priceDefault': 0,
+         'armor': 2500, 'hullRegen': round(2500 * CHORUS_REGEN / CHORUS_HULL), 'cargo': 600, 'handling': 25, 'price': 25000000, 'priceDefault': 0,
          'slots': {'primary': count(0), 'secondary': count(1), 'turret': count(2), 'equipment': 16},
-         'model': host['model'], 'modelLength': host['modelLength'], 'modelYaw': host.get('modelYaw', 90),
+         'model': host['model'], 'icon': f'icons/{SHIP_ID}.png', 'modelLength': host['modelLength'], 'modelYaw': host.get('modelYaw', 90),
          'hangarHeight': host.get('hangarHeight', 0), 'engineGlowColor': GLOW, 'mounts': mounts,
          'materials': host['materials'], 'explosionScale': host.get('explosionScale', 6.0),
          'lounge': {'systemRace': -1, 'minCampaign': 50, 'minRank': 18, 'chance': 2}, 'flightStyle': 'chorus'}
+    if export and mod and convert:
+        braked = rigged(export, mod, work, prims, convert)
+        if braked: e['model'], e['animations'] = braked, {'idle': 'idle', 'brake': 'brake'}
     print(f"  {SHIP_ID}: player capital ship on {HOST}'s model, {count(0)} primaries, {count(1)} secondaries, "
           f"{count(2)} turrets, {count(3)} thrusters")
     return e

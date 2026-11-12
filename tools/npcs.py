@@ -1525,6 +1525,7 @@ def build(export, mod, resolver=None, only=None, work=None, anims=None):
         out.append(e)
         if sid in warships.CONFIGS: out += variants   # (its other configurations, on the same model)
         if sid == capital.HOST:   # (Chorus's player capital ship on the same model: tools/capital.py)
-            pe = capital.player_entry(e, s, work or os.path.dirname(os.path.abspath(export)), prims, nose, sc, k)
+            pe = capital.player_entry(e, s, work or os.path.dirname(os.path.abspath(export)), prims, nose, sc, k, export, mod,
+                                      lambda ms: _convert(export, mod, sid, ms, resolver, size, s.get('override'))[0])
             if pe: out.append(pe)
     return out

@@ -106,10 +106,12 @@ Next, roughly in order:
 15. **Wrecks, still open** (`tools/wrecks.py`; the player's own, SK_PhoenixWreck / _Buddy / SK_TF_Argus_Wreck, are
     given now, `apply_players`): the wrecks' burning and dissolving materials (MF_WreckBurn / MF_WreckDisintegrate) are drawn as the converter makes them,
     not animated; the gunship's gun pod and mine wrecks (ABP_Explosion_TG_Gunship_Wreck_GunPod / _Mine) left out.
-14. **The player capital ship, still open** (`tools/capital.py`): Chorus's Shield Overcharge (5 s, 10 s cooldown) and its
-    250 / s hull regeneration aren't there; the Death Ray is a heavy shot, not a 200 m wide beam held on; the artillery is
-    6 of its 14 barrels; its skeletal braking animation (A_PlayerControlledLargeShip01_Braking) is left out; no shop icon
-    (Blender renders the Forsaken's only). Its stats are this importer's balance against GoF2's hulls, to tune in play.
+14. **The player capital ship, done** (`tools/capital.py`): the Shield Overcharge (device 22), the hull regeneration
+    ("hullRegen"), the Death Ray as a wide beam held on (beamRadius / beamReach, its heat), all 14 artillery barrels as
+    turret slots, the braking flaps (its own model from SK_PlayerControlledLargeShip01, the LoopBraking pose) and its shop
+    icon (render_blender.py "fit"). Left: Chorus's Braking / StopBraking clips as the flaps' opening and closing (the pose
+    follows the brake input instead), the Death Ray's 1 s charge-up and the shield overcharge's own effect
+    (BP_Effect_Auxiliary_Shield_PlayerCapitalShip); its stats are this importer's balance, to tune in play.
 12. **The Chorus systems, next areas:** Nimika Prime's broken planet (SM_Planet_Destroyed_LocAST parts, M_Planet_Broken),
     Stega Belt's and the Tarris Wormhole's own stations (or other levels' structures: LocASP03's military platform,
     LocRSB14's antenna array), then the bosses, wrecks and effects that need the remake (the rift look and Nimika's dormant

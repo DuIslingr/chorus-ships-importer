@@ -101,7 +101,7 @@ def main():
                       [ships.ARGUS + '/' + m for m in ships.ARGUS_MATERIALS] + npcs.material_paths(export))
     resolver.fetch_textures(npcs.texture_paths(resolver, export), export)   # (maps an instance inherits from its parents)
     anim_dir = os.path.join(a.work, 'anims')   # Chorus's drift clips for the Forsaken (tools/rig.py)
-    if a.fresh or rig.load(anim_dir) is None:
+    if a.fresh or rig.load(anim_dir) is None or any(not os.path.exists(os.path.join(anim_dir, p.rsplit('/', 1)[1] + '.json')) for p in rig.EXPORTS):
         lst = os.path.join(a.work, 'anim_list.txt')
         open(lst, 'w').write('\n'.join(rig.EXPORTS) + '\n')
         run('anim', lst, anim_dir, capture=True)
@@ -153,7 +153,7 @@ def main():
         os.makedirs(os.path.join(a.out, 'icons'), exist_ok=True)
         for e in entries:
             subprocess.run([a.blender, '-b', '--factory-startup', '-P', os.path.join(HERE, 'tools', 'render_blender.py'), '--',
-                            a.out, e['id'], 'preview.png' if e['id'] == 'forsaken' else ''],
+                            a.out, e['id'], 'preview.png' if e['id'] == 'forsaken' else ''] + (['fit'] if e['id'] in capital.FIT_ICONS else []),
                            check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         from PIL import Image
         for e in entries:   # rendered at twice the size, then scaled to the shop's 180 x 88

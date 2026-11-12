@@ -13,10 +13,12 @@ import numpy as np
 from . import glb
 
 
-def rigid_parts(src, prims):
+def rigid_parts(src, prims, sources=None):
     """-> (nodes, roots, meshes): nodes [{name, translation, rotation, scale, children}] (the export's, without its skinned
     mesh node), roots (the scene's node indices), meshes {node index: [(material, attrs, indices)]}. prims: the same file's
-    primitives as glb.static_mesh read them, in its order (their attributes already converted, tangent signs fixed)."""
+    primitives as glb.static_mesh read them, in its order (their attributes already converted, tangent signs fixed); or,
+    with sources (each prim's primitive index in the file), any number per primitive (a conversion's split: its vertices
+    the primitive's, its indices a share of them)."""
     g, b = glb.load(src)
     skin = g['skins'][0]
     joints = skin['joints']
@@ -38,7 +40,8 @@ def rigid_parts(src, prims):
 
     meshes = {}
     src_prims = g['meshes'][0]['primitives']
-    for (mat, attrs, idx), p in zip(prims, src_prims):
+    pairs = zip(prims, src_prims) if sources is None else ((q, src_prims[s]) for q, s in zip(prims, sources))
+    for (mat, attrs, idx), p in pairs:
         J = glb.read(g, b, p['attributes']['JOINTS_0']).astype(np.int64)
         W = glb.read(g, b, p['attributes']['WEIGHTS_0']).astype(np.float64)
         owner = J[np.arange(len(J)), W.argmax(1)]                   # the skin joint each vertex hangs on (all rigid)
@@ -94,7 +97,10 @@ ANIMATIONS = {'idle': 'idle', 'drift': {'start': 'driftStart', 'loop': 'driftLoo
 FOLLOW = {'SM_Phoenix_wpnPlatform_01_l': 'BONE_SM_Phoenix_wpnPlatform_01_l', 'SM_Phoenix_wpnPlatform_01_r': 'BONE_SM_Phoenix_wpnPlatform_01_r'}
 # NPC ships' own idles (npcs.py S(..., idle=...)): looped on the remake's NPC hulls (ships.json "animations": idle)
 _NPC = 'SpacePrototype/Content/UnleashedPrototype/NPC/Ships/'
-NPC_CLIPS = [_NPC + 'OmenSupport/Art/A_OmenSupport_Idle', _NPC + 'Guilt/Art/Anims/A_Guilt_Idle03']
+NPC_CLIPS = [_NPC + 'OmenSupport/Art/A_OmenSupport_Idle', _NPC + 'Guilt/Art/Anims/A_Guilt_Idle03',
+             # the player capital ship's idle and its braking flaps (tools/capital.py)
+             'SpacePrototype/Content/UnleashedPrototype/ArtAssets/Vehicles/Playerships/PlayerControlledLargeShip/A_PlayerControlledLargeShip01_Idle',
+             'SpacePrototype/Content/UnleashedPrototype/ArtAssets/Vehicles/Playerships/PlayerControlledLargeShip/A_PlayerControlledLargeShip01_LoopBraking']
 EXPORTS = [p for p in list(CLIPS.values()) + list(POSES.values()) + [REFERENCE] + NPC_CLIPS if p]
 
 
