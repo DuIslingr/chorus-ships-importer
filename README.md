@@ -271,8 +271,9 @@ world part is large (about 1 GB, most of it the five stations).
   camera to the hull and shrinks it on the hangar's turntable (a hull over 150 m).
 - **The Rift** (`tools/rift.py`): Chorus's rift vortex (SM_Rift_Vortex with M_PortalRift_2, Nimika's
   MI_PortalRift_2_LocAST_Outside, as a material `"rift"` block: its swirl, red centre, lightning flipbooks and clouds,
-  added). In the Chorus systems a rift run looks like Chorus's Rift (the `encounters.json` rift entry's `"look"`): the
-  vortex at the run's centre, Chorus's FTL portal opening between its stages, and the inner Rift's sky
+  added, the funnel heaving as Chorus's vertex shader moves it). In the Chorus systems a rift run looks like Chorus's Rift
+  (the `encounters.json` rift entry's `"look"`): the Rift seen from inside at the run's centre (LocRFA's vortex in
+  M_PortalRift_BOTTOM), Chorus's FTL portal opening between its stages, and the inner Rift's sky
   (T_Omen_InnerRift_Cubemap_Tex) while it lasts. The dormant Rift hangs over Nimika Prime (an orbit prop facing the
   station).
 - **Wrecks:** Nimika Prime's, Stega Belt's and the Tarris Wormhole's wreck fields use the mod's own Chorus freighters and
