@@ -185,6 +185,23 @@ def _turret(cls):
     return None, None
 
 
+MAX_EXHAUSTS = 8
+
+
+def _nozzle(work, prop, pos, rot):
+    """A thruster part's nozzle: the rear of its mesh along the device's forward (Unreal cm in the hull's frame) and the
+    nozzle's half width (cm), or None when the part's mesh wasn't exported."""
+    mesh = next((m for i, _, m in PROPS if i == prop), None)
+    src = os.path.join(work, 'export', (mesh or '') + '.glb')
+    if not mesh or not os.path.exists(src): return None
+    from . import glb
+    P = np.concatenate([np.asarray(a['POSITION'], np.float64) for _, a, _ in glb.static_mesh(src)]) * 100.0   # (glb: Unreal x, z, y)
+    ue = np.stack([P[:, 0], P[:, 2], P[:, 1]], 1)
+    lo, hi = ue.min(0), ue.max(0)
+    rear = np.array([lo[0], (lo[1] + hi[1]) / 2, (lo[2] + hi[2]) / 2])
+    return pos + rear @ rot, float(min(hi[1] - lo[1], hi[2] - lo[2])) * 0.3
+
+
 def apply(e, s, work, mats, nose, sc, k, shrink, config=None):
     """Turns the ships.json entry 'e' of a Chorus warship (npcs.SHIPS entry 's'; its hull built by npcs.build: 'nose' its
     turn, 'sc' its blueprint's scale, 'k' game units per model metre, 'shrink' its scale-down) into a boss fight with its
@@ -202,7 +219,7 @@ def apply(e, s, work, mats, nose, sc, k, shrink, config=None):
     def axis(d):
         v = turned(d, False); v = v / max(float(np.linalg.norm(v)), 1e-8)
         return [round(-float(v[2]), 4), round(float(v[1]), 4), round(float(v[0]), 4)]
-    subs, turrets = [], []
+    subs, turrets, nozzles = [], [], []
     for cls, pos, rot in found:
         word, item = _turret(cls)
         if item:
@@ -224,7 +241,10 @@ def apply(e, s, work, mats, nose, sc, k, shrink, config=None):
              'turretUp': axis(rot[2]), 'turretForward': axis(rot[0])}
         if shrink < 1.0: p['scale'] = round(shrink, 4)
         if kind == 'array': p.update({'shields': True, 'stage': 1, 'bonus': round(death / BONUS_BASE, 4)})
-        elif kind == 'thruster': p.update({'weakspot': WEAK_SHARE, 'bonus': round(death / BONUS_BASE, 4)})
+        elif kind == 'thruster':
+            p.update({'weakspot': WEAK_SHARE, 'bonus': round(death / BONUS_BASE, 4)})
+            n = _nozzle(work, prop, pos, rot)
+            if n: nozzles.append((game(turned(n[0])), max(round(n[1] / 100.0 * sc * k), 8)))
         elif kind == 'core': p.update({'stage': 2, 'weakspot': 1.0, 'bonus': 1.0})
         subs.append(p)
     # the turrets: the heavier first, the rest spread over the hull
@@ -240,8 +260,13 @@ def apply(e, s, work, mats, nose, sc, k, shrink, config=None):
     if throes: e['deathThroes'] = {'seconds': throes[0], 'radius': round(throes[1] * CM * shrink), 'damage': 1.0, 'blasts': THROES_BLASTS}
     e['hullDamage'] = 0
     e['shieldedDamage'] = 1
-    # (its turret mounts' npcTurrets give way to the turret parts)
+    # (its turret mounts' npcTurrets give way to the turret parts; its exhausts go to its thrusters' nozzles)
     e['mounts'] = [m for m in e['mounts'] if m.get('slotType') != 2]
+    if nozzles:
+        glow = next((m.get('glowColor') for m in e['mounts'] if m.get('slotType') == 3), s.get('glow'))
+        e['mounts'] = [m for m in e['mounts'] if m.get('slotType') != 3] + [
+            {'slotType': 3, 'position_engine': at, 'turretAngles': [0.35, 0.35, 0.35], 'glowColor': glow, 'glowSize': [r, r, 40]}
+            for at, r in nozzles[:MAX_EXHAUSTS]]
     e.pop('npcTurrets', None)
     for m in mats:
         if BARRIER_MATERIAL.lower() in m['material'].lower():

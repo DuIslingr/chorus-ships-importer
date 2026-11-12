@@ -96,9 +96,10 @@ Next, roughly in order:
    or a special encounter: it picks the player and chases at stepped speeds (BT_Guilt: x0.5 up to x3 / x5 / x7, inside
    its area), its proximity screen effect (PP_Guilt) within 1.5 km, its wither (BP_Guilt_Debuff, MaxWither 5) within
    160 m, stopped or parked by the mission (MTAction_ManageGuiltNPC). Needs a new NPC behaviour in the remake.
-10. **Level-placed parts and wrecks:** the capital ships' thrusters are placed by Chorus's levels (read the .umap actors
-   that place them); the wreck skeletal meshes and their explosion anim blueprints (ships breaking apart) would need the
-   remake to swap a destroyed mod ship for its wreck.
+10. **Thrusters and wrecks, done:** the warships' exhausts are at their thruster parts' nozzles (tools/warships.py
+   _nozzle: the rear of each BP_Device_Thruster_* mesh along the device's forward, sized by its cross-section; the parts
+   themselves are the warship configs', not level actors), the other capital ships' at their thruster sockets or their
+   thruster glow's nozzles; the wrecks are done (item 15).
 13. **Warships, done further** (`tools/warships.py`): the death throes (BP_<Size>Warship_Base's PhaseDuration and
     ExplosionDamageRadius, "deathThroes"), the barriers blocking the way in ("shieldBlocks"), the shielded turret mounts'
     own shields ("shield" 0.75), the other configurations as ships of their own (Small C, Medium B with an Omen hangar,
