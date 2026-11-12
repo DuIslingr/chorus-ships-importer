@@ -111,8 +111,10 @@ Next, roughly in order:
     Medium C). Still the remake's: the parts' share of the hull, to tune in play.
 16. **Death explosions, done further** (`tools/explosions.py`): the lights-only emitters as point lights ("light"), the
     impostor debris (MI_ImposterDebris's T_Debris_D, found through its parent's parameter) and each fireball's smoke
-    (its coverage, dark) alpha-blended ("blend": "alpha"). Left out: the mesh emitters, trails spawned along a path and
-    vector fields; the death effect configs' timing (a 5 s tumble before the main blast) is the remake's own dying time;
+    (its coverage, dark) alpha-blended ("blend": "alpha"), the fire trails along the unseen debris (SpawnPerUnit at
+    another emitter's particles: "trail"; their flipbook, RGB diffuse / A emissive, baked as the fireballs') and the
+    sparks' vector fields as turbulence ("noise"). (No mesh emitter is in these systems: DB1 is ERM_None, the trails'
+    source.) Left: the death effect configs' timing (a 5 s tumble before the main blast) is the remake's own dying time;
     the brightness squeezes (8 / (8 + x), the lights' 3 x sqrt(brightness / 1e9)) and the smoke's and debris' greys
     want checking in play.
 15. **Wrecks, done** (`tools/wrecks.py`; the player's own, SK_PhoenixWreck / _Buddy / SK_TF_Argus_Wreck, too,

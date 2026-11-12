@@ -179,11 +179,22 @@ def _emitters(export, mod, resolver, d, scale=1.0):
         i = int(ref['ObjectPath'].rsplit('.', 1)[1]); return d[i] if i < len(d) else None
     ps = next((e for e in d if e.get('Type') == 'ParticleSystem'), None)
     out = []
+    # the trails: an emitter spawning per unit at another's particles (LocationEmitter): its target, which flies unseen
+    sources = {}
+    for r in (ps or {}).get('Properties', {}).get('Emitters', []):
+        em = objs(r)
+        lods = [objs(l) for l in ((em or {}).get('Properties') or {}).get('LODLevels', [])]
+        for mr in ((lods[0] or {}).get('Properties', {}).get('Modules', []) if lods else []):
+            m = objs(mr)
+            if m and m['Type'] == 'ParticleModuleLocationEmitter': sources[(em.get('Properties') or {}).get('EmitterName')] = (m.get('Properties') or {}).get('EmitterName')
+    trails = {}
     for r in (ps or {}).get('Properties', {}).get('Emitters', []):
         em = objs(r)
         if not em: continue
         ep = em.get('Properties') or {}
-        if ep.get('EmitterRenderMode') == 'ERM_None': continue
+        name = ep.get('EmitterName')
+        hidden = ep.get('EmitterRenderMode') == 'ERM_None'
+        if hidden and name not in sources.values(): continue
         lights_only = ep.get('EmitterRenderMode') == 'ERM_LightsOnly'
         lods = [objs(l) for l in ep.get('LODLevels', [])]
         lod = next((l for l in lods if l and l['Name'].endswith('_0')), lods[0] if lods else None)
@@ -195,7 +206,8 @@ def _emitters(export, mod, resolver, d, scale=1.0):
         for mr in lp.get('Modules', []):
             m = objs(mr)
             if m and (m.get('Properties') or {}).get('bEnabled', True) is not False: mods.setdefault(m['Type'].replace('ParticleModule', ''), m.get('Properties') or {})
-        if 'SpawnPerUnit' in mods: continue   # (a trail along a moving emitter)
+        trail_of = sources.get(name) if 'SpawnPerUnit' in mods else None
+        if 'SpawnPerUnit' in mods and not trail_of: continue   # (a trail along a moving emitter: not one of this system's)
         mat = (req.get('Material') or {}).get('ObjectName', '')
         mat_name = mat.split("'")[1] if "'" in mat else mat
         mat_path = (req.get('Material') or {}).get('ObjectPath', '').rsplit('.', 1)[0]
@@ -209,7 +221,8 @@ def _emitters(export, mod, resolver, d, scale=1.0):
             image, blend = _debris(export, mod, resolver, mat_path), 'alpha'
         elif 'Spark' in mat_name:
             image = _spark(mod)
-        if not image and not lights_only: continue
+        if hidden: image = None
+        elif not image and not lights_only: continue
         e = {'image': image} if image else {}
         if blend: e['blend'] = blend
         cols, rows = req.get('SubImages_Horizontal') or 1, req.get('SubImages_Vertical') or 1
@@ -304,6 +317,19 @@ def _emitters(export, mod, resolver, d, scale=1.0):
             for k in ('speed', 'forward', 'sphere', 'drag', 'stretch', 'spin', 'randomRotation', 'sheet', 'frames', 'randomFrame'):
                 e.pop(k, None)
             out.append(e); continue
+        vf = mods.get('VectorFieldLocal')
+        if vf and float(vf.get('Intensity', 0) or 0) > 0:   # (its turbulence: Unity's noise)
+            rs = (vf.get('RelativeScale3D') or {}).get('X', 1.0)
+            e['noise'] = [round(float(vf['Intensity']) * CM * scale, 1), round(float(rs) * 100.0 * CM * scale, 1)]
+        if trail_of:   # (puffs along the other emitter's particles: its "trail")
+            spu = mods['SpawnPerUnit']
+            per = (_Dist(spu.get('SpawnPerUnit'), objs).range() or (1.0, 1.0))[1]
+            t = {k: v for k, v in e.items() if k in ('image', 'blend', 'sheet', 'frames', 'randomFrame', 'randomRotation', 'life', 'size',
+                                                     'sizeOverLife', 'color', 'colorOverLife', 'alphaOverLife')}
+            t['every'] = round(float(spu.get('UnitScalar', 100.0)) / max(per, 1e-3) * CM * scale, 1)
+            if t.get('image'): trails[trail_of] = t
+            continue
+        e['_name'] = name
         if blend == 'alpha':   # (a plain tint, not a glow)
             e['color'] = DEBRIS
             e.pop('colorOverLife', None)
@@ -315,7 +341,10 @@ def _emitters(export, mod, resolver, d, scale=1.0):
                 smoke.update({'image': sm, 'blend': 'alpha', 'color': SMOKE})
                 out.append(smoke)
         out.append(e)
-    return out
+    for e in out:   # (each trail on its source; a source left without one draws nothing)
+        n = e.pop('_name', None)
+        if n in trails: e['trail'] = trails[n]
+    return [e for e in out if e.get('image') or e.get('light') or e.get('trail')]
 
 
 def build(export, mod, resolver, work):
