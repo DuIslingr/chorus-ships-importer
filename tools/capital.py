@@ -13,7 +13,10 @@ player can own in the remake (ships.json), with its three weapons as items (item
   30 homing missiles over 3 s, each 75 over 500 m when it dies) -> homing missiles in salvos with an area blast on the
   Intelli Jet (37), a secondary.
 - the Shield Overcharge (BP_Player_Auxiliary_ShieldOvercharge_PlayerCapitalShip: Duration 5, Cooldown 10) -> the remake's
-  device 22 (the shield full, every hit stopped at it), a seatless cabin (91) like the other devices.
+  device 22 (the shield full, every hit stopped at it), a seatless cabin (91) like the other devices; its look
+  (BP_Effect_Auxiliary_Shield_PlayerCapitalShip: P_Buff_Auxiliary_Shield_PlayerCapitalShip, one mesh particle of
+  SM_PlayerControlledLargeShip_01_Shield in MI_Shield_PlayerCapital_Auxiliary, after 0.5 s for 4.8 s, its colour and alpha
+  over life) -> ships.json "overcharge", the shell in the hull's frame with M_Shield's "shield" block (_shield).
 The ship: Chorus's 5000 hull (the Forsaken's 1000) and its 250 a second of it mending (PlayerHealthComponent
 HealthRegenRate: "hullRegen", the same share of the remake's hull), its slow turn (12 deg/s) as GoF2's heaviest hull and slowest
 handling and then some, 1.5x boost (the game's own); sold in a lounge late in the game. Its model is the NPC Captured
@@ -38,6 +41,10 @@ SK_MESH = UP + 'ArtAssets/Vehicles/Playerships/PlayerControlledLargeShip/SK_Play
 # the skeletal mesh's material slots named as the static mesh's (the NPC warship's model, whose materials the entry shares)
 SK_MATERIALS = {'MI_TER_StationLights01': 'MI_TER_StationLights01_PCLS', 'M_TER_SimpleWindows01': 'MI_TER_SimpleWindows01_PCLS'}
 FIT_ICONS = {SHIP_ID}   # (import.py: its icon frames the whole long hull, render_blender.py's "fit")
+SHIELD_MESH = UP + 'Effects/Devices/Shields/SM_PlayerControlledLargeShip_01_Shield'
+SHIELD_MI = UP + 'Effects/Devices/Shields/MI_Shield_PlayerCapital_Auxiliary'
+SHIELD_FX = UP + 'Player/Ships/CapitalShip/Auxiliary/P_Buff_Auxiliary_Shield_PlayerCapitalShip'
+EXPORTS = [SK_MESH, SHIELD_MESH]   # (import.py: what the pak export must bring)
 CHORUS_HULL, CHORUS_REGEN = 5000.0, 250.0   # (PlayerHealthComponent MaxHull, HealthRegenRate)
 BEAM_RADIUS_CM, BEAM_REACH_CM = 10000.0, 600000.0
 PRIMARY_SOCKETS = ['SK_DeathRay_Top_1', 'SK_DeathRay_Bottom_1']
@@ -89,9 +96,9 @@ def items(turret_items):
 
 
 def blueprints(resolver, work):
-    """The player capital's blueprint and skeleton as JSON in <work>/bp_cap (read once)."""
+    """The player capital's blueprint, skeleton and Shield Overcharge particle as JSON in <work>/bp_cap (read once)."""
     folder = os.path.join(work, 'bp_cap'); os.makedirs(folder, exist_ok=True)
-    todo = [p for p in (BLUEPRINT, SKELETON) if not os.path.exists(os.path.join(folder, p.rsplit('/', 1)[1] + '.json'))]
+    todo = [p for p in (BLUEPRINT, SKELETON, SHIELD_FX) if not os.path.exists(os.path.join(folder, p.rsplit('/', 1)[1] + '.json'))]
     if todo and resolver is not None:
         resolver.run('jsonall', '/(' + '|'.join(re.escape(p.rsplit('/', 1)[1]) for p in todo) + r')\.uasset$', folder, capture=True)
     return folder
@@ -161,7 +168,72 @@ def rigged(export, mod, work, host_prims, convert):
     return rel
 
 
-def player_entry(host, s, work, prims, nose, sc, k, export=None, mod=None, convert=None):
+def _curve(table):
+    """A distribution's table (one channel: every stride-th value) as samples over 0..1."""
+    t = (table or {}).get('Table') or {}
+    v, stride = t.get('Values') or [], max(1, int(t.get('EntryStride', 1)))
+    return [round(float(x), 4) for x in v[::stride]] or None
+
+
+def _shield(export, mod, work, nose, sc, k, resolver):
+    """The Shield Overcharge's shell: SM_PlayerControlledLargeShip_01_Shield in the hull's frame (turned by 'nose', scaled by
+    'sc' as the hull: it is made around the same mesh) -> models/npc/chorus_pcls_shield.glb, its material M_Shield's
+    "shield" block (MI_Shield_PlayerCapital_Auxiliary's compiled translucent pass: the remake's GoF2/ChorusShield; its
+    lengths in the model's metres x sc, its fades in game units: k a metre), and P_Buff_Auxiliary_Shield_PlayerCapitalShip's
+    timing and colour (ships.json "overcharge"). -> (the overcharge block, the material entry) or (None, None)."""
+    from . import glb, npcs
+    src = os.path.join(export, SHIELD_MESH + '.glb')
+    if not os.path.exists(src) or resolver is None: print(f'  {SHIP_ID}: its shield shell not exported'); return None, None
+    q = resolver.get(SHIELD_MI)
+    resolver.fetch_textures([q.texture_paths[n] for n in ('T_ShieldPattern_M', 'T_Mosaic_A') if n in q.texture_paths], export)
+    mask = npcs._chorus_map(mod, npcs._png(export, q.textures.get('ModulationMask') or 'T_ShieldPattern_M'), 1024, 'data')
+    noise = npcs._chorus_map(mod, npcs._png(export, 'T_Mosaic_A'), 1024, 'data')
+    if not mask: print(f'  {SHIP_ID}: its shield pattern not exported'); return None, None
+    name = 'MI_Shield_PlayerCapital_Auxiliary'
+    prims = [(name, a, i) for _, a, i in glb.static_mesh(src, keep=('POSITION', 'NORMAL', 'TEXCOORD_0', 'TEXCOORD_1'))]
+    prims = [(m, dict(a, POSITION=(np.asarray(a['POSITION']) * sc).astype(np.float32)), i) for m, a, i in npcs._turn(prims, nose)]
+    rel = f'models/npc/{SHIP_ID}_shield.glb'
+    glb.save(os.path.join(mod, rel), prims, name=f'{SHIP_ID}_shield', keep=('POSITION', 'NORMAL', 'TEXCOORD_0', 'TEXCOORD_1'))
+    s_ = q.scalar
+    m_ = lambda cm: round(cm / 100.0 * sc, 4)   # (Chorus cm -> the model's metres, scaled as the hull)
+    g_ = lambda cm: round(cm / 100.0 * k, 2)    # (Chorus cm -> game units)
+    # the particle: its colour x alpha, its colour and alpha over life, its delay and life
+    fx = json.load(open(os.path.join(work, 'bp_cap', 'P_Buff_Auxiliary_Shield_PlayerCapitalShip.json'))) \
+        if os.path.exists(os.path.join(work, 'bp_cap', 'P_Buff_Auxiliary_Shield_PlayerCapitalShip.json')) else []
+    mods = {e.get('Type'): e.get('Properties') or {} for e in fx}
+    col = (mods.get('ParticleModuleColor', {}).get('StartColor') or {}).get('MaxValueVec') or {'X': 0.7, 'Y': 10.0, 'Z': 3.025}
+    color = [float(col['X']), float(col['Y']), float(col['Z'])]
+    alpha = float((mods.get('ParticleModuleColor', {}).get('StartAlpha') or {}).get('MaxValue', 25.0))
+    over = mods.get('ParticleModuleColorScaleOverLife', {})
+    life = float((mods.get('ParticleModuleLifetime', {}).get('Lifetime') or {}).get('MaxValue', 4.8))
+    delay = float(mods.get('ParticleModuleRequired', {}).get('EmitterDelay', 0.5))
+    shade = (q.vectors.get('Shield Color Override') or [1.0, 1.0, 1.0])[:3]
+    color = [round(c * v, 4) for c, v in zip(color, shade)]
+    block = {'mask': mask, 'noise': noise, 'noiseScale': s_('NoiseScale', 4.0),
+             'pan': [s_('PanSpeedU1', -0.42435), s_('PanSpeedV1', 0.0), s_('PanSpeedU2', 0.0), s_('PanSpeedV2', -0.37348)],
+             'noiseTimeScalar': s_('NoiseTimeScalar', 0.01), 'noisePanSpeed': s_('NoisePanSpeed', 0.01), 'timeExponent': s_('TimeExponent', 0.37),
+             'edgeModulateAmount': s_('EdgeModulateAmount', 0.2), 'edgeModulateIntensity': s_('EdgeModulateIntensity', 10.0),
+             'edgeModulateWidth': s_('EdgeModulateWidth', 0.08), 'fresnelExponent': s_('FresnelExponent', 1.0),
+             'modulateColorAmount': s_('ModulateColorAmount', 0.3), 'timeModulationAmount': s_('TimeModulationAmount', 0.2),
+             'opacityNoise': s_('OpacityNoise', 0.571429),
+             'radius': [m_(s_('RadiusStart', 0.0)), m_(s_('RadiusEnd', 450.0))], 'radiusExponent': s_('RadiusExponent', 3.0),
+             'radiusIntensity': s_('RadiusIntensity', 1.0),
+             'ring': [m_(s_('RingRadiusStart', 0.0)), m_(s_('RingRadiusEnd', 350.0)), m_(s_('RingWidthStart', 25.0)), m_(s_('RingWidthEnd', 0.0))],
+             'ringExponent': s_('RingExponent', 3.0), 'ringIntensity': s_('RingIntensity', 1.0),
+             'opacityStart': s_('OpacityStart', 1.0), 'opacityEnd': s_('OpacityEnd', 0.0), 'opacityFacing': s_('OpacityScaleFacing', 1.0),
+             'opacityBackface': s_('OpacityScaleBackface', 0.1),
+             'cameraFade': [g_(s_('CameraDepthFadeOffset', 1000.0)), g_(s_('CameraDepthFadeLength', 400.0))],
+             'depthFade': g_(s_('Depth Fade Distance', 200.0)),
+             # (Chorus's HDR colour: its brightest channel held to the mod's glow peak)
+             'exposure': round(npcs.CHORUS_EMISSION_PEAK / max(max(color), 1e-3), 4)}
+    block = {k_: (round(v, 6) if isinstance(v, float) else v) for k_, v in block.items() if v is not None}
+    oc = {'model': rel, 'seconds': life, 'delay': delay, 'color': color, 'alpha': alpha,
+          'colorOverLife': _curve(over.get('ColorScaleOverLife')), 'alphaOverLife': _curve(over.get('AlphaScaleOverLife'))}
+    print(f'  {SHIP_ID}: its Shield Overcharge shell ({life} s after {delay} s)')
+    return {k_: v for k_, v in oc.items() if v is not None}, {'material': name, 'shield': block}
+
+
+def player_entry(host, s, work, prims, nose, sc, k, export=None, mod=None, convert=None, resolver=None):
     """The ships.json entry of the player's capital ship, on the NPC Captured Warship's built entry 'host' (npcs.SHIPS
     entry 's', its prims as drawn, its turn 'nose', scale 'sc', 'k' game units per model metre)."""
     from . import glb, npcs
@@ -204,6 +276,9 @@ def player_entry(host, s, work, prims, nose, sc, k, export=None, mod=None, conve
     if export and mod and convert:
         braked = rigged(export, mod, work, prims, convert)
         if braked: e['model'], e['animations'] = braked, {'idle': 'idle', 'braking': {'start': 'brakeStart', 'loop': 'brakeLoop', 'end': 'brakeEnd'}}
+    if export and mod:
+        oc, shell_mat = _shield(export, mod, work, nose, sc, k, resolver)
+        if oc: e['overcharge'], e['materials'] = oc, list(e['materials']) + [shell_mat]
     print(f"  {SHIP_ID}: player capital ship on {HOST}'s model, {count(0)} primaries, {count(1)} secondaries, "
           f"{count(2)} turrets, {count(3)} thrusters")
     return e

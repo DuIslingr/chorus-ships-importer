@@ -18,7 +18,7 @@ from tools import ships, sounds, weapons, kit, npcs, mi, rig, turrets, world, mo
 MASTER_DATA = 'SpacePrototype/Content/UnleashedPrototype/Core/PlayerEquipment/BP_PlayerEquipmentMasterData.uasset'
 EXPORTS = [ships.PHOENIX + '/skelmesh/SK_Phoenix',      # what the mod needs from the pak (materials and textures come along)
            ships.PHOENIX + '/T_Phoenix_center_moveable_D',  # (MI_Phoenix_center_Moveable takes these from its parent)
-           ships.PHOENIX + '/T_Phoenix_center_moveable_N'] + kit.EXPORTS + ships.ARGUS_EXPORTS + npcs.EXPORTS + turrets.EXPORTS + wrecks.EXPORTS
+           ships.PHOENIX + '/T_Phoenix_center_moveable_N'] + kit.EXPORTS + ships.ARGUS_EXPORTS + npcs.EXPORTS + turrets.EXPORTS + wrecks.EXPORTS + capital.EXPORTS
 # (the weapon models, tools/kit.py; the Argus) and the Elder Buddy's material instances, which bring their textures:
 MATERIAL_EXPORTS = ships.ELDER_EXPORTS
 
