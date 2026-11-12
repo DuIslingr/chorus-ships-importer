@@ -85,9 +85,12 @@ Next, roughly in order:
    Unreal's noise texture; the tissue's warp-in dissolve edge is the remake's "warpIn" (its Edge Thickness and Edge
    Glow Color, tools/npcs.py WARP_IN; the Driver's 2 s and the WarpStretchFactor stretch are the remake's / left out). M_Phoenix's glow lines are done too: decompiled, the Emissive02 Min / Max wave along the hex pattern,
    the remake's "wave" block, tools/ships.py _wave; its hit flash too, the remake's "hit" block (MF_HitEffect decoded,
-   T_Lu_Noise_29 in the wave map's alpha, tools/ships.py _hit); its AFX pattern left out.) Guilt's shell normal (the base pass's, from the flowing noise) is
-   left flat, and its shadow is the whole, unpushed shell. Its core is the portal's own formula (MP_Guilt_Core_Radial_02's
-   compiled translucent base pass, the remake's GoF2/ChorusPortal kind "core"; see item 11).
+   T_Lu_Noise_29 in the wave map's alpha, tools/ships.py _hit); its AFX pattern left out.) Guilt's shell is done too: its
+   normal is the base pass's (the noise map's red and green at the flowed UVs), its shadow and depth are pushed and
+   dissolved as drawn, and its maps follow the masked depth pass's five textures in the master's order (each was one slot
+   off before: phase Noise_01, flow T_Guilt_Flow, noise the obsidian norm_spec_diff, glow its _ao, mask T_Guilt_A). Its
+   core is the portal's own formula (MP_Guilt_Core_Radial_02's compiled translucent base pass, the remake's
+   GoF2/ChorusPortal kind "core"; see item 11).
 8. **The other trim permutations, done:** decompiled: the Cult's trim (no emissive, no kicker), the Cult's emissive trim
    (MI_TER_TechTrim03_Cult_Emissive: UV-shift emissive, dirt, no kicker), the fighters' M_NPCShipTrimMaster
    (MI_TER_NPC_Ship02: accent, emissive, kicker) and the Disruptor's (MI_TER_Disruptor_Trim_Emissive: the same master

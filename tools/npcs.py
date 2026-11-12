@@ -918,9 +918,12 @@ def _guilt_shell(export, mod, sid, mat, p, attrs, idx, unit=None):
     """Guilt's two shells (M_Guilt_Shell, masked, two-sided), after its compiled shaders (the base pass, the masked depth
     pass, the vertex shader; MI_Guilt_OuterShell_Small): a black (Base Color 0), half-metal body (Metallic / Roughness).
     The mask: ((T_Guilt_A.r + Arms Fade) x 0.5 + a screen dither - 0.5) x saturate(2 Coverage - (1 - n) x (1 -
-    T_Guilt_A.g)^Erode Exponent) >= 1/3, n the obsidian rock's grey flowing over UV0 x Tiling (the body red, the arms green):
-    the inner shell (Coverage 0.42) near whole, the outer (0.17) a veil of wisps. Its glow: (T_Guilt_A tiled - Emissive
-    Exponent) x Emissive Color x Emissive Intensity, x saturate(1 - distance from the centre / Center Emissive Radius)^2:
+    T_Guilt_A.g)^Erode Exponent) >= 1/3, n the obsidian rock's norm_spec_diff (its red) flowing over UV0 x Tiling along
+    T_Guilt_Flow (RG), its phase FlowmapRandomness (Noise_01) at UV0 x Randomness Scale (the masked depth pass's five
+    textures, in the master's referenced textures' order); the body T_Guilt_A's red, the arms its green: the inner shell
+    (Coverage 0.42) near whole, the outer (0.17) a veil of wisps. Its normal the same norm_spec_diff's red and green at
+    the flowed UVs. Its glow: (the obsidian rock's AO flowing the same way - Emissive Exponent) x Emissive Color x Emissive
+    Intensity, x saturate(1 - distance from the centre / Center Emissive Radius)^2:
     the inner shell's red specks (Intensity 51.6), none on the outer (Exponent 20). The vertex shader pushes the shell out
     along its normals by Vertex Push + Vertex Strength B x (1 - n), world centimetres: the outer shell 3 - 9 m off the
     body. Baked here at rest (the flow at time 0, the dither at its mean); the flow, the dissolve's motion and the push's
@@ -931,8 +934,9 @@ def _guilt_shell(export, mod, sid, mat, p, attrs, idx, unit=None):
         m_ = lambda n, k='data': _chorus_map(mod, _png(export, n), 1024, k)
         col = (p.vector('Emissive Color') or [1.0, 0.016, 0.016])[:3]
         peak = max(0.0, 1.0 - p.scalar('Emissive Exponent', 0.964)) * p.scalar('Emissive Intensity', 51.6) * max(col)
-        c = {'kind': 'shell', 'mask': m_('T_Guilt_A'), 'noise': m_('asteroid_obsidian_rock_000_ao'),
-             'flow': m_('asteroid_obsidian_rock_000_norm_spec_diff'), 'phase': m_('T_Guilt_Flow'),
+        c = {'kind': 'shell', 'mask': m_('T_Guilt_A'), 'noise': m_('asteroid_obsidian_rock_000_norm_spec_diff'),
+             'flow': m_('T_Guilt_Flow'), 'phase': m_(p.texture('FlowmapRandomness') or 'Noise_01'),
+             'glow': m_('asteroid_obsidian_rock_000_ao'),
              'tiling': p.scalar('Tiling', 8.0), 'randomness': p.scalar('Randomness Scale', 3.0), 'flowSpeed': p.scalar('FlowSpeed', 2.0),
              'flowStrength': p.scalar('Flow Map Strength', 3.0), 'armsFade': p.scalar('Arms Fade', 1.0), 'coverage': p.scalar('Coverage', 0.42),
              'erode': p.scalar('Erode Exponent', 1.0), 'masterAlpha': p.scalar('MasterAlpha', 1.0),
@@ -943,9 +947,10 @@ def _guilt_shell(export, mod, sid, mat, p, attrs, idx, unit=None):
         if peak > CHORUS_EMISSION_PEAK: c['emissionScale'] = round(CHORUS_EMISSION_PEAK / peak, 4)
         return {'material': mat, 'doubleSided': True, 'chorus': {k: (round(v, 5) if isinstance(v, float) else v) for k, v in c.items()}}, attrs
     n_ = 1024
-    A = _png(export, 'T_Guilt_A'); N = _png(export, 'asteroid_obsidian_rock_000_ao')
+    A = _png(export, 'T_Guilt_A'); N = _png(export, 'asteroid_obsidian_rock_000_norm_spec_diff')
+    G = _png(export, 'asteroid_obsidian_rock_000_ao')
     load = lambda f: np.asarray(Image.open(f).convert('RGB').resize((n_, n_), Image.BILINEAR), np.float32) / 255 if f else None
-    a, noise = load(A), load(N)
+    a, noise, gl = load(A), load(N), load(G)
     tiling = p.scalar('Tiling', 8.0)
     uv = np.asarray(attrs['TEXCOORD_0'], np.float32)
     def tiled(img, u, k):   # (the image wrapped k times over the UVs)
@@ -967,11 +972,11 @@ def _guilt_shell(export, mod, sid, mat, p, attrs, idx, unit=None):
     e = {'material': mat, 'diffuse': f'maps/{stem}_c.png', 'alphaClip': 0.333, 'doubleSided': True,
          'metallic': round(p.scalar('Metallic', 0.5), 3), 'smoothness': round(1.0 - p.scalar('Roughness', 0.5), 3)}
     ex, inten = p.scalar('Emissive Exponent', 0.964), p.scalar('Emissive Intensity', 51.6)
-    if ex < 1.0 and inten > 0 and a is not None:
+    if ex < 1.0 and inten > 0 and gl is not None:
         dist = np.linalg.norm(pos, axis=-1) * 100.0   # (world cm from the centre: the model is in Chorus's metres here)
         fall = np.clip(1.0 - dist / max(p.scalar('Center Emissive Radius', 27430.0), 1e-5), 0, 1) ** 2
         col = np.asarray((p.vector('Emissive Color') or [1.0, 0.016, 0.016])[:3], np.float32)
-        glow = np.clip(tiled(a, tuv, tiling) - ex, 0, None) * col * inten * fall[..., None] * cov[..., None]
+        glow = np.clip(tiled(gl, tuv, tiling) - ex, 0, None) * col * inten * fall[..., None] * cov[..., None]
         peak = float(glow.max())
         if peak > 1e-3:
             textures._save(textures.linear_to_srgb(textures.dilate(glow / peak, cov)), os.path.join(mod, 'maps', stem + '_e.png'), 0, 'RGB')
