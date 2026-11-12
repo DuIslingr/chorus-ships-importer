@@ -276,6 +276,9 @@ world part is large (about 1 GB, most of it the five stations).
   M_PortalRift_BOTTOM), Chorus's FTL portal opening between its stages, and the inner Rift's sky
   (T_Omen_InnerRift_Cubemap_Tex) while it lasts. The dormant Rift hangs over Nimika Prime (an orbit prop facing the
   station).
+- **Nimika Prime's broken planet** (`tools/brokenplanet.py`): LocAST's destroyed planet (its six parts in their shared
+  frame, its lava core glowing, a dozen loose fragments) hangs below Nimika Prime's orbit beside its own planet, its
+  materials baked from M_Planet_Broken's and M_BrokenPlanet_Core's compiled base passes.
 - **Wrecks:** Nimika Prime's, Stega Belt's and the Tarris Wormhole's wreck fields use the mod's own Chorus freighters and
   frigates as hulks.
 

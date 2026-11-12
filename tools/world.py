@@ -9,7 +9,7 @@ locations). The Enclave, Helios, Eos, Nimika's ring station and Tarris's big sta
 """
 import json, math, os, random
 import numpy as np
-from . import factions, gate as chorus_gate, glb, npcs, planets, rift, rocks, sky, stations as chorus_stations
+from . import brokenplanet, factions, gate as chorus_gate, glb, npcs, planets, rift, rocks, sky, stations as chorus_stations
 
 MOD = 'chorus_ships'
 GATE_FROM = 18   # Pescal Inartu (Terran, security 1): the cluster's way in
@@ -51,6 +51,7 @@ MODEL_SIZE = {'the_enclave': 100000, 'helios': 70000, 'eos': 60000, 'nimika_prim
 # Nimika's dormant Rift (tools/rift.py: Chorus's vortex as LocAST's outside instance draws it) high over Nimika Prime, facing
 # the station: (where, game units across)
 DORMANT_RIFT = {'nimika_prime': ((-70000, 60000, 210000), 140000)}
+BROKEN_PLANET = 'nimika_prime'   # (its broken planet, LocAST's, beside its own: tools/brokenplanet.py)
 GATE_STATIONS = {'stega': 'the_enclave', 'amarok': 'helios', 'nimika': 'nimika_prime', 'tarris': 'achunal_labs'}
 
 
@@ -77,8 +78,9 @@ def _moon(tid, rock, mod, rnd):
     return props, mats
 
 
-def _dressing(tid, rock, hulls=None, mod=None):
-    """The orbit's asteroid field, giant rocks and wreck field (the same for every build: seeded by the station)."""
+def _dressing(tid, rock, hulls=None, mod=None, broken=None):
+    """The orbit's asteroid field, giant rocks and wreck field (the same for every build: seeded by the station); 'broken':
+    Nimika Prime's broken planet's (props, materials) (tools/brokenplanet.py)."""
     count, giants = DRESSING.get(tid, (0, 0))
     rnd = random.Random(tid)
     orbit = {}
@@ -100,6 +102,9 @@ def _dressing(tid, rock, hulls=None, mod=None):
                           'size': round(rnd.uniform(*GIANT_SIZE))})
         orbit['props'] = orbit.get('props', []) + props
         orbit['propMaterials'] = orbit.get('propMaterials', []) + giant_mats
+    if broken and broken[0] and tid == BROKEN_PLANET:
+        orbit['props'] = orbit.get('props', []) + broken[0]
+        orbit['propMaterials'] = orbit.get('propMaterials', []) + broken[1]
     if WRECKS.get(tid) and hulls:
         a = rnd.uniform(0, 6.283); d = rnd.uniform(40000, 70000)
         mats, seen = [], set()
@@ -123,7 +128,7 @@ def _export(run, export, paths, quality=None):
 def build(export, mod, resolver, run, ships=None):
     """Writes <mod>/systems.json and stations.json (with the skies', planets', asteroids' and stations' files). -> (systems,
     stations, the Chorus systems' rift look for encounters.json or None)."""
-    _export(run, export, rocks.EXPORTS + rift.EXPORTS)
+    _export(run, export, rocks.EXPORTS + rift.EXPORTS + brokenplanet.EXPORTS)
     station_paths = {k: v for k, v in chorus_stations.mesh_paths(run('list', 'SM_MERGED_', capture=True).split()).items() if k in MODEL_SIZE}
     _export(run, export, [p for v in station_paths.values() for p in v] + [chorus_gate.GATE], 'all')
     _export(run, export, chorus_gate.EXPORTS)
@@ -137,6 +142,7 @@ def build(export, mod, resolver, run, ships=None):
     skies = sky.build(export, mod, resolver, keys={s[5] for s in SYSTEMS})
     print('  the asteroids...')
     rock = rocks.build(export, mod, resolver)
+    broken = brokenplanet.build(export, mod, resolver, random.Random(BROKEN_PLANET + '_broken'))   # (Nimika Prime's broken planet)
     print('  the planets...')
     spheres = planets.build(export, mod, resolver, keys={s[4] for s in STATIONS})
     print('  the Rift...')
@@ -154,7 +160,7 @@ def build(export, mod, resolver, run, ships=None):
         if planet in spheres: e['planetSphere'] = spheres[planet]
         if tid in models:
             e.update({'model': models[tid]['model'], 'materials': models[tid]['materials'], 'modelSize': MODEL_SIZE[tid]})
-        orbit = _dressing(tid, rock, [e for e in (ships or []) if e['id'] in WRECK_HULLS], mod)
+        orbit = _dressing(tid, rock, [e for e in (ships or []) if e['id'] in WRECK_HULLS], mod, broken)
         if dormant and tid in DORMANT_RIFT:
             at, size = DORMANT_RIFT[tid]
             orbit['props'] = orbit.get('props', []) + [{'model': dormant[0], 'at': list(at), 'rotation': rift.facing(at), 'size': size}]

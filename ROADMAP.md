@@ -122,8 +122,9 @@ Next, roughly in order:
     icon (render_blender.py "fit"). Left: Chorus's Braking / StopBraking clips as the flaps' opening and closing (the pose
     follows the brake input instead), the Death Ray's 1 s charge-up and the shield overcharge's own effect
     (BP_Effect_Auxiliary_Shield_PlayerCapitalShip); its stats are this importer's balance, to tune in play.
-12. **The Chorus systems, next areas:** Nimika Prime's broken planet (SM_Planet_Destroyed_LocAST parts, M_Planet_Broken),
-    Stega Belt's and the Tarris Wormhole's own stations (or other levels' structures: LocASP03's military platform,
+12. **The Chorus systems, next areas:** (Nimika Prime's broken planet is done: tools/brokenplanet.py, M_Planet_Broken and
+    M_BrokenPlanet_Core decompiled and baked, the lava's flow frozen; very dark as Chorus's own values make it, its
+    auto exposure aside) Stega Belt's and the Tarris Wormhole's own stations (or other levels' structures: LocASP03's military platform,
     LocRSB14's antenna array), then the bosses, wrecks and effects that need the remake (the rift look and Nimika's dormant
     Rift are done: tools/rift.py, with the vortex's world position offset and, for the runs inside the Rift, LocRFA's
     vortex in M_PortalRift_BOTTOM; its exposure 0.4 wants checking in the remake, the inside one's too). Check
