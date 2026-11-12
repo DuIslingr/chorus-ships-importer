@@ -762,18 +762,19 @@ def _jtu_blend(export, mod, stem, mat, mi, p, low):
     return entry
 
 
-def _breath_row(resolver, mod, row, mat):
-    """A CA_BaseVFX row (the crystal's and the tissue's breath: R G B its curves) as maps/chorus/breath_<row>.png, 256 x 1."""
+def _breath_row(resolver, mod, row, mat, prefix='breath'):
+    """A CA_BaseVFX row (the crystal's and the tissue's breath: R G B its curves; Guilt's core colours, prefix 'curve') as
+    maps/chorus/<prefix>_<row>.png, 256 x 1."""
     from . import gate as _gate, planets as _planets
     try:
         rows = _planets._atlas_rows(resolver, _gate.VFX_ATLAS)
         a = _planets._curve_row(resolver, rows, row)
-        rel = f'maps/chorus/breath_{int(round(row))}.png'
+        rel = f'maps/chorus/{prefix}_{int(round(row))}.png'
         os.makedirs(os.path.join(mod, 'maps', 'chorus'), exist_ok=True)
         Image.fromarray(np.clip(np.round(np.asarray(a)[None] * 255), 0, 255).astype(np.uint8), 'RGBA').save(os.path.join(mod, rel))
         return rel
     except Exception as e:
-        print(f'  {mat}: the breath curve not baked ({e})')
+        print(f'  {mat}: the {prefix} curve not baked ({e})')
         return None
 
 
@@ -974,23 +975,42 @@ def _guilt_shell(export, mod, sid, mat, p, attrs, idx, unit=None):
     return e, attrs
 
 
-def _guilt_core(export, mod, sid, mat, p):
-    """Guilt's core (MP_Guilt_Core_Radial_02 on M_Warpin_Omen_Portal: translucent, unlit): its threads (Threads Texture)
-    scrolling at Speed U / V over Tiling V, brightest at the core, the vertex colours shaping it. Here an additive glow in
-    Guilt's red (the portal's colour is a row of a curve atlas the exporter doesn't write), the threads its pattern."""
+def _guilt_core(export, mod, sid, mat, p, resolver=None):
+    """Guilt's core (MP_Guilt_Core_Radial_02 on M_Warpin_Omen_Portal, its compiled translucent base pass): the remake's
+    GoF2/ChorusPortal kind "core". About the card's middle its UVs pinched (use UV Pinch: Threads Pinch Max), in polar
+    coordinates x (Tiling U, V), the Threads Texture read twice, panned by (Speed U, V) and (-Speed U, V); the core
+    (1 - e^-(2.333 edge)^2)^Core Power x Core Mult; the colour the ColorCurve row of CA_BaseVFX (26, C_Omen_Warp) at threads
+    + core; the alpha from the threads (^Threads Power x Threads Mult) and the core, x MasterAlpha, faded within Fade
+    Distance of what is behind it. Its UV distortion (Strength 0 here) and CompAmount (the auto exposure's compensation)
+    left out. The master's defaults where the instance doesn't set them."""
+    s_ = p.scalar
     tex = _png(export, p.texture('Threads Texture') or 'T_Lu_Noise_17')
-    e = {'material': mat, 'additive': True, 'emissionColor': [1.0, 0.06, 0.03], 'emissionIntensity': round(min(p.scalar('Core Mult', 1.2) * 1.5, 2.5), 3),
-         'scroll': [round(p.scalar('Speed U', 0.05), 3), round(p.scalar('Speed V', 0.56) * p.scalar('Tiling V', 0.15), 3)]}
+    stem = None
     if tex:
-        # coloured through the portal's colour curve (ColorCurve 26 of CA_BaseVFX: C_Omen_Warp, its keys below): the threads
-        # dark red where faint, hot pink-red, white at their brightest
-        v = textures._load(tex)[..., 0]
-        keys = np.array([0.087, 0.391, 0.702, 1.0]); R, G, B = [0, 0.4, 1.0, 1.0], [0, 0, 0.2, 1.0], [0, 0.007, 0.213, 1.0]
-        ramp = np.stack([np.interp(v, keys, ch) for ch in (R, G, B)], -1)
-        stem = f'maps/{sid}_{mat.lower()}_e.png'
-        textures._save(textures.linear_to_srgb(ramp), os.path.join(mod, stem), 512, 'RGB')
-        e.update({'emission': stem, 'emissionColor': [1, 1, 1]})
-    return e
+        stem = f'maps/{sid}_{mat.lower()}_threads.png'
+        a = textures._load(tex)[..., :3]
+        from . import planets as _planets
+        if resolver is not None and _planets._srgb(resolver, getattr(p, 'texture_paths', {}).get(p.texture('Threads Texture') or 'T_Lu_Noise_17')):
+            a = textures.srgb_to_linear(a)   # (the remake reads it as data: as Chorus samples it)
+        textures._save(a, os.path.join(mod, stem), 512, 'RGB')
+    row = s_('ColorCurve', 26.0)
+    curve = _breath_row(resolver, mod, row, mat, 'curve') if resolver is not None else None
+    if curve is None:
+        # (no resolver: C_Omen_Warp's keys as read from the atlas: dark red where faint, hot pink-red, white at its brightest)
+        keys = np.array([0.087, 0.391, 0.702, 1.0]); x = np.linspace(0, 1, 256)
+        R, G, B = [0, 0.4, 1.0, 1.0], [0, 0, 0.2, 1.0], [0, 0.007, 0.213, 1.0]
+        a = np.stack([np.interp(x, keys, ch) for ch in (R, G, B)] + [np.ones(256)], -1)
+        curve = f'maps/chorus/curve_{int(round(row))}.png'
+        os.makedirs(os.path.join(mod, 'maps', 'chorus'), exist_ok=True)
+        Image.fromarray(np.clip(np.round(a[None] * 255), 0, 255).astype(np.uint8), 'RGBA').save(os.path.join(mod, curve))
+    if not stem:
+        return {'material': mat, 'additive': True, 'emissionColor': [1.0, 0.06, 0.03], 'emissionIntensity': 1.5}
+    block = {'kind': 'core', 'noise': stem, 'curve': curve,
+             'tilingU': s_('Tiling U', 1.0), 'tilingV': s_('Tiling V', 0.33), 'speedU': s_('Speed U', 0.05), 'panningV': s_('Speed V', 1.5),
+             'pinch': s_('Threads Pinch Max', -1.6), 'corePower': s_('Core Power', 35.73694), 'coreMult': s_('Core Mult', 1.033816),
+             'threadsPower': s_('Threads Power', 0.5), 'threadsMult': s_('Threads Mult', 5.0), 'masterAlpha': s_('MasterAlpha', 1.0),
+             'depthFade': round(s_('Fade Distance', 10000.0) * K / 100.0, 3)}   # (cm to game units)
+    return {'material': mat, 'portal': {k: (round(v, 5) if isinstance(v, float) else v) for k, v in block.items()}}
 
 
 def _windows(export, mod, stem, mat, p, master):
@@ -1052,9 +1072,9 @@ def _convert(export, mod, sid, meshes, resolver=None, size=1024, override=None, 
                 e_, attrs = _guilt_shell(export, mod, sid, mat, p, attrs, idx, unit)
                 if mat not in done: mats.append(e_); done.add(mat)
                 keep.append((mat, attrs, idx)); continue
-            if mat.startswith('MP_Guilt_Core') and p is not None:   # (an additive glow over its vertex colours)
-                if mat not in done: mats.append(_guilt_core(export, mod, sid, mat, p)); done.add(mat)
-                keep.append((mat, dict(attrs, COLOR_0=colour) if colour is not None else attrs, idx)); continue
+            if mat.startswith('MP_Guilt_Core') and p is not None:   # (GoF2/ChorusPortal's "core": its UVs, no vertex colours)
+                if mat not in done: mats.append(_guilt_core(export, mod, sid, mat, p, resolver)); done.add(mat)
+                keep.append((mat, attrs, idx)); continue
             r = _recipe(export, p, master) if p else None
             if master == 'M_JTU_Blend' and CHORUS_LAYERS and p is not None and resolver is not None:
                 # (the crystal as its compiled base pass draws it: the remake's Chorus layer "crystal", with the vertex colours)

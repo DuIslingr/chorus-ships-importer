@@ -165,9 +165,8 @@ which the remake doesn't have, so each slot takes the waves that fit it. `--no-s
     least half with its inner glow over the variation maps, baked as seen head-on with its breathing pulse at rest; the
     cores glow through their thin parts. The Prophet's crystal crown glows red through its veins (its blueprint's lights
     override applied by hand).
-  - Guilt is left out: in Chorus it's not a ship but an invincible Faceless that hunts Nara through the temples and
-    tombs. (The importer can still draw it, kept skinned with its idle and its shells by the remake's Chorus shell, for a
-    mod that wants it: npcs.py's comment where it was.)
+  - Guilt isn't in the traffic: in Chorus it's not a ship but an invincible Faceless that hunts Nara through the temples
+    and tombs. It comes as a pursuer instead (see **Guilt** below).
   - Blueprint parts: the engine thrusters (nozzles and glows) of the fighters, scouts, Support Ship, gunships, Sav, Ree,
     Aryana and the civilian ships (a child blueprint's inherited from its parent), the liner's, transport's and container
     ship's; the gunship's gun pod and the Heavy Gunship's mine thrower at their components' offsets; a blueprint's mesh
@@ -284,6 +283,8 @@ world part is large (about 1.1 GB, most of it the seven stations).
 - **Guilt** (`tools/npcs.py`): Chorus's invincible Faceless, skinned and breathing, hunts you now and then in Nimika
   Prime's and the Tarris Wormhole's orbits (npcships.json, from rank 10) with the remake's `"pursuer"` role: it can't be
   harmed, closes in at Chorus's stepped speeds, withers your hull up close and darkens the screen as it nears. Outrun it.
+  Its core is Chorus's radial portal (red threads drawn into a white-hot centre, from MP_Guilt_Core_Radial_02's compiled
+  shader).
 - **Nimika Prime's broken planet** (`tools/brokenplanet.py`): LocAST's destroyed planet (its six parts in their shared
   frame, its lava core glowing, a dozen loose fragments) hangs below Nimika Prime's orbit beside its own planet, its
   materials baked from M_Planet_Broken's and M_BrokenPlanet_Core's compiled base passes.

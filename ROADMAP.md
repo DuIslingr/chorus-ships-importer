@@ -83,14 +83,14 @@ Next, roughly in order:
    Glow Color, tools/npcs.py WARP_IN; the Driver's 2 s and the WarpStretchFactor stretch are the remake's / left out). M_Phoenix's glow lines are done too: decompiled, the Emissive02 Min / Max wave along the hex pattern,
    the remake's "wave" block, tools/ships.py _wave; its hit flash too, the remake's "hit" block (MF_HitEffect decoded,
    T_Lu_Noise_29 in the wave map's alpha, tools/ships.py _hit); its AFX pattern left out.) Guilt's shell normal (the base pass's, from the flowing noise) is
-   left flat, and its shadow is the whole, unpushed shell; the core's portal threads are a scrolling glow, not the
-   portal's own formula (M_Warpin_Omen_Portal not decompiled).
+   left flat, and its shadow is the whole, unpushed shell. Its core is the portal's own formula (MP_Guilt_Core_Radial_02's
+   compiled translucent base pass, the remake's GoF2/ChorusPortal kind "core"; see item 11).
 8. **The other trim permutations, done:** decompiled: the Cult's trim (no emissive, no kicker), the Cult's emissive trim
    (MI_TER_TechTrim03_Cult_Emissive: UV-shift emissive, dirt, no kicker), the fighters' M_NPCShipTrimMaster
    (MI_TER_NPC_Ship02: accent, emissive, kicker) and the Disruptor's (MI_TER_Disruptor_Trim_Emissive: the same master
    with dirt by the vertex alpha over the emissive, no UV shift: "dirtByAlpha" / "dirtOverEmissive"). The wear accent's
    contrast step (saturate(x (1 + 2c) - c)) is 0 on every instance with "Enable Accent 1 (Wear)": the fighters' formula
-   stands. Guilt's radial portal core is still left out.
+   stands. Guilt's radial portal core is done (item 11).
 9. **Smaller things, done:** the "Terran Gunship" is the Vulture Mk II (no blueprint flies TG_terrangunship_MK2; "Terran"
    is only its files' tag, Chorus's gunships are Vultures); Chorus's freighters stay in the Terran systems (the Chorus
    systems among them: FREIGHT_RACES [0], they are human-built); the freighters' bakes are 1024; the Sentinels' near-black
@@ -99,8 +99,13 @@ Next, roughly in order:
 11. **Guilt as Chorus plays it, done:** back in the mod with the remake's "pursuer" role (BT_Guilt's chase steps and speeds,
    BP_Guilt_Debuff's wither, PP_Guilt's screen near it, never harmed, never in the traffic); npcships.json sends it now
    and then into Nimika Prime's and the Tarris Wormhole's orbits from rank 10 (npcs.PURSUERS). Left: the mission's
-   MTAction_ManageGuiltNPC (parking or stopping it) is an event graph's to do; its radial portal core
-   (M_Warpin_Omen_Portal) is still a scrolling glow; the wither is the remake's reading of MaxWither 5.
+   MTAction_ManageGuiltNPC (parking or stopping it) is an event graph's to do; the wither is the remake's reading of
+   MaxWither 5. Its radial portal core is done (npcs._guilt_core, MP_Guilt_Core_Radial_02 on M_Warpin_Omen_Portal, its
+   compiled translucent base pass): the card's UVs pinched by Threads Pinch Max, in polar coordinates x Tiling, T_Lu_Noise_17
+   read twice panned by (+-Speed U, Speed V), the core (1 - e^-(2.333 edge)^2)^Core Power x Core Mult, the colour CA_BaseVFX's
+   row 26 (C_Omen_Warp, baked from the atlas) at threads + core, alpha-blended with its depth fade (Fade Distance). Left
+   out: its UV distortion (Strength 0 on Guilt) and CompAmount (the compensation for Chorus's auto exposure, which the
+   remake doesn't have).
 10. **Thrusters and wrecks, done:** the warships' exhausts are at their thruster parts' nozzles (tools/warships.py
    _nozzle: the rear of each BP_Device_Thruster_* mesh along the device's forward, sized by its cross-section; the parts
    themselves are the warship configs', not level actors), the other capital ships' at their thruster sockets or their
