@@ -1443,11 +1443,14 @@ def _weapon_values(folder, name, resolver, seen=()):
 
 def ai_kind(s, work):
     """The remake's "ai" for NPC ship entry 's' by its blueprint's behaviour tree: BT_Scout_* "chorusScout", BT_Gunship*
-    "chorusGunship" (their own trees in Flight.ChorusDogfight), else "chorus" (BT_Fighter_CombatRoam's)."""
+    "chorusGunship", BT_CombatRoam_OmenDrone "chorusDrone", BT_BatSwarm_* "chorusSwarm" (their own trees in
+    Flight.ChorusDogfight), else "chorus" (BT_Fighter_CombatRoam's)."""
     f = os.path.join(work, 'bp', s['bp'].rsplit('/', 1)[1] + '.json') if s.get('bp') else None
     trees = re.findall(r"BehaviorTree'(BT_[A-Za-z0-9_]+)'", open(f, encoding='utf-8').read()) if f and os.path.exists(f) else []
     if any(t.startswith('BT_Scout') for t in trees): return 'chorusScout'
     if any(t.startswith('BT_Gunship') for t in trees): return 'chorusGunship'
+    if any(t.startswith('BT_CombatRoam_OmenDrone') for t in trees): return 'chorusDrone'
+    if any(t.startswith('BT_BatSwarm') for t in trees): return 'chorusSwarm'
     return 'chorus'
 
 
