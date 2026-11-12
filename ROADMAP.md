@@ -81,11 +81,12 @@ Next, roughly in order:
    T_Lu_Noise_29 in the wave map's alpha, tools/ships.py _hit); its AFX pattern left out.) Guilt's shell normal (the base pass's, from the flowing noise) is
    left flat, and its shadow is the whole, unpushed shell; the core's portal threads are a scrolling glow, not the
    portal's own formula (M_Warpin_Omen_Portal not decompiled).
-8. **The other trim permutations:** decompiled so far: the Cult's trim (no emissive, no kicker), the Cult's emissive
-   trim (MI_TER_TechTrim03_Cult_Emissive: UV-shift emissive, dirt, no kicker), the fighters' M_NPCShipTrimMaster
-   (MI_TER_NPC_Ship02: accent, emissive, kicker). A TrimLayers instance with "Enable Accent 1 (Wear)" on is drawn with
-   the fighters' accent formula, unchecked; the Disruptor's emissive trim not dumped. Guilt's radial portal core is
-   still left out.
+8. **The other trim permutations, done:** decompiled: the Cult's trim (no emissive, no kicker), the Cult's emissive trim
+   (MI_TER_TechTrim03_Cult_Emissive: UV-shift emissive, dirt, no kicker), the fighters' M_NPCShipTrimMaster
+   (MI_TER_NPC_Ship02: accent, emissive, kicker) and the Disruptor's (MI_TER_Disruptor_Trim_Emissive: the same master
+   with dirt by the vertex alpha over the emissive, no UV shift: "dirtByAlpha" / "dirtOverEmissive"). The wear accent's
+   contrast step (saturate(x (1 + 2c) - c)) is 0 on every instance with "Enable Accent 1 (Wear)": the fighters' formula
+   stands. Guilt's radial portal core is still left out.
 9. **Smaller things, done:** the "Terran Gunship" is the Vulture Mk II (no blueprint flies TG_terrangunship_MK2; "Terran"
    is only its files' tag, Chorus's gunships are Vultures); Chorus's freighters stay in the Terran systems (the Chorus
    systems among them: FREIGHT_RACES [0], they are human-built); the freighters' bakes are 1024; the Sentinels' near-black

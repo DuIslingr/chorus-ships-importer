@@ -427,11 +427,15 @@ def _chorus(export, mod, p, master, r):
                 c.update({'distanceBoost': p.scalar('Emissive Channel Distance Boost', 1.0), 'kickerColor': p.vector('Kicker Color', [1, 0, 0]),
                           'kickerExp': p.scalar('Kicker Exp', 5.0), 'kickerFadeOffset': p.scalar('Kicker Fade Offset', 15000.0),
                           'kickerFadeLength': p.scalar('Kicker Fade Length', 90000.0)})
-    if p.switch('Enable Dirt') and png('Dirt BaseColor') and not (master == 'M_NPCShipTrimMaster'):
+    # (M_NPCShipTrimMaster's dirt permutation, the Disruptor's, decompiled: by the vertex alpha instead of the red, and over
+    # the trim emissive; the fighters' instances compile without it, their Enable Dirt off)
+    npc_dirt = master == 'M_NPCShipTrimMaster'
+    if p.switch('Enable Dirt') and png('Dirt BaseColor'):
         c.update({'dirt': _chorus_map(mod, png('Dirt BaseColor'), CHORUS_DIRT_SIZE), 'dirtMask': _chorus_map(mod, png('Dirt Mask'), CHORUS_DIRT_SIZE, 'data'),
                   'dirtRoughness': _chorus_map(mod, png('Dirt Roughness'), CHORUS_DIRT_SIZE, 'data'), 'dirtTint': p.vector('Dirt Tint', [0.1, 0.1, 0.1]),
                   'dirtUvScale': p.scalar('Dirt UV Scale', 1.0), 'dirtMaskUvScale': p.scalar('Dirt Mask UV Scale', 0.5),
-                  'dirtAo': p.scalar('Dirt from Material AO Intensity', 1.0), 'dirtContrast': p.scalar('Dirt Contrast', 0.0), 'dirtAlpha': plating})
+                  'dirtAo': p.scalar('Dirt from Material AO Intensity', 1.0), 'dirtContrast': p.scalar('Dirt Contrast', 0.0), 'dirtAlpha': plating,
+                  'dirtByAlpha': npc_dirt, 'dirtOverEmissive': npc_dirt})
     return {k: (round(v, 5) if isinstance(v, float) else v) for k, v in c.items() if v is not None}
 
 
