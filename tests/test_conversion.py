@@ -279,7 +279,7 @@ class RiteTests(unittest.TestCase):
             out = Path(tmp, 'mod')
             items = rites.items(str(Path(tmp, 'export')), str(out))
             hunt = next(i for i in items if i['id'] == 'chorus_rite_hunt')
-            self.assertEqual({'cabinSize': 0, 'device': 23, 'deviceRiteCost': 2, 'deviceCooldownMs': 500}, hunt['stats'])
+            self.assertEqual({'cabinSize': 0, 'device': 23, 'deviceVoidCost': 2, 'deviceCooldownMs': 500}, hunt['stats'])
             self.assertEqual(91, hunt['base'])
             icon = Image.open(out / hunt['icon'])
             self.assertEqual((180, 88), icon.size)

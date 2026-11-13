@@ -1,4 +1,4 @@
-"""Chorus's Rites (Nara's powers) as remake devices (items.json, device 23+, paid from the ship's Rite energy: the remake's
+"""Chorus's Rites (Nara's powers) as remake devices (items.json, device 23+, paid from the ship's Void energy: the remake's
 Flight.RiteEnergy, Chorus's EnergyComponent of 3 pips at 0.22 a second).
 
 Read from BP_PowersMasterData (names, texts, icons) and the BP_ActivePower_* defaults:
@@ -27,12 +27,13 @@ ICONS = 'SpacePrototype/Content/UnleashedPrototype/GUI/Art/Iconography/Powers/'
 RITES = [
     ('chorus_rite_hunt', 'Blink', 'Rite of the Hunt',
      "Within the blink of an eye, leap onto the tail of the hostile ship in your sights (your lock first), facing the way it "
-     "flies. Pays 2 of your 3 pips of Rite energy, which grow back one every 4.5 s. Not at capital ships. (Chorus)",
-     'T_Powers_Power2_Icn', {'cabinSize': 0, 'device': 23, 'deviceRiteCost': 2, 'deviceCooldownMs': 500}),
+     "flies. Pays 2 of your 3 pips of Void energy, which grow back one every 4.5 s on a tonne of Void Crystals from the "
+     "hold. Not at capital ships. (Chorus)",
+     'T_Powers_Power2_Icn', {'cabinSize': 0, 'device': 23, 'deviceVoidCost': 2, 'deviceCooldownMs': 500}),
     ('chorus_rite_storm', 'Pulse', 'Rite of the Storm',
      "A bolt that disrupts the hostile ship in your sights (your lock first): its shield takes the blow, and for 4 s it can "
-     "neither flee nor fire back. Pays 2 of your 3 pips of Rite energy. (Chorus)",
-     'T_Powers_Power4_Icn', {'cabinSize': 0, 'device': 24, 'deviceRiteCost': 2, 'deviceCooldownMs': 500, 'damage': 150,
+     "neither flee nor fire back. Pays 2 of your 3 pips of Void energy. (Chorus)",
+     'T_Powers_Power4_Icn', {'cabinSize': 0, 'device': 24, 'deviceVoidCost': 2, 'deviceCooldownMs': 500, 'damage': 150,
                              'deviceDamagePercent': 50, 'deviceDurationMs': 4000}),
 ]
 

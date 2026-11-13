@@ -57,7 +57,7 @@ Done:
     resolver's parent chains guarded against cycles (M_DecalMaster_Emissive names its own instance: a build hung).
 
 - 2026-11-13: **Chorus's Rites** begin (`tools/rites.py`): Rite of the Hunt (BP_ActivePower_Blink) as the remake's device
-  23, paid from its new Rite energy (3 pips at 0.22 a second, Chorus's EnergyComponent); its shop icon Chorus's
+  23, paid from its new Void energy (3 pips at 0.22 a second, Chorus's EnergyComponent); its shop icon Chorus's
   powers-screen icon on a drawn plate. Later the same day: Rite of the Storm (BP_ActivePower_Pulse_Zap, device 24), and
   both Rites' looks (fx "rite": P_Blink_DisappearSparks / P_Blink_Appear, P_Pulse_Activation / P_Pulse_DeBuff through
   explosions._emitters with a material image table, their FMOD events layered and varied). Drill, Telekinesis, Scan and
