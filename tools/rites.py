@@ -13,7 +13,7 @@ Read from BP_PowersMasterData (names, texts, icons) and the BP_ActivePower_* def
 - Rite of Control (BP_ActivePower_Telekinesis: GrabRange 70000, TossRange 80000, TossSpeed 56000 cm/s, EnergyCost 3;
   BP_Telekinesis_Debuff: CollisionDamageOtherTargets 500) -> device 26: 250 to the ship it is thrown into, held 8 s at most.
 - Rite of the Senses (BP_ActivePower_Scan's short range: ShortRangeScanDistance 600000 cm over 3 s; the powers screen's cost
-  1) -> device 27: cloaked ships uncovered, the Ultrascan's sight for 20 s. Its long range (the star map's marks) isn't taken.
+  1) -> device 27: cloaked ships and containers uncovered, the Ultrascan's sight for 20 s; held, the long range (the orbit).
 
 Their looks (items.json fx "rite", the remake's Data.CustomRiteFx: fx/rite_<id>.json) are Chorus's own: the Cascade particle
 systems the blueprints spawn, converted by tools/explosions.py's emitter reader with each material's image (LOOKS'
@@ -52,9 +52,9 @@ RITES = [
      'T_Powers_Power3_Icn', {'cabinSize': 0, 'device': 26, 'deviceVoidCost': 3, 'deviceCooldownMs': 500, 'damage': 250,
                              'deviceDurationMs': 8000}),
     ('chorus_rite_senses', 'SeventhSense', 'Rite of the Senses',
-     "Sense what others cannot see: a wave runs out kilometres around you, uncovering cloaked ships, and for 20 s you see "
-     "as the best scanners do, the richest asteroids marked and the cargo of the ships you lock read out. Pays 1 pip of "
-     "Void energy. (Chorus)",
+     "Sense what others cannot see: a wave runs out kilometres around you, uncovering cloaked ships and hidden containers, "
+     "and for 20 s you see as the best scanners do, the richest asteroids marked and the cargo of the ships you lock read "
+     "out. Hold it a second to sense the whole orbit. Pays 1 pip of Void energy. (Chorus)",
      'T_Powers_Power1_Icn', {'cabinSize': 0, 'device': 27, 'deviceVoidCost': 1, 'deviceCooldownMs': 500,
                              'deviceDurationMs': 20000}),
     # the passive (Chorus's BP_PassivePower_ElementalShield: BonusEnergy 2, "Prevents all elemental damage"); its icon the
