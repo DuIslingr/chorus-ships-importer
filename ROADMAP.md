@@ -56,6 +56,10 @@ Done:
     Support's idle (rigid parts); the blueprints' thrusters and the gunships' gun pod / mine thrower; the material
     resolver's parent chains guarded against cycles (M_DecalMaster_Emissive names its own instance: a build hung).
 
+- 2026-11-13: **Chorus's Rites** begin (`tools/rites.py`): Rite of the Hunt (BP_ActivePower_Blink) as the remake's device
+  23, paid from its new Rite energy (3 pips at 0.22 a second, Chorus's EnergyComponent); its shop icon Chorus's
+  powers-screen icon on a drawn plate. Pulse Zap, Drill, Telekinesis, Scan and the passives follow as the remake gains them.
+
 Next, roughly in order:
 1. **Check in the remake.** Load the mod and look at the ship: orientation, size, mounts, materials. Then tune
    `glowSize`, the hangar height and the camera.

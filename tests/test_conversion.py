@@ -268,5 +268,25 @@ class RigTests(unittest.TestCase):
         np.testing.assert_allclose([1, 0.5, 0], open_v[1])
 
 
+class RiteTests(unittest.TestCase):
+    def test_the_hunt_is_a_rite_device_with_its_icon_on_a_plate(self):
+        from PIL import Image
+        from tools import rites
+        with tempfile.TemporaryDirectory() as tmp:
+            src = Path(tmp, 'export', rites.ICONS + 'T_Powers_Power2_Icn.png')
+            src.parent.mkdir(parents=True)
+            Image.new('RGBA', (264, 264), (255, 255, 255, 255)).save(src)
+            out = Path(tmp, 'mod')
+            items = rites.items(str(Path(tmp, 'export')), str(out))
+            hunt = next(i for i in items if i['id'] == 'chorus_rite_hunt')
+            self.assertEqual({'cabinSize': 0, 'device': 23, 'deviceRiteCost': 2, 'deviceCooldownMs': 500}, hunt['stats'])
+            self.assertEqual(91, hunt['base'])
+            icon = Image.open(out / hunt['icon'])
+            self.assertEqual((180, 88), icon.size)
+            self.assertEqual(0, icon.getpixel((1, 1))[3], 'the slanted corner is see-through')
+            self.assertEqual((255, 255, 255), icon.getpixel((90, 44))[:3], 'the orb in the middle')
+            self.assertNotIn('icon', rites.items(str(Path(tmp, 'none')), str(out))[0], 'no export: the cabin icon')
+
+
 if __name__ == '__main__':
     unittest.main()
