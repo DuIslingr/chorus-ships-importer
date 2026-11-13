@@ -285,6 +285,12 @@ world part is large (about 1.1 GB, most of it the seven stations).
     beside you, helpless; press again to hurl it into another ship or anything solid.
   - **Rite of the Senses** (Chorus's Seventh Sense scan, device 27, 1 pip): a wave uncovers cloaked ships for kilometres
     around, and for 20 s you see as the best scanners do (class-A asteroids marked, locked ships' cargo read out).
+  - **Upgraded Rites**: the Hunt, the Storm and the Star each come in three more versions with Chorus's upgrades (the
+    first, the second or both), later in the game: Overcharge (a bonus pip after the leap) and Fury (+50 % damage for
+    5 s), Chain (two more ships) and Absorption (a quarter of the damage onto your shield), Constellation (four more
+    stars) and Renewal (a quarter of the hull back a kill).
+  - **Elemental Shield** (Chorus's passive, device 28): mounted, two more pips of Void energy and no harm from heat,
+    frost or corrosion.
 
   Their icons, particles (Chorus's Cascade systems: the Blink's smoke, flares and lens flare, the Pulse's sparks,
   lines and ink, the Drill's star of plasma wisps) and sounds (their FMOD events) are Chorus's own. The other Rites follow.

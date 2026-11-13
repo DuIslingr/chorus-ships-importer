@@ -57,7 +57,22 @@ RITES = [
      "Void energy. (Chorus)",
      'T_Powers_Power1_Icn', {'cabinSize': 0, 'device': 27, 'deviceVoidCost': 1, 'deviceCooldownMs': 500,
                              'deviceDurationMs': 20000}),
+    # the passive (Chorus's BP_PassivePower_ElementalShield: BonusEnergy 2, "Prevents all elemental damage"); its icon the
+    # rewards' shield upgrade (the passives have no powers-screen icon)
+    ('chorus_elemental_shield', 'ElementalShield', 'Elemental Shield',
+     "A ward of the Void about the hull: two more pips of Void energy for your Rites, and no harm from heat, frost or "
+     "corrosion. Works while mounted. (Chorus)",
+     '../Rewards/T_Reward_ShieldUpgrade_Icn', {'cabinSize': 0, 'device': 28, 'deviceVoidPips': 2, 'deviceElementalProof': 1}),
 ]
+# the Rites' upgrades (Chorus's UpgradeDescriptionA / B; the names are the remake's) as items of their own: A, B and both
+UPGRADES = {
+    'chorus_rite_hunt': ('Overcharge', 'Fury', "After leaping, a bonus pip of Void energy for 10 s.",
+                         "After leaping, all weapons and Rites deal 50 % more damage for 5 s."),
+    'chorus_rite_storm': ('Chain', 'Absorption', "The bolt jumps on to two more ships within 500 m.",
+                          "A quarter of the damage dealt goes onto your own shield."),
+    'chorus_rite_star': ('Constellation', 'Renewal', "Four more burning stars circle you.",
+                         "Every ship destroyed repairs a quarter of your hull."),
+}
 
 POWERS = 'SpacePrototype/Content/UnleashedPrototype/Player/Powers/'
 BLINK_FX, PULSE_FX, DRILL_FX, TELEK_FX = POWERS + 'Blink/Art/', POWERS + 'Pulse/', POWERS + 'Drill/Art/', POWERS + 'Telekinesis/'
@@ -110,7 +125,7 @@ MATERIALS = {
     'M_UV_Accelation': ('tex', 'main', 'add'),
 }
 
-EXPORTS = [ICONS + r[4] for r in RITES]
+EXPORTS = [os.path.normpath(ICONS + r[4]).replace(os.sep, '/') for r in RITES]
 
 
 def _plate(w=180, h=88):
@@ -322,7 +337,7 @@ def items(export, out, resolver=None, work=None, fmod_dir=None):
     for rid, _, name, desc, icon, stats in RITES:
         it = {'id': rid, 'base': 91, 'name': name, 'description': desc, 'techLevel': 9, 'occurrence': 2,
               'price': [250000, 262000], 'stats': dict(stats)}
-        src = os.path.join(export, ICONS + icon + '.png')
+        src = os.path.join(export, os.path.normpath(ICONS + icon) + '.png')
         if os.path.exists(src):
             try:
                 os.makedirs(os.path.join(out, 'icons'), exist_ok=True)
@@ -333,4 +348,26 @@ def items(export, out, resolver=None, work=None, fmod_dir=None):
         fx = looks(export, out, resolver, work, fmod_dir, rid) if work else {}
         if fx: it['fx'] = fx
         result.append(it)
+        result += upgraded(it)
     return result
+
+
+def upgraded(base):
+    """The Rite 'base''s upgraded items (UPGRADES): A, B and both (the remake's deviceUpgrade 1 / 2 / 3), its icon and looks,
+    later in the game and dearer; none for a Rite without upgrades."""
+    up = UPGRADES.get(base['id'])
+    if not up: return []
+    name_a, name_b, text_a, text_b = up
+    out = []
+    for mask, tag, name, text, scale in ((1, 'a', name_a, text_a, 1.5), (2, 'b', name_b, text_b, 1.5),
+                                         (3, 'ab', f'{name_a} and {name_b}', f'{text_a} {text_b}', 2.2)):
+        it = {k: (dict(v) if isinstance(v, dict) else list(v) if isinstance(v, list) else v) for k, v in base.items()}
+        it['id'] = f"{base['id']}_{tag}"
+        it['name'] = f"{base['name']}: {name}"
+        it['description'] = base['description'].replace(' (Chorus)', '') + ' ' + text + ' (Chorus)'
+        it['techLevel'] = 10
+        it['occurrence'] = 1
+        it['price'] = [round(p * scale) for p in base['price']]
+        it['stats']['deviceUpgrade'] = mask
+        out.append(it)
+    return out

@@ -52,6 +52,7 @@ var provider = new DefaultFileProvider(Env("CHORUS_GAME"), SearchOption.AllDirec
 var usmap = Environment.GetEnvironmentVariable("CHORUS_USMAP");
 if (!string.IsNullOrEmpty(usmap)) provider.MappingsContainer = new FileUsmapTypeMappingsProvider(usmap);
 if (args.Length > 0 && args[0] == "shaders") provider.ReadShaderMaps = true;
+if (Environment.GetEnvironmentVariable("CHORUS_SCRIPT") == "1") provider.ReadScriptData = true;   // (blueprint graphs' bytecode in the JSON)
 provider.Initialize();
 provider.SubmitKey(new FGuid(), new FAesKey(Env("CHORUS_AES_KEY")));
 provider.PostMount();

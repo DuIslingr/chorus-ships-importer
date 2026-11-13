@@ -68,8 +68,10 @@ Done:
   its Loop wave alone, its start without upgrade B's layer. Then Rite of Control (BP_ActivePower_Telekinesis, device 26):
   P_Telek_Grab_Success, _Debuff_Start / _Active, _Toss_Start, _Toss_Hit, its Grab and Throw events. Then Rite of the
   Senses (BP_ActivePower_Scan's short range, device 27): its activation and ping events (Ui/Ingame/7th Sense/); its
-  P_Sphere_Expansion is a mesh sphere the remake can't draw (only its glow comes through). Left: the long range scan,
-  the passives (ElementalShield's +2 energy), the upgrades.
+  P_Sphere_Expansion is a mesh sphere the remake can't draw (only its glow comes through). Then the upgrades (read from
+  their graphs' bytecode: the exporter's CHORUS_SCRIPT=1) as items of their own (`rites.upgraded`: A, B, both) and the
+  Elemental Shield passive (device 28). Left: the long range scan, the upgrades' own looks and sounds (the base Rite's
+  are used), HavocCore and SacredMark (no data).
 
 Next, roughly in order:
 1. **Check in the remake.** Load the mod and look at the ship: orientation, size, mounts, materials. Then tune

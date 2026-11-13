@@ -319,6 +319,20 @@ class RiteTests(unittest.TestCase):
         self.assertEqual(1, s['stats']['deviceVoidCost'], "the powers screen's cost 1")
         self.assertTrue(re.search(rites.EVENTS, 'Ui/Ingame/7th Sense/7th_Sense_Scan_Activate_Short'), 'its events are UI ones')
 
+    def test_the_upgrades_and_the_elemental_shield(self):
+        from tools import rites
+        items = {i['id']: i for i in rites.items('/nonexistent', tempfile.mkdtemp())}
+        self.assertEqual(1, items['chorus_rite_hunt_a']['stats']['deviceUpgrade'])
+        self.assertEqual(2, items['chorus_rite_storm_b']['stats']['deviceUpgrade'])
+        self.assertEqual(3, items['chorus_rite_star_ab']['stats']['deviceUpgrade'])
+        self.assertEqual(25, items['chorus_rite_star_ab']['stats']['device'], 'the same Rite')
+        self.assertNotIn('chorus_rite_control_a', items, 'Telekinesis has no upgrades')
+        self.assertNotEqual(items['chorus_rite_hunt']['name'], items['chorus_rite_hunt_b']['name'])
+        shield = items['chorus_elemental_shield']['stats']
+        self.assertEqual((28, 2, 1), (shield['device'], shield['deviceVoidPips'], shield['deviceElementalProof']),
+                         "BonusEnergy 2, no elemental harm")
+        self.assertIn('Rewards/T_Reward_ShieldUpgrade_Icn', ' '.join(rites.EXPORTS))
+
     def test_an_events_layers_are_mixed_and_its_variations_kept(self):
         from tools import rites
         self.assertEqual([['a/Start_Low_01.ogg', 'a/Start_Whoosh_01.ogg']],
