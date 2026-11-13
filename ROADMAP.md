@@ -58,7 +58,11 @@ Done:
 
 - 2026-11-13: **Chorus's Rites** begin (`tools/rites.py`): Rite of the Hunt (BP_ActivePower_Blink) as the remake's device
   23, paid from its new Rite energy (3 pips at 0.22 a second, Chorus's EnergyComponent); its shop icon Chorus's
-  powers-screen icon on a drawn plate. Pulse Zap, Drill, Telekinesis, Scan and the passives follow as the remake gains them.
+  powers-screen icon on a drawn plate. Later the same day: Rite of the Storm (BP_ActivePower_Pulse_Zap, device 24), and
+  both Rites' looks (fx "rite": P_Blink_DisappearSparks / P_Blink_Appear, P_Pulse_Activation / P_Pulse_DeBuff through
+  explosions._emitters with a material image table, their FMOD events layered and varied). Drill, Telekinesis, Scan and
+  the passives follow as the remake gains them; the effects' sizes and brightness (the lens flares are Chorus's 360 m
+  sprites) are still to be checked in the game.
 
 Next, roughly in order:
 1. **Check in the remake.** Load the mod and look at the ship: orientation, size, mounts, materials. Then tune

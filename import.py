@@ -89,9 +89,11 @@ def main():
     if a.fresh or not os.path.exists(master):
         run('json', MASTER_DATA, master)
     fmod = os.path.join(a.work, 'fmod')
-    if not a.no_sounds and (a.fresh or not os.path.exists(os.path.join(fmod, 'events.json'))):
+    events_file = os.path.join(fmod, 'events.json')
+    if not a.no_sounds and (a.fresh or not os.path.exists(events_file)
+                            or 'Active_Powers/Pulse/' not in open(events_file, encoding='utf-8').read()):   # (the Rites' came later)
         print("Exporting the ship's sounds from the FMOD banks...")
-        run('fmod', sounds.EVENTS + '|' + weapons.EVENTS, fmod)
+        run('fmod', sounds.EVENTS + '|' + weapons.EVENTS + '|' + rites.EVENTS, fmod)
 
     if os.path.exists(a.out): shutil.rmtree(a.out)
     os.makedirs(a.out)
@@ -131,7 +133,8 @@ def main():
     print("Converting Chorus's turrets...")
     items += turrets.build(export, a.out, resolver)   # (the capital ships' npcTurrets: npcs.CHORUS_TURRETS)
     items += capital.items(items)   # (the player capital ship's weapons, its artillery on the light turret's model)
-    items += rites.items(export, a.out)   # (Chorus's Rites as devices: Rite of the Hunt)
+    print("Converting Chorus's Rites...")
+    items += rites.items(export, a.out, resolver, a.work, fmod if not a.no_sounds else '')   # (devices: the Hunt, the Storm)
     look = None
     if not a.no_world:
         print("Converting Chorus's regions (skies, planets) into the Chorus systems...")

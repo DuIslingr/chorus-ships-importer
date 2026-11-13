@@ -272,10 +272,15 @@ world part is large (about 1.1 GB, most of it the seven stations).
   Shield Overcharge (the remake's device 22: the shield full and nothing past it for 5 s, every 10 s; Chorus's own shield
   shell lights up round the hull, pulsing green). The remake fits its
   camera to the hull and shrinks it on the hangar's turntable (a hull over 150 m).
-- **Rite of the Hunt** (`tools/rites.py`): Nara's first Rite, Chorus's Blink, as a device in the equipment shops (the
-  remake's device 23, keys 4-6 or the quick menu): a leap onto the tail of the hostile ship in your sights, facing its
-  way, paying 2 of the ship's 3 pips of Rite energy (one back every 4.5 s, shown after the HUD's recharge icons). Its
-  icon is Chorus's own. The other Rites follow.
+- **Nara's Rites** (`tools/rites.py`), as devices in the equipment shops (keys 4-6 or the quick menu), each paying 2 of
+  the ship's 3 pips of Rite energy (one back every 4.5 s, shown after the HUD's recharge icons):
+  - **Rite of the Hunt** (Chorus's Blink, the remake's device 23): the ship vanishes and leaps onto the tail of the
+    hostile ship in your sights, facing its way, the camera gliding after it;
+  - **Rite of the Storm** (Chorus's Pulse Zap, device 24): a bolt that hits the target's shield and jams it for 4 s (no
+    fire, no flight).
+
+  Their icons, particles (Chorus's Cascade systems: the Blink's smoke, flares and lens flare, the Pulse's sparks,
+  lines and ink) and sounds (their FMOD events) are Chorus's own. The other Rites follow.
 - **The Rift** (`tools/rift.py`): Chorus's rift vortex (SM_Rift_Vortex with M_PortalRift_2, Nimika's
   MI_PortalRift_2_LocAST_Outside, as a material `"rift"` block: its swirl, red centre, lightning flipbooks and clouds,
   added, the funnel heaving as Chorus's vertex shader moves it). In the Chorus systems a rift run looks like Chorus's Rift

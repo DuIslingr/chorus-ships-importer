@@ -5,6 +5,17 @@ Read from BP_PowersMasterData (names, texts, icons) and the BP_ActivePower_* def
 - Rite of the Hunt (BP_ActivePower_Blink: Range 100000 cm, BlinkLocationOffset -18000 cm, EnergyCost 2, Cooldown 0.5)
   -> device 23. Its range and landing are left at 0, so the remake scales Chorus's (1000 m and 180 m at its 140 m/s)
   with the ship's own top speed, as its Chorus flight does.
+- Rite of the Storm (BP_ActivePower_Pulse_Zap: Range 100000 cm, ShieldDamage 300, EnergyCost 2, Cooldown 0.5; BP_Buff_Pulse:
+  a 4 s jam) -> device 24: 150 off the shield (Chorus's 300 at the remake's hull share, x 0.5, as the capital ship's
+  weapons), an NPC without a shield (the game's) half of that on its hull; the chain is upgrade A's, not taken.
+
+Their looks (items.json fx "rite", the remake's Data.CustomRiteFx: fx/rite_<id>.json) are Chorus's own: the Cascade particle
+systems the blueprints spawn, converted by tools/explosions.py's emitter reader with each material's image (LOOKS'
+materials: the flares, lens flares and lines their textures white on black, the glows a soft disc, the barrier smoke its
+emissive flipbook added, the black ink dark and alpha-blended; the refraction, the radial force and the mesh tendrils
+left out); the hit's looping emitters repeated over the jam. The sounds are their FMOD events (the start the fx's "shot");
+an event's layers (waves of different names: Blink_Start's low hit and whoosh) mixed into one file, its variations (the
+same name numbered: Pulse_Muzzle's four thunder bolts) kept as a random pick.
 
 Each Rite's shop icon is its powers-screen icon (T_Powers_Power<N>_Icn, 264 x 264) on a plate drawn like the game's (180 x
 88: a slanted, striped frame). Pulse Zap, Drill, Telekinesis, Scan and the passives are still to come in the remake.
@@ -18,7 +29,39 @@ RITES = [
      "Within the blink of an eye, leap onto the tail of the hostile ship in your sights (your lock first), facing the way it "
      "flies. Pays 2 of your 3 pips of Rite energy, which grow back one every 4.5 s. Not at capital ships. (Chorus)",
      'T_Powers_Power2_Icn', {'cabinSize': 0, 'device': 23, 'deviceRiteCost': 2, 'deviceCooldownMs': 500}),
+    ('chorus_rite_storm', 'Pulse', 'Rite of the Storm',
+     "A bolt that disrupts the hostile ship in your sights (your lock first): its shield takes the blow, and for 4 s it can "
+     "neither flee nor fire back. Pays 2 of your 3 pips of Rite energy. (Chorus)",
+     'T_Powers_Power4_Icn', {'cabinSize': 0, 'device': 24, 'deviceRiteCost': 2, 'deviceCooldownMs': 500, 'damage': 150,
+                             'deviceDamagePercent': 50, 'deviceDurationMs': 4000}),
 ]
+
+POWERS = 'SpacePrototype/Content/UnleashedPrototype/Player/Powers/'
+BLINK_FX, PULSE_FX = POWERS + 'Blink/Art/', POWERS + 'Pulse/'
+BLINK_SFX, PULSE_SFX = 'Sfx/Player/Active_Powers/Blink_Chase/', 'Sfx/Player/Active_Powers/Pulse/'
+# each Rite's looks: part -> (its particle systems, its FMOD event); 'shot' the start's sound (the fx's own)
+LOOKS = {
+    'chorus_rite_hunt': {'shot': BLINK_SFX + 'Active_Power_Blink_Start',
+                         'vanish': ([BLINK_FX + 'P_Blink_DisappearSparks'], None),
+                         'appear': ([BLINK_FX + 'P_Blink_Appear'], BLINK_SFX + 'Active_Power_Blink_Appear')},
+    'chorus_rite_storm': {'shot': PULSE_SFX + 'Pulse_Muzzle',
+                          'start': ([PULSE_FX + 'P_Pulse_Activation'], None),
+                          'hit': ([PULSE_FX + 'P_Pulse_DeBuff'], PULSE_SFX + 'Pulse_Impact')},
+}
+# the exporter's FMOD pattern for these
+EVENTS = r'Sfx/Player/Active_Powers/(Blink_Chase|Pulse)/'
+HIT_LOOP_S = 4.0   # (the hit's looping emitters over BP_Buff_Pulse's 4 s)
+# a material's master -> how its image is made: ('glow') a soft disc, ('spark') the explosions' streak, ('tex', parameter,
+# 'add' | 'alpha', the alpha-blended tint, the sheet its graph plays itself: a random frame a particle)
+MATERIALS = {
+    'M_Pulse_Glow_NoDepthTest': ('glow',),
+    'M_Spark_01': ('spark',),
+    'M_Pulse_Flare': ('tex', 'baseTex', 'add'),
+    'M_Pulse_LensFlare': ('tex', 'Lensflare Texture', 'add'),
+    'M_Pulse_Lines_Tex': ('tex', 'ref:T_ky_flare07_4x4', 'add'),
+    'M_SmokeRisingSimple': ('tex', 'ref:T_Smoke2a_2K_Emissive', 'add'),
+    'M_Pulse_BlackInk': ('tex', 'ref:T_Smoke02_01', 'alpha', [0.02, 0.02, 0.03], [8, 8]),   # (its own flipbook: 8 x 8)
+}
 
 EXPORTS = [ICONS + r[4] for r in RITES]
 
@@ -48,8 +91,181 @@ def _icon(src, dst):
     plate.save(dst, optimize=True)
 
 
-def items(export, out):
-    """items.json entries for the Rites; their icons into <out>/icons/ (none without the export or PIL: the cabin's)."""
+def _glow(mod):
+    """fx/rites/glow.png: a soft round glow (M_Pulse_Glow_NoDepthTest draws its sprite's radial falloff, no texture)."""
+    import numpy as np
+    from PIL import Image
+    rel = 'fx/rites/glow.png'
+    path = os.path.join(mod, rel)
+    if not os.path.exists(path):
+        y, x = np.mgrid[-1:1:128j, -1:1:128j]
+        v = np.clip(1.0 - np.sqrt(x * x + y * y), 0, 1) ** 2.2
+        a = (v * 255).astype(np.uint8)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        Image.fromarray(np.stack([a, a, a], -1), 'RGB').save(path, optimize=True)
+    return rel
+
+
+def _bake(export, mod, resolver, tex_path, blend):
+    """A particle texture into the mod (at most 512): added = white on black (its brightest channel x its alpha), alpha =
+    white with that as its alpha. None when it isn't exported."""
+    import numpy as np
+    from PIL import Image
+    resolver.fetch_textures([tex_path], export)
+    src = os.path.join(export, tex_path + '.png')
+    if not os.path.exists(src): return None
+    name = tex_path.rsplit('/', 1)[-1]
+    rel = f'fx/rites/{name}_{blend}.png'
+    dst = os.path.join(mod, rel)
+    if not os.path.exists(dst):
+        im = Image.open(src).convert('RGBA')
+        if max(im.size) > 512: im = im.resize((min(512, im.width), min(512, im.height)), Image.LANCZOS)
+        a = np.asarray(im).astype(np.float32) / 255.0
+        alpha = a[..., 3] if a[..., 3].min() < 0.99 else 1.0
+        v = np.clip(a[..., :3].max(-1) * alpha, 0, 1)
+        g = (v * 255).astype(np.uint8)
+        os.makedirs(os.path.dirname(dst), exist_ok=True)
+        if blend == 'alpha':
+            w = np.full_like(g, 255)
+            Image.fromarray(np.stack([w, w, w, g], -1), 'RGBA').save(dst, optimize=True)
+        else:
+            Image.fromarray(np.stack([g, g, g], -1), 'RGB').save(dst, optimize=True)
+    return rel
+
+
+def _picker(export, mod, resolver):
+    """explosions._emitters' 'pick': an emitter's image by its material's master (MATERIALS), None = left out."""
+    from . import explosions
+    def pick(mat_name, mat_path):
+        p = resolver.get(mat_path) if mat_path else None
+        master = (p.chain or [None])[-1] if p else None
+        how = MATERIALS.get(master)
+        if not how: return None
+        if how[0] == 'glow': return _glow(mod), None, None
+        if how[0] == 'spark': return explosions._spark(mod), None, None
+        tex = p.texture(how[1])
+        path = p.texture_paths.get(tex) if tex else None
+        image = _bake(export, mod, resolver, path, how[2]) if path else None
+        if not image: return None
+        if len(how) > 4: pick.sheets[image] = how[4]
+        return image, ('alpha' if how[2] == 'alpha' else None), (how[3] if len(how) > 3 else None)
+    pick.sheets = {}   # image -> the sheet its material plays itself
+    return pick
+
+
+def _systems(work, resolver, paths):
+    """The Cascade systems' JSON (dumped once into <work>/bp_rites)."""
+    import json, re
+    folder = os.path.join(work, 'bp_rites'); os.makedirs(folder, exist_ok=True)
+    todo = [p for p in paths if not os.path.exists(os.path.join(folder, p.rsplit('/', 1)[1] + '.json'))]
+    if todo and resolver is not None:
+        resolver.run('jsonall', '/(' + '|'.join(re.escape(p.rsplit('/', 1)[1]) for p in todo) + r')\.uasset$', folder, capture=True)
+    out = []
+    for p in paths:
+        f = os.path.join(folder, p.rsplit('/', 1)[1] + '.json')
+        if os.path.exists(f): out.append(json.load(open(f, encoding='utf-8')))
+    return out
+
+
+MAX_VARIANTS = 4
+
+
+def _variants(waves):
+    """An event's waves as its versions to write: [[files to mix], ...]. Waves of one name numbered are one layer's
+    variations (an FMOD multi instrument), each other name a layer played with it; version i mixes each layer's i-th
+    variation (round the shorter ones), at most MAX_VARIANTS."""
+    import re
+    groups = {}
+    for w in sorted(waves):
+        stem = re.sub(r'\s*-\s*trimmed$', '', os.path.splitext(os.path.basename(w))[0], flags=re.I)
+        groups.setdefault(re.sub(r'[_ -]*\d+$', '', stem), []).append(w)
+    if not groups: return []
+    n = min(MAX_VARIANTS, max(len(g) for g in groups.values()))
+    return [[g[i % len(g)] for g in groups.values()] for i in range(n)]
+
+
+def _as_alpha(mod, rel):
+    """An added image (white on black) as an alpha mask of white: dark smoke drawn over what is behind."""
+    import numpy as np
+    from PIL import Image
+    alpha_rel = rel.replace('_add.png', '_alpha.png') if rel.endswith('_add.png') else rel[:-4] + '_alpha.png'
+    dst = os.path.join(mod, alpha_rel)
+    if not os.path.exists(dst):
+        g = np.asarray(Image.open(os.path.join(mod, rel)).convert('L'))
+        w = np.full_like(g, 255)
+        Image.fromarray(np.stack([w, w, w, g], -1), 'RGBA').save(dst, optimize=True)
+    return alpha_rel
+
+
+def _dark_smoke(mod, ems):
+    """Translucent smoke (M_SmokeRisingSimple) the particle colour leaves black reads as dark smoke in Chorus, nothing when
+    added: drawn alpha-blended in a near black."""
+    for e in ems:
+        if e.get('blend') or not e.get('image') or max(e.get('color') or [1]) > 0.05: continue
+        e['image'] = _as_alpha(mod, e['image'])
+        e['blend'] = 'alpha'
+        e['color'] = [0.02, 0.02, 0.03]
+        e.pop('colorOverLife', None)
+    return ems
+
+
+def _sound(fmod_dir, mod, event, rid):
+    """An FMOD event's waves as Ogg files in <mod>/audio/: a list of mod paths (one at random), [] without ffmpeg or waves."""
+    import json, re, subprocess
+    from . import sounds
+    if not fmod_dir or not sounds.ffmpeg() or not os.path.exists(os.path.join(fmod_dir, 'events.json')): return []
+    events = json.load(open(os.path.join(fmod_dir, 'events.json'), encoding='utf-8'))
+    waves = [w for w in events.get('event:/' + event, {}).get('waves', []) if os.path.exists(os.path.join(fmod_dir, w))]
+    out = []
+    for i, layers in enumerate(_variants(waves)):
+        rel = f"audio/{rid}_{re.sub(r'[^a-z0-9]+', '_', event.rsplit('/', 1)[-1].lower())}_{i + 1}.ogg"
+        dst = os.path.join(mod, rel)
+        os.makedirs(os.path.dirname(dst), exist_ok=True)
+        if len(layers) == 1: sounds.write(os.path.join(fmod_dir, layers[0]), dst)
+        else:
+            args = [sounds.ffmpeg(), '-v', 'error', '-y']
+            for w in layers: args += ['-i', os.path.join(fmod_dir, w)]
+            args += ['-filter_complex', f'amix=inputs={len(layers)}:normalize=0', '-ac', '2', '-c:a', 'libvorbis', '-q:a', '5', dst]
+            subprocess.run(args, check=True)
+        out.append(rel)
+    return out
+
+
+def looks(export, mod, resolver, work, fmod_dir, rid):
+    """A Rite's items.json "fx": its start sound ("shot") and its looks file ("rite": fx/rite_<id>.json). {} without either."""
+    import json
+    from . import explosions
+    spec = LOOKS.get(rid)
+    if not spec: return {}
+    fx, rite = {}, {}
+    shot = _sound(fmod_dir, mod, spec['shot'], rid) if spec.get('shot') else []
+    if shot: fx['shot'] = shot
+    pick = _picker(export, mod, resolver) if resolver is not None else None
+    for part in ('start', 'vanish', 'appear', 'hit'):
+        if part not in spec: continue
+        systems, event = spec[part]
+        ems = []
+        if pick:
+            for d in _systems(work, resolver, systems):
+                ems += explosions._emitters(export, mod, resolver, d, pick=pick, loop_for=HIT_LOOP_S if part == 'hit' else None)
+        for e in ems:
+            sheet = pick.sheets.get(e.get('image')) if pick else None
+            if sheet and 'sheet' not in e: e['sheet'] = sheet; e['randomFrame'] = True
+        if ems: rite[part] = {'emitters': _dark_smoke(mod, ems)}
+        snd = _sound(fmod_dir, mod, event, rid) if event else []
+        if snd: rite[part + 'Sound'] = snd
+    if rite:
+        rel = f'fx/rite_{rid}.json'
+        os.makedirs(os.path.join(mod, 'fx'), exist_ok=True)
+        json.dump(rite, open(os.path.join(mod, rel), 'w', encoding='utf-8'), indent=1)
+        fx['rite'] = rel
+        print(f"  rites: {rid}: " + ', '.join(f"{k} {len(v['emitters'])}" for k, v in rite.items() if isinstance(v, dict)))
+    return fx
+
+
+def items(export, out, resolver=None, work=None, fmod_dir=None):
+    """items.json entries for the Rites; their icons into <out>/icons/ (none without the export or PIL: the cabin's), their
+    looks with a resolver (the particles) and the FMOD export (the sounds)."""
     result = []
     for rid, _, name, desc, icon, stats in RITES:
         it = {'id': rid, 'base': 91, 'name': name, 'description': desc, 'techLevel': 9, 'occurrence': 2,
@@ -62,5 +278,7 @@ def items(export, out):
                 it['icon'] = f'icons/{rid}.png'
             except ImportError:
                 pass
+        fx = looks(export, out, resolver, work, fmod_dir, rid) if work else {}
+        if fx: it['fx'] = fx
         result.append(it)
     return result

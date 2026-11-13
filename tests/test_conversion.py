@@ -287,6 +287,36 @@ class RiteTests(unittest.TestCase):
             self.assertEqual((255, 255, 255), icon.getpixel((90, 44))[:3], 'the orb in the middle')
             self.assertNotIn('icon', rites.items(str(Path(tmp, 'none')), str(out))[0], 'no export: the cabin icon')
 
+    def test_the_storm_is_device_24_with_pulse_zaps_numbers(self):
+        from tools import rites
+        storm = next(i for i in rites.items('/nonexistent', tempfile.mkdtemp()) if i['id'] == 'chorus_rite_storm')
+        self.assertEqual(24, storm['stats']['device'])
+        self.assertEqual(4000, storm['stats']['deviceDurationMs'], "BP_Buff_Pulse's 4 s jam")
+        self.assertEqual(150, storm['stats']['damage'], "ShieldDamage 300 at the hull share")
+
+    def test_an_events_layers_are_mixed_and_its_variations_kept(self):
+        from tools import rites
+        self.assertEqual([['a/Start_Low_01.ogg', 'a/Start_Whoosh_01.ogg']],
+                         rites._variants(['a/Start_Low_01.ogg', 'a/Start_Whoosh_01.ogg']), 'two layers: one mix')
+        v = rites._variants(['Bolt_04.ogg', 'Bolt_03.ogg', 'Bolt_02.ogg', 'Bolt_01 - Trimmed.ogg', 'LFE - Trimmed.ogg'])
+        self.assertEqual(4, len(v), 'the bolts are variations ("- Trimmed" or not)')
+        self.assertTrue(all('LFE - Trimmed.ogg' in x for x in v), 'the other layer in each')
+        self.assertEqual(rites.MAX_VARIANTS, len(rites._variants([f'Hit_{i:02d}.ogg' for i in range(9)])))
+        self.assertEqual([], rites._variants([]))
+
+    def test_black_added_smoke_becomes_dark_alpha_smoke(self):
+        from PIL import Image
+        from tools import rites
+        with tempfile.TemporaryDirectory() as tmp:
+            os.makedirs(os.path.join(tmp, 'fx/rites'))
+            Image.new('RGB', (8, 8), (200, 200, 200)).save(os.path.join(tmp, 'fx/rites/T_Smoke_add.png'))
+            ems = rites._dark_smoke(tmp, [{'image': 'fx/rites/T_Smoke_add.png', 'color': [0, 0, 0], 'colorOverLife': [0] * 3},
+                                          {'image': 'fx/rites/T_Smoke_add.png', 'color': [1.5, 3, 6]}])
+            self.assertEqual('alpha', ems[0]['blend'])
+            self.assertEqual('fx/rites/T_Smoke_alpha.png', ems[0]['image'])
+            self.assertEqual(200, Image.open(os.path.join(tmp, ems[0]['image'])).getpixel((1, 1))[3])
+            self.assertNotIn('blend', ems[1], 'a bright one stays added')
+
 
 if __name__ == '__main__':
     unittest.main()

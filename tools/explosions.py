@@ -240,8 +240,10 @@ def _debris(export, mod, resolver, mi_path):
     return rel
 
 
-def _emitters(export, mod, resolver, d, scale=1.0):
-    """CustomFxEmitter entries of one Cascade system (its JSON 'd')."""
+def _emitters(export, mod, resolver, d, scale=1.0, pick=None, loop_for=None):
+    """CustomFxEmitter entries of one Cascade system (its JSON 'd'). 'pick'(material name, path) -> (image, blend, tint) or
+    None (left out) chooses an emitter's image instead of the explosions' rules (tools/rites.py); 'loop_for' seconds: an
+    emitter looping for ever (EmitterLoops 0) is repeated that long (its bursts every EmitterDuration, its rate throughout)."""
     def objs(ref):
         if not isinstance(ref, dict) or 'ObjectPath' not in ref: return None
         i = int(ref['ObjectPath'].rsplit('.', 1)[1]); return d[i] if i < len(d) else None
@@ -281,8 +283,13 @@ def _emitters(export, mod, resolver, d, scale=1.0):
         mat_name = mat.split("'")[1] if "'" in mat else mat
         mat_path = (req.get('Material') or {}).get('ObjectPath', '').rsplit('.', 1)[0]
         tint, image, blend = [1.0, 1.0, 1.0], None, None
+        custom = pick(mat_name, mat_path) if pick and not lights_only else NotImplemented
         if lights_only:
             if 'Light' not in mods: continue   # (a lights-only emitter without its light draws nothing)
+        elif custom is not NotImplemented:
+            if custom is None: continue
+            image, blend, t = custom
+            if t: tint = list(t)[:3]
         elif resolver.get(mat_path) and (resolver.get(mat_path).chain or [None])[-1] == 'M_LoopFireSmoke':
             # (the particle colour as parameters: its start's R / G the bake's threshold, B the glow over life)
             dc = _Dist((mods.get('ColorOverLife') or {}).get('ColorOverLife'), objs)
@@ -313,10 +320,17 @@ def _emitters(export, mod, resolver, d, scale=1.0):
         for b in spawn.get('BurstList', []):
             n = b.get('Count', 0); lo = b.get('CountLow', -1)
             bursts += [round(b.get('Time', 0.0), 3), round((n + lo) / 2 if lo is not None and lo >= 0 else n)]
+        e['duration'] = float(req.get('EmitterDuration') or 1.0)
+        if loop_for and req.get('EmitterLoops', 1) == 0 and bursts:   # (a loop: its bursts again every EmitterDuration)
+            period, once = max(0.05, e['duration']), list(bursts)
+            k = 1
+            while k * period < loop_for:
+                for i in range(0, len(once), 2): bursts += [round(once[i] + k * period, 3), once[i + 1]]
+                k += 1
         if bursts: e['bursts'] = bursts
         rate = _Dist(spawn.get('Rate'), objs).range()
         if rate and rate[1] > 0: e['rate'] = rate[1]
-        e['duration'] = float(req.get('EmitterDuration') or 1.0)
+        if loop_for and req.get('EmitterLoops', 1) == 0: e['duration'] = float(loop_for)
         lt = mods.get('Lifetime')
         if lt: e['life'] = [round(v, 3) for v in _Dist(lt.get('Lifetime'), objs).range()]
         sz = mods.get('Size')
@@ -415,7 +429,7 @@ def _emitters(export, mod, resolver, d, scale=1.0):
             continue
         e['_name'] = name
         if blend == 'alpha':   # (a plain tint, not a glow)
-            e['color'] = DEBRIS
+            e['color'] = [round(float(v), 4) for v in tint] if custom not in (NotImplemented, None) else DEBRIS
             e.pop('colorOverLife', None)
             if 'sheet' in e: e['randomFrame'] = True; e.pop('frames', None)
         if 'Explosion' in mat_name and 'Spark' not in mat_name:
