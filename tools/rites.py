@@ -1,5 +1,5 @@
 """Chorus's Rites (Nara's powers) as remake devices (items.json, device 23+, paid from the ship's Void energy: the remake's
-Flight.RiteEnergy, Chorus's EnergyComponent of 3 pips at 0.22 a second).
+Flight.VoidEnergy, Chorus's EnergyComponent of 3 pips at 0.22 a second, its regrowth on Void Crystals).
 
 Read from BP_PowersMasterData (names, texts, icons) and the BP_ActivePower_* defaults:
 - Rite of the Hunt (BP_ActivePower_Blink: Range 100000 cm, BlinkLocationOffset -18000 cm, EnergyCost 2, Cooldown 0.5)
@@ -8,6 +8,8 @@ Read from BP_PowersMasterData (names, texts, icons) and the BP_ActivePower_* def
 - Rite of the Storm (BP_ActivePower_Pulse_Zap: Range 100000 cm, ShieldDamage 300, EnergyCost 2, Cooldown 0.5; BP_Buff_Pulse:
   a 4 s jam) -> device 24: 150 off the shield (Chorus's 300 at the remake's hull share, x 0.5, as the capital ship's
   weapons), an NPC without a shield (the game's) half of that on its hull; the chain is upgrade A's, not taken.
+- Rite of the Star (BP_ActivePower_Drill on ADrillActivePower: EnergyCost 3, CollisionDamage 750 every 0.2 s, MaxDurationTime
+  3) -> device 25: 375 a tick (750 at the hull share); its speed, turn and reach are the remake's (Chorus's, by the top speed).
 
 Their looks (items.json fx "rite", the remake's Data.CustomRiteFx: fx/rite_<id>.json) are Chorus's own: the Cascade particle
 systems the blueprints spawn, converted by tools/explosions.py's emitter reader with each material's image (LOOKS'
@@ -18,7 +20,7 @@ an event's layers (waves of different names: Blink_Start's low hit and whoosh) m
 same name numbered: Pulse_Muzzle's four thunder bolts) kept as a random pick.
 
 Each Rite's shop icon is its powers-screen icon (T_Powers_Power<N>_Icn, 264 x 264) on a plate drawn like the game's (180 x
-88: a slanted, striped frame). Pulse Zap, Drill, Telekinesis, Scan and the passives are still to come in the remake.
+88: a slanted, striped frame). Telekinesis, Scan and the passives are still to come in the remake.
 """
 import os
 
@@ -35,12 +37,20 @@ RITES = [
      "neither flee nor fire back. Pays 2 of your 3 pips of Void energy. (Chorus)",
      'T_Powers_Power4_Icn', {'cabinSize': 0, 'device': 24, 'deviceVoidCost': 2, 'deviceCooldownMs': 500, 'damage': 150,
                              'deviceDamagePercent': 50, 'deviceDurationMs': 4000}),
+    ('chorus_rite_star', 'Drill', 'Rite of the Star',
+     "Become a star for up to 3 s: unseen and unharmed, you spear on at three times your top speed, and every hostile ship "
+     "close ahead of you burns. Press again to end it early. Pays all 3 pips of Void energy. (Chorus)",
+     'T_Powers_Power5_Icn', {'cabinSize': 0, 'device': 25, 'deviceVoidCost': 3, 'deviceCooldownMs': 500, 'damage': 375,
+                             'deviceDurationMs': 3000}),
 ]
 
 POWERS = 'SpacePrototype/Content/UnleashedPrototype/Player/Powers/'
-BLINK_FX, PULSE_FX = POWERS + 'Blink/Art/', POWERS + 'Pulse/'
-BLINK_SFX, PULSE_SFX = 'Sfx/Player/Active_Powers/Blink_Chase/', 'Sfx/Player/Active_Powers/Pulse/'
-# each Rite's looks: part -> (its particle systems, its FMOD event); 'shot' the start's sound (the fx's own)
+BLINK_FX, PULSE_FX, DRILL_FX = POWERS + 'Blink/Art/', POWERS + 'Pulse/', POWERS + 'Drill/Art/'
+SFX = 'Sfx/Player/Active_Powers/'
+BLINK_SFX, PULSE_SFX, DRILL_SFX = SFX + 'Blink_Chase/', SFX + 'Pulse/', SFX + 'Drill/'
+# each Rite's looks: part -> (its particle systems, its FMOD event); 'shot' the start's sound (the fx's own). An event may be
+# (event, the waves to take: a pattern, the waves to leave out: a pattern): the Drill's loop is its Loop wave alone (the
+# voices over it are one-shots), its start without upgrade B's layer.
 LOOKS = {
     'chorus_rite_hunt': {'shot': BLINK_SFX + 'Active_Power_Blink_Start',
                          'vanish': ([BLINK_FX + 'P_Blink_DisappearSparks'], None),
@@ -48,11 +58,17 @@ LOOKS = {
     'chorus_rite_storm': {'shot': PULSE_SFX + 'Pulse_Muzzle',
                           'start': ([PULSE_FX + 'P_Pulse_Activation'], None),
                           'hit': ([PULSE_FX + 'P_Pulse_DeBuff'], PULSE_SFX + 'Pulse_Impact')},
+    'chorus_rite_star': {'shot': (DRILL_SFX + 'Bp_ActivePower_Drill_Start', None, 'Upgrades'),
+                         'start': ([DRILL_FX + 'P_Drill_Init_Flash'], None),
+                         'loop': ([DRILL_FX + 'P_Drill_power_MOD_loop'], (DRILL_SFX + 'Bp_ActivePower_Drill_Duration', 'Loop', None)),
+                         'end': ([DRILL_FX + 'P_Drill_power_end'], DRILL_SFX + 'Bp_ActivePower_Drill_Re-Appear'),
+                         'hit': ([DRILL_FX + 'P_Drill_Hit'], DRILL_SFX + 'Bp_ActivePower_Drill_Hit')},
 }
+LOOP_S = {'chorus_rite_star': 3.0}   # (the loop's emitters over the Star's 3 s)
 # the exporter's FMOD pattern for these
-EVENTS = r'Sfx/Player/Active_Powers/(Blink_Chase|Pulse)/'
+EVENTS = r'Sfx/Player/Active_Powers/(Blink_Chase|Pulse|Drill)/'
 HIT_LOOP_S = 4.0   # (the hit's looping emitters over BP_Buff_Pulse's 4 s)
-# a material's master -> how its image is made: ('glow') a soft disc, ('spark') the explosions' streak, ('tex', parameter,
+# a material's master -> how its image is made: ('glow') a soft disc, ('spark') the explosions' streak, ('tex', parameter(s),
 # 'add' | 'alpha', the alpha-blended tint, the sheet its graph plays itself: a random frame a particle)
 MATERIALS = {
     'M_Pulse_Glow_NoDepthTest': ('glow',),
@@ -62,6 +78,9 @@ MATERIALS = {
     'M_Pulse_Lines_Tex': ('tex', 'ref:T_ky_flare07_4x4', 'add'),
     'M_SmokeRisingSimple': ('tex', 'ref:T_Smoke2a_2K_Emissive', 'add'),
     'M_Pulse_BlackInk': ('tex', 'ref:T_Smoke02_01', 'alpha', [0.02, 0.02, 0.03], [8, 8]),   # (its own flipbook: 8 x 8)
+    # the Drill's star: its wisps of energy plasma (an instance's own T_Smoke_01, else T_Smoke_02) and its shock ring
+    'M_WispySmoke': ('tex', ('T_Smoke_01', 'T_Smoke_02'), 'add'),
+    'M_UV_Accelation': ('tex', 'main', 'add'),
 }
 
 EXPORTS = [ICONS + r[4] for r in RITES]
@@ -144,7 +163,7 @@ def _picker(export, mod, resolver):
         if not how: return None
         if how[0] == 'glow': return _glow(mod), None, None
         if how[0] == 'spark': return explosions._spark(mod), None, None
-        tex = p.texture(how[1])
+        tex = p.texture(*(how[1] if isinstance(how[1], tuple) else (how[1],)))
         path = p.texture_paths.get(tex) if tex else None
         image = _bake(export, mod, resolver, path, how[2]) if path else None
         if not image: return None
@@ -211,12 +230,16 @@ def _dark_smoke(mod, ems):
 
 
 def _sound(fmod_dir, mod, event, rid):
-    """An FMOD event's waves as Ogg files in <mod>/audio/: a list of mod paths (one at random), [] without ffmpeg or waves."""
+    """An FMOD event's waves as Ogg files in <mod>/audio/: a list of mod paths (one at random), [] without ffmpeg or waves.
+    'event' a path, or (path, the waves to take, the waves to leave out) as patterns."""
     import json, re, subprocess
     from . import sounds
+    take = leave = None
+    if isinstance(event, tuple): event, take, leave = event
     if not fmod_dir or not sounds.ffmpeg() or not os.path.exists(os.path.join(fmod_dir, 'events.json')): return []
     events = json.load(open(os.path.join(fmod_dir, 'events.json'), encoding='utf-8'))
-    waves = [w for w in events.get('event:/' + event, {}).get('waves', []) if os.path.exists(os.path.join(fmod_dir, w))]
+    waves = [w for w in events.get('event:/' + event, {}).get('waves', []) if os.path.exists(os.path.join(fmod_dir, w))
+             and (not take or re.search(take, os.path.basename(w))) and not (leave and re.search(leave, os.path.basename(w)))]
     out = []
     for i, layers in enumerate(_variants(waves)):
         rel = f"audio/{rid}_{re.sub(r'[^a-z0-9]+', '_', event.rsplit('/', 1)[-1].lower())}_{i + 1}.ogg"
@@ -242,13 +265,14 @@ def looks(export, mod, resolver, work, fmod_dir, rid):
     shot = _sound(fmod_dir, mod, spec['shot'], rid) if spec.get('shot') else []
     if shot: fx['shot'] = shot
     pick = _picker(export, mod, resolver) if resolver is not None else None
-    for part in ('start', 'vanish', 'appear', 'hit'):
+    for part in ('start', 'vanish', 'appear', 'hit', 'loop', 'end'):
         if part not in spec: continue
         systems, event = spec[part]
         ems = []
         if pick:
             for d in _systems(work, resolver, systems):
-                ems += explosions._emitters(export, mod, resolver, d, pick=pick, loop_for=HIT_LOOP_S if part == 'hit' else None)
+                loop_for = HIT_LOOP_S if part == 'hit' else LOOP_S.get(rid) if part == 'loop' else None
+                ems += explosions._emitters(export, mod, resolver, d, pick=pick, loop_for=loop_for)
         for e in ems:
             sheet = pick.sheets.get(e.get('image')) if pick else None
             if sheet and 'sheet' not in e: e['sheet'] = sheet; e['randomFrame'] = True

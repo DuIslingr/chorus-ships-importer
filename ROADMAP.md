@@ -63,6 +63,9 @@ Done:
   explosions._emitters with a material image table, their FMOD events layered and varied). Drill, Telekinesis, Scan and
   the passives follow as the remake gains them; the effects' sizes and brightness (the lens flares are Chorus's 360 m
   sprites) are still to be checked in the game.
+  Then Rite of the Star (BP_ActivePower_Drill, device 25): P_Drill_Init_Flash / _power_MOD_loop / _power_end / P_Drill_Hit
+  with the plasma wisps (M_WispySmoke) and shock ring (M_UV_Accelation) added to the image table, the Drill's loop sound
+  its Loop wave alone, its start without upgrade B's layer. Telekinesis and Scan next.
 
 Next, roughly in order:
 1. **Check in the remake.** Load the mod and look at the ship: orientation, size, mounts, materials. Then tune

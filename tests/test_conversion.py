@@ -294,6 +294,15 @@ class RiteTests(unittest.TestCase):
         self.assertEqual(4000, storm['stats']['deviceDurationMs'], "BP_Buff_Pulse's 4 s jam")
         self.assertEqual(150, storm['stats']['damage'], "ShieldDamage 300 at the hull share")
 
+    def test_the_star_is_device_25_with_the_drills_numbers(self):
+        from tools import rites
+        star = next(i for i in rites.items('/nonexistent', tempfile.mkdtemp()) if i['id'] == 'chorus_rite_star')
+        self.assertEqual(25, star['stats']['device'])
+        self.assertEqual(3, star['stats']['deviceVoidCost'], "the Drill's EnergyCost 3")
+        self.assertEqual(3000, star['stats']['deviceDurationMs'], "MaxDurationTime 3")
+        self.assertEqual(375, star['stats']['damage'], "CollisionDamage 750 at the hull share")
+        self.assertEqual(('Loop', None), rites.LOOKS['chorus_rite_star']['loop'][1][1:], 'the loop wave alone')
+
     def test_an_events_layers_are_mixed_and_its_variations_kept(self):
         from tools import rites
         self.assertEqual([['a/Start_Low_01.ogg', 'a/Start_Whoosh_01.ogg']],

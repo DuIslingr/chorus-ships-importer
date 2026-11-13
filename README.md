@@ -279,9 +279,11 @@ world part is large (about 1.1 GB, most of it the seven stations).
     hostile ship in your sights, facing its way, the camera gliding after it;
   - **Rite of the Storm** (Chorus's Pulse Zap, device 24): a bolt that hits the target's shield and jams it for 4 s (no
     fire, no flight).
+  - **Rite of the Star** (Chorus's Drill, device 25, all 3 pips): for up to 3 s the ship becomes a star, unseen and
+    unharmed, spearing on at three times its top speed and burning every hostile ship close ahead.
 
   Their icons, particles (Chorus's Cascade systems: the Blink's smoke, flares and lens flare, the Pulse's sparks,
-  lines and ink) and sounds (their FMOD events) are Chorus's own. The other Rites follow.
+  lines and ink, the Drill's star of plasma wisps) and sounds (their FMOD events) are Chorus's own. The other Rites follow.
 - **The Rift** (`tools/rift.py`): Chorus's rift vortex (SM_Rift_Vortex with M_PortalRift_2, Nimika's
   MI_PortalRift_2_LocAST_Outside, as a material `"rift"` block: its swirl, red centre, lightning flipbooks and clouds,
   added, the funnel heaving as Chorus's vertex shader moves it). In the Chorus systems a rift run looks like Chorus's Rift
