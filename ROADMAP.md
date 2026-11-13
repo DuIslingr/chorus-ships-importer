@@ -66,7 +66,10 @@ Done:
   Then Rite of the Star (BP_ActivePower_Drill, device 25): P_Drill_Init_Flash / _power_MOD_loop / _power_end / P_Drill_Hit
   with the plasma wisps (M_WispySmoke) and shock ring (M_UV_Accelation) added to the image table, the Drill's loop sound
   its Loop wave alone, its start without upgrade B's layer. Then Rite of Control (BP_ActivePower_Telekinesis, device 26):
-  P_Telek_Grab_Success, _Debuff_Start / _Active, _Toss_Start, _Toss_Hit, its Grab and Throw events. Scan next.
+  P_Telek_Grab_Success, _Debuff_Start / _Active, _Toss_Start, _Toss_Hit, its Grab and Throw events. Then Rite of the
+  Senses (BP_ActivePower_Scan's short range, device 27): its activation and ping events (Ui/Ingame/7th Sense/); its
+  P_Sphere_Expansion is a mesh sphere the remake can't draw (only its glow comes through). Left: the long range scan,
+  the passives (ElementalShield's +2 energy), the upgrades.
 
 Next, roughly in order:
 1. **Check in the remake.** Load the mod and look at the ship: orientation, size, mounts, materials. Then tune

@@ -283,6 +283,8 @@ world part is large (about 1.1 GB, most of it the seven stations).
     unharmed, spearing on at three times its top speed and burning every hostile ship close ahead.
   - **Rite of Control** (Chorus's Telekinesis, device 26, all 3 pips): seize the hostile ship in your sights and hold it
     beside you, helpless; press again to hurl it into another ship or anything solid.
+  - **Rite of the Senses** (Chorus's Seventh Sense scan, device 27, 1 pip): a wave uncovers cloaked ships for kilometres
+    around, and for 20 s you see as the best scanners do (class-A asteroids marked, locked ships' cargo read out).
 
   Their icons, particles (Chorus's Cascade systems: the Blink's smoke, flares and lens flare, the Pulse's sparks,
   lines and ink, the Drill's star of plasma wisps) and sounds (their FMOD events) are Chorus's own. The other Rites follow.

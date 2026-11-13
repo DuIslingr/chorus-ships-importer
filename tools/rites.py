@@ -12,6 +12,8 @@ Read from BP_PowersMasterData (names, texts, icons) and the BP_ActivePower_* def
   3) -> device 25: 375 a tick (750 at the hull share); its speed, turn and reach are the remake's (Chorus's, by the top speed).
 - Rite of Control (BP_ActivePower_Telekinesis: GrabRange 70000, TossRange 80000, TossSpeed 56000 cm/s, EnergyCost 3;
   BP_Telekinesis_Debuff: CollisionDamageOtherTargets 500) -> device 26: 250 to the ship it is thrown into, held 8 s at most.
+- Rite of the Senses (BP_ActivePower_Scan's short range: ShortRangeScanDistance 600000 cm over 3 s; the powers screen's cost
+  1) -> device 27: cloaked ships uncovered, the Ultrascan's sight for 20 s. Its long range (the star map's marks) isn't taken.
 
 Their looks (items.json fx "rite", the remake's Data.CustomRiteFx: fx/rite_<id>.json) are Chorus's own: the Cascade particle
 systems the blueprints spawn, converted by tools/explosions.py's emitter reader with each material's image (LOOKS'
@@ -22,7 +24,7 @@ an event's layers (waves of different names: Blink_Start's low hit and whoosh) m
 same name numbered: Pulse_Muzzle's four thunder bolts) kept as a random pick.
 
 Each Rite's shop icon is its powers-screen icon (T_Powers_Power<N>_Icn, 264 x 264) on a plate drawn like the game's (180 x
-88: a slanted, striped frame). Scan and the passives are still to come in the remake.
+88: a slanted, striped frame). The passives are still to come in the remake.
 """
 import os
 
@@ -49,11 +51,18 @@ RITES = [
      "another ship or anything solid, which it does not survive. Pays all 3 pips of Void energy. (Chorus)",
      'T_Powers_Power3_Icn', {'cabinSize': 0, 'device': 26, 'deviceVoidCost': 3, 'deviceCooldownMs': 500, 'damage': 250,
                              'deviceDurationMs': 8000}),
+    ('chorus_rite_senses', 'SeventhSense', 'Rite of the Senses',
+     "Sense what others cannot see: a wave runs out kilometres around you, uncovering cloaked ships, and for 20 s you see "
+     "as the best scanners do, the richest asteroids marked and the cargo of the ships you lock read out. Pays 1 pip of "
+     "Void energy. (Chorus)",
+     'T_Powers_Power1_Icn', {'cabinSize': 0, 'device': 27, 'deviceVoidCost': 1, 'deviceCooldownMs': 500,
+                             'deviceDurationMs': 20000}),
 ]
 
 POWERS = 'SpacePrototype/Content/UnleashedPrototype/Player/Powers/'
 BLINK_FX, PULSE_FX, DRILL_FX, TELEK_FX = POWERS + 'Blink/Art/', POWERS + 'Pulse/', POWERS + 'Drill/Art/', POWERS + 'Telekinesis/'
 SFX = 'Sfx/Player/Active_Powers/'
+SENSE_FX, SENSE_SFX = 'SpacePrototype/Content/UnleashedPrototype/Effects/7thSense/', 'Ui/Ingame/7th Sense/'
 BLINK_SFX, PULSE_SFX, DRILL_SFX, TELEK_SFX = SFX + 'Blink_Chase/', SFX + 'Pulse/', SFX + 'Drill/', SFX + 'Telekinesis/'
 # each Rite's looks: part -> (its particle systems, its FMOD event); 'shot' the start's sound (the fx's own). An event may be
 # (event, the waves to take: a pattern, the waves to leave out: a pattern): the Drill's loop is its Loop wave alone (the
@@ -76,10 +85,14 @@ LOOKS = {
                             'hit': ([TELEK_FX + 'P_Telek_Debuff_Start', TELEK_FX + 'P_Telek_Debuff_Active'], None),
                             'vanish': ([TELEK_FX + 'P_Telek_Toss_Start'], TELEK_SFX + 'Bp_ActivePower_Telekinesis_Throw'),
                             'end': ([TELEK_FX + 'P_Telek_Toss_Hit'], None)},
+    # (the remake's Senses: 'start' its sphere, 'hit' as its wave uncovers a cloaked ship)
+    'chorus_rite_senses': {'shot': SENSE_SFX + '7th_Sense_Scan_Activate_Short',
+                           'start': ([SENSE_FX + 'P_Sphere_Expansion'], None),
+                           'hit': ([], SENSE_SFX + '7th_Sense_Ping_Hit_Short_Strong_Default')},
 }
 LOOP_S = {'chorus_rite_star': 3.0}   # (the loop's emitters over the Star's 3 s)
 # the exporter's FMOD pattern for these
-EVENTS = r'Sfx/Player/Active_Powers/(Blink_Chase|Pulse|Drill|Telekinesis)/'
+EVENTS = r'Sfx/Player/Active_Powers/(Blink_Chase|Pulse|Drill|Telekinesis)/|Ui/Ingame/7th Sense/'
 HIT_LOOP_S = 4.0   # (the hit's looping emitters over BP_Buff_Pulse's 4 s, the held ship's for as long)
 # a material's master -> how its image is made: ('glow') a soft disc, ('spark') the explosions' streak, ('tex', parameter(s),
 # 'add' | 'alpha', the alpha-blended tint, the sheet its graph plays itself: a random frame a particle)

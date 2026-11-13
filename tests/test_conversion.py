@@ -311,6 +311,14 @@ class RiteTests(unittest.TestCase):
         self.assertEqual(250, c['stats']['damage'], "CollisionDamageOtherTargets 500 at the hull share")
         self.assertIn('Telekinesis', rites.EVENTS)
 
+    def test_the_senses_are_device_27_for_one_pip(self):
+        import re
+        from tools import rites
+        s = next(i for i in rites.items('/nonexistent', tempfile.mkdtemp()) if i['id'] == 'chorus_rite_senses')
+        self.assertEqual(27, s['stats']['device'])
+        self.assertEqual(1, s['stats']['deviceVoidCost'], "the powers screen's cost 1")
+        self.assertTrue(re.search(rites.EVENTS, 'Ui/Ingame/7th Sense/7th_Sense_Scan_Activate_Short'), 'its events are UI ones')
+
     def test_an_events_layers_are_mixed_and_its_variations_kept(self):
         from tools import rites
         self.assertEqual([['a/Start_Low_01.ogg', 'a/Start_Whoosh_01.ogg']],

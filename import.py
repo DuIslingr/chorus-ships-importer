@@ -91,7 +91,7 @@ def main():
     fmod = os.path.join(a.work, 'fmod')
     events_file = os.path.join(fmod, 'events.json')
     if not a.no_sounds and (a.fresh or not os.path.exists(events_file)
-                            or 'Active_Powers/Telekinesis/' not in open(events_file, encoding='utf-8').read()):   # (the Rites' came later)
+                            or 'Ui/Ingame/7th Sense/' not in open(events_file, encoding='utf-8').read()):   # (the Rites' came later)
         print("Exporting the ship's sounds from the FMOD banks...")
         run('fmod', sounds.EVENTS + '|' + weapons.EVENTS + '|' + rites.EVENTS, fmod)
 
