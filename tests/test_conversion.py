@@ -303,6 +303,14 @@ class RiteTests(unittest.TestCase):
         self.assertEqual(375, star['stats']['damage'], "CollisionDamage 750 at the hull share")
         self.assertEqual(('Loop', None), rites.LOOKS['chorus_rite_star']['loop'][1][1:], 'the loop wave alone')
 
+    def test_control_is_device_26_with_telekinesiss_numbers(self):
+        from tools import rites
+        c = next(i for i in rites.items('/nonexistent', tempfile.mkdtemp()) if i['id'] == 'chorus_rite_control')
+        self.assertEqual(26, c['stats']['device'])
+        self.assertEqual(3, c['stats']['deviceVoidCost'], "the blueprint's EnergyCost 3")
+        self.assertEqual(250, c['stats']['damage'], "CollisionDamageOtherTargets 500 at the hull share")
+        self.assertIn('Telekinesis', rites.EVENTS)
+
     def test_an_events_layers_are_mixed_and_its_variations_kept(self):
         from tools import rites
         self.assertEqual([['a/Start_Low_01.ogg', 'a/Start_Whoosh_01.ogg']],

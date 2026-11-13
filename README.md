@@ -281,6 +281,8 @@ world part is large (about 1.1 GB, most of it the seven stations).
     fire, no flight).
   - **Rite of the Star** (Chorus's Drill, device 25, all 3 pips): for up to 3 s the ship becomes a star, unseen and
     unharmed, spearing on at three times its top speed and burning every hostile ship close ahead.
+  - **Rite of Control** (Chorus's Telekinesis, device 26, all 3 pips): seize the hostile ship in your sights and hold it
+    beside you, helpless; press again to hurl it into another ship or anything solid.
 
   Their icons, particles (Chorus's Cascade systems: the Blink's smoke, flares and lens flare, the Pulse's sparks,
   lines and ink, the Drill's star of plasma wisps) and sounds (their FMOD events) are Chorus's own. The other Rites follow.

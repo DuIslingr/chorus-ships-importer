@@ -10,6 +10,8 @@ Read from BP_PowersMasterData (names, texts, icons) and the BP_ActivePower_* def
   weapons), an NPC without a shield (the game's) half of that on its hull; the chain is upgrade A's, not taken.
 - Rite of the Star (BP_ActivePower_Drill on ADrillActivePower: EnergyCost 3, CollisionDamage 750 every 0.2 s, MaxDurationTime
   3) -> device 25: 375 a tick (750 at the hull share); its speed, turn and reach are the remake's (Chorus's, by the top speed).
+- Rite of Control (BP_ActivePower_Telekinesis: GrabRange 70000, TossRange 80000, TossSpeed 56000 cm/s, EnergyCost 3;
+  BP_Telekinesis_Debuff: CollisionDamageOtherTargets 500) -> device 26: 250 to the ship it is thrown into, held 8 s at most.
 
 Their looks (items.json fx "rite", the remake's Data.CustomRiteFx: fx/rite_<id>.json) are Chorus's own: the Cascade particle
 systems the blueprints spawn, converted by tools/explosions.py's emitter reader with each material's image (LOOKS'
@@ -20,7 +22,7 @@ an event's layers (waves of different names: Blink_Start's low hit and whoosh) m
 same name numbered: Pulse_Muzzle's four thunder bolts) kept as a random pick.
 
 Each Rite's shop icon is its powers-screen icon (T_Powers_Power<N>_Icn, 264 x 264) on a plate drawn like the game's (180 x
-88: a slanted, striped frame). Telekinesis, Scan and the passives are still to come in the remake.
+88: a slanted, striped frame). Scan and the passives are still to come in the remake.
 """
 import os
 
@@ -42,12 +44,17 @@ RITES = [
      "close ahead of you burns. Press again to end it early. Pays all 3 pips of Void energy. (Chorus)",
      'T_Powers_Power5_Icn', {'cabinSize': 0, 'device': 25, 'deviceVoidCost': 3, 'deviceCooldownMs': 500, 'damage': 375,
                              'deviceDurationMs': 3000}),
+    ('chorus_rite_control', 'Telekinesis', 'Rite of Control',
+     "Seize the hostile ship in your sights (your lock first) and hold it beside you, helpless; press again to hurl it into "
+     "another ship or anything solid, which it does not survive. Pays all 3 pips of Void energy. (Chorus)",
+     'T_Powers_Power3_Icn', {'cabinSize': 0, 'device': 26, 'deviceVoidCost': 3, 'deviceCooldownMs': 500, 'damage': 250,
+                             'deviceDurationMs': 8000}),
 ]
 
 POWERS = 'SpacePrototype/Content/UnleashedPrototype/Player/Powers/'
-BLINK_FX, PULSE_FX, DRILL_FX = POWERS + 'Blink/Art/', POWERS + 'Pulse/', POWERS + 'Drill/Art/'
+BLINK_FX, PULSE_FX, DRILL_FX, TELEK_FX = POWERS + 'Blink/Art/', POWERS + 'Pulse/', POWERS + 'Drill/Art/', POWERS + 'Telekinesis/'
 SFX = 'Sfx/Player/Active_Powers/'
-BLINK_SFX, PULSE_SFX, DRILL_SFX = SFX + 'Blink_Chase/', SFX + 'Pulse/', SFX + 'Drill/'
+BLINK_SFX, PULSE_SFX, DRILL_SFX, TELEK_SFX = SFX + 'Blink_Chase/', SFX + 'Pulse/', SFX + 'Drill/', SFX + 'Telekinesis/'
 # each Rite's looks: part -> (its particle systems, its FMOD event); 'shot' the start's sound (the fx's own). An event may be
 # (event, the waves to take: a pattern, the waves to leave out: a pattern): the Drill's loop is its Loop wave alone (the
 # voices over it are one-shots), its start without upgrade B's layer.
@@ -63,15 +70,22 @@ LOOKS = {
                          'loop': ([DRILL_FX + 'P_Drill_power_MOD_loop'], (DRILL_SFX + 'Bp_ActivePower_Drill_Duration', 'Loop', None)),
                          'end': ([DRILL_FX + 'P_Drill_power_end'], DRILL_SFX + 'Bp_ActivePower_Drill_Re-Appear'),
                          'hit': ([DRILL_FX + 'P_Drill_Hit'], DRILL_SFX + 'Bp_ActivePower_Drill_Hit')},
+    # (the remake's Control: 'start' at the grab, 'hit' on the held ship, 'vanish' on it as it is thrown, 'end' where it hits)
+    'chorus_rite_control': {'shot': TELEK_SFX + 'Bp_ActivePower_Telekinesis_Grab',
+                            'start': ([TELEK_FX + 'P_Telek_Grab_Success'], None),
+                            'hit': ([TELEK_FX + 'P_Telek_Debuff_Start', TELEK_FX + 'P_Telek_Debuff_Active'], None),
+                            'vanish': ([TELEK_FX + 'P_Telek_Toss_Start'], TELEK_SFX + 'Bp_ActivePower_Telekinesis_Throw'),
+                            'end': ([TELEK_FX + 'P_Telek_Toss_Hit'], None)},
 }
 LOOP_S = {'chorus_rite_star': 3.0}   # (the loop's emitters over the Star's 3 s)
 # the exporter's FMOD pattern for these
-EVENTS = r'Sfx/Player/Active_Powers/(Blink_Chase|Pulse|Drill)/'
-HIT_LOOP_S = 4.0   # (the hit's looping emitters over BP_Buff_Pulse's 4 s)
+EVENTS = r'Sfx/Player/Active_Powers/(Blink_Chase|Pulse|Drill|Telekinesis)/'
+HIT_LOOP_S = 4.0   # (the hit's looping emitters over BP_Buff_Pulse's 4 s, the held ship's for as long)
 # a material's master -> how its image is made: ('glow') a soft disc, ('spark') the explosions' streak, ('tex', parameter(s),
 # 'add' | 'alpha', the alpha-blended tint, the sheet its graph plays itself: a random frame a particle)
 MATERIALS = {
     'M_Pulse_Glow_NoDepthTest': ('glow',),
+    'M_Pulse_Glow': ('glow',),
     'M_Spark_01': ('spark',),
     'M_Pulse_Flare': ('tex', 'baseTex', 'add'),
     'M_Pulse_LensFlare': ('tex', 'Lensflare Texture', 'add'),
