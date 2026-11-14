@@ -333,6 +333,16 @@ class RiteTests(unittest.TestCase):
                          "BonusEnergy 2, no elemental harm")
         self.assertIn('Rewards/T_Reward_ShieldUpgrade_Icn', ' '.join(rites.EXPORTS))
 
+    def test_the_upgraded_looks_belong_to_upgraded_items(self):
+        from tools import rites
+        for rid, tag in rites.UPGRADE_LOOKS:
+            self.assertIn(rid, rites.UPGRADES, 'a Rite with upgrades')
+            self.assertIn(tag, ('a', 'b', 'ab'))
+        self.assertIn('fury', rites.UPGRADE_LOOKS[('chorus_rite_hunt', 'b')], "Blink B's buff on the ship")
+        self.assertIn('absorb', rites.UPGRADE_LOOKS[('chorus_rite_storm', 'ab')])
+        self.assertIn('heal', rites.UPGRADE_LOOKS[('chorus_rite_star', 'b')])
+        self.assertNotIn('fury', rites.UPGRADE_LOOKS[('chorus_rite_hunt', 'a')], 'only with B')
+
     def test_an_events_layers_are_mixed_and_its_variations_kept(self):
         from tools import rites
         self.assertEqual([['a/Start_Low_01.ogg', 'a/Start_Whoosh_01.ogg']],

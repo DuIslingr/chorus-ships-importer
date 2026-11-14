@@ -106,6 +106,39 @@ LOOKS = {
                            'hit': ([], SENSE_SFX + '7th_Sense_Ping_Hit_Short_Strong_Default')},
 }
 LOOP_S = {'chorus_rite_star': 3.0}   # (the loop's emitters over the Star's 3 s)
+FURY_S = 5.0                         # (the fury's emitters over BP_Player_Buff_Blink_UpgradeB's 5 s)
+# The upgraded Rites' own looks (their BP_ActivePower_*_Upgrade* blueprints' particle systems and FMOD events) over the
+# base Rite's, by (Rite, 'a' | 'b' | 'ab'); the remake's upgrade parts: 'fury' on the ship while the Hunt's B lasts (the
+# Blink B muzzle and its Damage_Buff loop), 'absorb' as the Storm's B fills the shield (P_Pulse_UpgrB_ShieldAbsorb, its
+# Shield_Stolen event), 'heal' as the Star's B repairs (the Drill B's Heal_Add event; no particles of its own).
+_FURY = ([BLINK_FX + 'P_Muzzle_Blink_upgrade_B'], BLINK_SFX + 'Active_Power_Blink_Upgrade_B_Damage_Buff')
+_ABSORB = ([PULSE_FX + 'P_Pulse_UpgrB_ShieldAbsorb'], PULSE_SFX + 'Pulse_Muzzle_Upgrade_B_Shield_Stolen')
+_HEAL = ([], DRILL_SFX + 'Bp_ActivePower_Drill_Upgrade_B 2_Heal_Add')
+_DRILL_END_A = [DRILL_FX + 'P_Drill_power_end', DRILL_FX + 'P_SideDrill_power_end']
+UPGRADE_LOOKS = {
+    ('chorus_rite_hunt', 'a'): {'shot': BLINK_SFX + 'Active_Power_Blink_Start_Upgrade_A',
+                                'appear': ([BLINK_FX + 'P_Blink_Appear_UpgradeA'], BLINK_SFX + 'Active_Power_Blink_Appear_Upgrade_A')},
+    ('chorus_rite_hunt', 'b'): {'shot': BLINK_SFX + 'Active_Power_Blink_Start_Upgrade_B',
+                                'appear': ([BLINK_FX + 'P_Blink_Appear'], BLINK_SFX + 'Active_Power_Blink_Appear_Upgrade_B'),
+                                'fury': _FURY},
+    ('chorus_rite_hunt', 'ab'): {'shot': BLINK_SFX + 'Active_Power_Blink_Start_Upgrade_AB',
+                                 'appear': ([BLINK_FX + 'P_Blink_Appear_UpgradeA'], BLINK_SFX + 'Active_Power_Blink_Appear_Upgrade_AB'),
+                                 'fury': _FURY},
+    ('chorus_rite_storm', 'a'): {'shot': PULSE_SFX + 'Pulse_Muzzle_Upgrade_A'},
+    ('chorus_rite_storm', 'b'): {'shot': PULSE_SFX + 'Pulse_Muzzle_Upgrade_B', 'absorb': _ABSORB},
+    ('chorus_rite_storm', 'ab'): {'shot': PULSE_SFX + 'Pulse_Muzzle_Upgrade_AB', 'absorb': _ABSORB},
+    ('chorus_rite_star', 'a'): {'shot': DRILL_SFX + 'Bp_ActivePower_Drill_Start_Upgrade_A',
+                                'loop': ([DRILL_FX + 'P_Drill_power_Upgrade_A'], (DRILL_SFX + 'Bp_ActivePower_Drill_Duration_Upgrade_A', 'Loop', None)),
+                                'end': (_DRILL_END_A, DRILL_SFX + 'Bp_ActivePower_Drill_Re-Appear_Upgrade_A')},
+    ('chorus_rite_star', 'b'): {'shot': DRILL_SFX + 'Bp_ActivePower_Drill_Start_Upgrade_B',
+                                'loop': ([DRILL_FX + 'P_Drill_power_Upgrade_B'], (DRILL_SFX + 'Bp_ActivePower_Drill_Duration_Upgrade_B', 'Loop', None)),
+                                'end': ([DRILL_FX + 'P_Drill_power_end'], DRILL_SFX + 'Bp_ActivePower_Drill_Re-Appear_Upgrade_B'),
+                                'hit': ([DRILL_FX + 'P_Drill_Hit_UpgradeB'], DRILL_SFX + 'Bp_ActivePower_Drill_Hit'), 'heal': _HEAL},
+    ('chorus_rite_star', 'ab'): {'shot': DRILL_SFX + 'Bp_ActivePower_Drill_Start_Upgrade_AB',
+                                 'loop': ([DRILL_FX + 'P_Drill_power_Upgrade_B'], (DRILL_SFX + 'Bp_ActivePower_Drill_Duration_Upgrade_AB', 'Loop', None)),
+                                 'end': (_DRILL_END_A, DRILL_SFX + 'Bp_ActivePower_Drill_Re-Appear_Upgrade_AB'),
+                                 'hit': ([DRILL_FX + 'P_Drill_Hit_UpgradeB'], DRILL_SFX + 'Bp_ActivePower_Drill_Hit'), 'heal': _HEAL},
+}
 # the exporter's FMOD pattern for these
 EVENTS = r'Sfx/Player/Active_Powers/(Blink_Chase|Pulse|Drill|Telekinesis)/|Ui/Ingame/7th Sense/'
 HIT_LOOP_S = 4.0   # (the hit's looping emitters over BP_Buff_Pulse's 4 s, the held ship's for as long)
@@ -297,36 +330,39 @@ def _sound(fmod_dir, mod, event, rid):
     return out
 
 
-def looks(export, mod, resolver, work, fmod_dir, rid):
-    """A Rite's items.json "fx": its start sound ("shot") and its looks file ("rite": fx/rite_<id>.json). {} without either."""
+def looks(export, mod, resolver, work, fmod_dir, rid, tag=None):
+    """A Rite's items.json "fx": its start sound ("shot") and its looks file ("rite": fx/rite_<id>.json); with 'tag' ('a', 'b',
+    'ab') an upgraded one's (UPGRADE_LOOKS over the base Rite's, fx/rite_<id>_<tag>.json). {} without either."""
     import json
     from . import explosions
-    spec = LOOKS.get(rid)
-    if not spec: return {}
+    if rid not in LOOKS: return {}
+    spec = dict(LOOKS[rid])
+    if tag: spec.update(UPGRADE_LOOKS.get((rid, tag), {}))
+    key = f'{rid}_{tag}' if tag else rid
     fx, rite = {}, {}
-    shot = _sound(fmod_dir, mod, spec['shot'], rid) if spec.get('shot') else []
+    shot = _sound(fmod_dir, mod, spec['shot'], key) if spec.get('shot') else []
     if shot: fx['shot'] = shot
     pick = _picker(export, mod, resolver) if resolver is not None else None
-    for part in ('start', 'vanish', 'appear', 'hit', 'loop', 'end'):
+    for part in ('start', 'vanish', 'appear', 'hit', 'loop', 'end', 'fury', 'absorb', 'heal'):
         if part not in spec: continue
         systems, event = spec[part]
         ems = []
         if pick:
             for d in _systems(work, resolver, systems):
-                loop_for = HIT_LOOP_S if part == 'hit' else LOOP_S.get(rid) if part == 'loop' else None
+                loop_for = HIT_LOOP_S if part == 'hit' else LOOP_S.get(rid) if part == 'loop' else FURY_S if part == 'fury' else None
                 ems += explosions._emitters(export, mod, resolver, d, pick=pick, loop_for=loop_for)
         for e in ems:
             sheet = pick.sheets.get(e.get('image')) if pick else None
             if sheet and 'sheet' not in e: e['sheet'] = sheet; e['randomFrame'] = True
         if ems: rite[part] = {'emitters': _dark_smoke(mod, ems)}
-        snd = _sound(fmod_dir, mod, event, rid) if event else []
+        snd = _sound(fmod_dir, mod, event, key) if event else []
         if snd: rite[part + 'Sound'] = snd
     if rite:
-        rel = f'fx/rite_{rid}.json'
+        rel = f'fx/rite_{key}.json'
         os.makedirs(os.path.join(mod, 'fx'), exist_ok=True)
         json.dump(rite, open(os.path.join(mod, rel), 'w', encoding='utf-8'), indent=1)
         fx['rite'] = rel
-        print(f"  rites: {rid}: " + ', '.join(f"{k} {len(v['emitters'])}" for k, v in rite.items() if isinstance(v, dict)))
+        print(f"  rites: {key}: " + ', '.join(f"{k} {len(v['emitters'])}" for k, v in rite.items() if isinstance(v, dict)))
     return fx
 
 
@@ -348,17 +384,17 @@ def items(export, out, resolver=None, work=None, fmod_dir=None):
         fx = looks(export, out, resolver, work, fmod_dir, rid) if work else {}
         if fx: it['fx'] = fx
         result.append(it)
-        result += upgraded(it)
+        result += upgraded(it, export, out, resolver, work, fmod_dir)
     return result
 
 
-def upgraded(base):
+def upgraded(base, export=None, out=None, resolver=None, work=None, fmod_dir=None):
     """The Rite 'base''s upgraded items (UPGRADES): A, B and both (the remake's deviceUpgrade 1 / 2 / 3), its icon and looks,
     later in the game and dearer; none for a Rite without upgrades."""
     up = UPGRADES.get(base['id'])
     if not up: return []
     name_a, name_b, text_a, text_b = up
-    out = []
+    result_items = []
     for mask, tag, name, text, scale in ((1, 'a', name_a, text_a, 1.5), (2, 'b', name_b, text_b, 1.5),
                                          (3, 'ab', f'{name_a} and {name_b}', f'{text_a} {text_b}', 2.2)):
         it = {k: (dict(v) if isinstance(v, dict) else list(v) if isinstance(v, list) else v) for k, v in base.items()}
@@ -369,5 +405,8 @@ def upgraded(base):
         it['occurrence'] = 1
         it['price'] = [round(p * scale) for p in base['price']]
         it['stats']['deviceUpgrade'] = mask
-        out.append(it)
-    return out
+        if work and (base['id'], tag) in UPGRADE_LOOKS:   # (its own looks; else the base Rite's, copied above)
+            fx = looks(export, out, resolver, work, fmod_dir, base['id'], tag)
+            if fx: it['fx'] = fx
+        result_items.append(it)
+    return result_items

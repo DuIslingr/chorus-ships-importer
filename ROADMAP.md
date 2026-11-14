@@ -70,8 +70,9 @@ Done:
   Senses (BP_ActivePower_Scan's short range, device 27): its activation and ping events (Ui/Ingame/7th Sense/); its
   P_Sphere_Expansion is a mesh sphere the remake can't draw (only its glow comes through). Then the upgrades (read from
   their graphs' bytecode: the exporter's CHORUS_SCRIPT=1) as items of their own (`rites.upgraded`: A, B, both) and the
-  Elemental Shield passive (device 28). Left: the long range scan, the upgrades' own looks and sounds (the base Rite's
-  are used), HavocCore and SacredMark (no data).
+  Elemental Shield passive (device 28). Then the long range scan, and each upgraded item's own looks and sounds
+  (`UPGRADE_LOOKS`: the upgrade blueprints' particles and events, the Hunt B's fury, the Storm B's absorb, the Star B's
+  heal). Left: HavocCore and SacredMark (no data); sizes, brightness and volumes to check in the game.
 
 Next, roughly in order:
 1. **Check in the remake.** Load the mod and look at the ship: orientation, size, mounts, materials. Then tune
