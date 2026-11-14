@@ -295,6 +295,12 @@ world part is large (about 1.1 GB, most of it the seven stations).
 
   Their icons, particles (Chorus's Cascade systems: the Blink's smoke, flares and lens flare, the Pulse's sparks,
   lines and ink, the Drill's star of plasma wisps) and sounds (their FMOD events) are Chorus's own. The other Rites follow.
+- **Bar missions** (`tools/missions.py`), offered in the Chorus systems' Space Lounges, again and again: Chorus's world
+  encounters that GoF2, GoF3 and EVERSPACE 2 had no counterpart for in the bars.
+  - **Faceless Manifestation** (Chorus's Omen Tear): fly into the five fractures round a forming manifestation before
+    its 60 s run out, then destroy the Faceless that still come through. Pays credits and Void Crystals.
+  - **Civilian Assistance** (Chorus's civilian encounter): find a stranded civilian ship and stay beside it for 10 s while
+    you transfer fuel, counter-hack its systems or calibrate them, whichever it needs.
 - **The Rift** (`tools/rift.py`): Chorus's rift vortex (SM_Rift_Vortex with M_PortalRift_2, Nimika's
   MI_PortalRift_2_LocAST_Outside, as a material `"rift"` block: its swirl, red centre, lightning flipbooks and clouds,
   added, the funnel heaving as Chorus's vertex shader moves it). In the Chorus systems a rift run looks like Chorus's Rift

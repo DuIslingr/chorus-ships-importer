@@ -367,5 +367,28 @@ class RiteTests(unittest.TestCase):
             self.assertNotIn('blend', ems[1], 'a bright one stays added')
 
 
+class MissionTests(unittest.TestCase):
+    def test_the_two_bar_missions(self):
+        from tools import missions
+        with tempfile.TemporaryDirectory() as tmp:
+            self.assertEqual(2, missions.build(tmp, log=lambda *_: None))
+            m = json.load(open(os.path.join(tmp, 'events', 'chorus_manifestation.gof2mission'), encoding='utf-8'))
+            c = json.load(open(os.path.join(tmp, 'events', 'chorus_civilian.gof2mission'), encoding='utf-8'))
+        for x in (m, c):
+            self.assertEqual('gof2mission', x['format'])
+            self.assertEqual('mission', x['kind'], 'a bar mission')
+            self.assertEqual(7, len(x['stations']), "the Chorus systems' stations only")
+            self.assertTrue(all(s.startswith('chorus_ships:') for s in x['stations']))
+        text = json.dumps(m)
+        self.assertEqual(missions.FRACTURES, text.count('"near"'), 'a fracture each')
+        self.assertIn('"Manifestation in:"', text)
+        self.assertIn('chorus_ships:omen', text)
+        self.assertIn('"item": 164', text, 'Void Crystals: the Rite Energy Fragment')
+        ctext = json.dumps(c)
+        for line, _ in missions.TASKS: self.assertIn(line, ctext)
+        self.assertIn('random(1, 3)', ctext)
+        self.assertIn('"action": "jump"', ctext, 'the ship warps out after')
+
+
 if __name__ == '__main__':
     unittest.main()

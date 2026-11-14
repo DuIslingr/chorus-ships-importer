@@ -74,6 +74,11 @@ Done:
   (`UPGRADE_LOOKS`: the upgrade blueprints' particles and events, the Hunt B's fury, the Storm B's absorb, the Star B's
   heal). Left: HavocCore and SacredMark (no data); sizes, brightness and volumes to check in the game.
 
+- 2026-11-14: **Bar missions** (`tools/missions.py`): Chorus's encounter templates compared with the remake's missions
+  (GoF2's freelance, the GoF3 Ships mod's bar missions, the ES2 Ships mod's cruise encounters); only the two without a
+  counterpart taken, text only: Faceless Manifestation (MT_EOmenTear_Base) and Civilian Assistance (MT_ECivilian_Base).
+  Checked with the remake's QuestFile.Compile and EventRunner.CheckScript; not yet played.
+
 Next, roughly in order:
 1. **Check in the remake.** Load the mod and look at the ship: orientation, size, mounts, materials. Then tune
    `glowSize`, the hangar height and the camera.

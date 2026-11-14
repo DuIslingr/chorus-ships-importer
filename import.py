@@ -13,7 +13,7 @@ import argparse, json, os, shutil, subprocess, sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-from tools import ships, sounds, weapons, kit, npcs, mi, rig, turrets, world, mobile, factions, capital, wrecks, explosions, rites  # noqa: E402
+from tools import ships, sounds, weapons, kit, npcs, mi, rig, turrets, world, mobile, factions, capital, wrecks, explosions, rites, missions  # noqa: E402
 
 MASTER_DATA = 'SpacePrototype/Content/UnleashedPrototype/Core/PlayerEquipment/BP_PlayerEquipmentMasterData.uasset'
 EXPORTS = [ships.PHOENIX + '/skelmesh/SK_Phoenix',      # what the mod needs from the pak (materials and textures come along)
@@ -139,6 +139,7 @@ def main():
     if not a.no_world:
         print("Converting Chorus's regions (skies, planets) into the Chorus systems...")
         _, _, look = world.build(export, a.out, resolver, run, ships=enemies)   # (its wreck fields' hulks: the NPC ships)
+        missions.build(a.out)   # (bar missions in the Chorus systems' lounges: Chorus's encounters the remake had none of)
     json.dump(items, open(os.path.join(a.out, 'items.json'), 'w', encoding='utf-8'), indent=1)
     json.dump(entries, open(os.path.join(a.out, 'ships.json'), 'w', encoding='utf-8'), indent=1)
     json.dump({'id': 'chorus_ships', 'name': 'Chorus Ships', 'version': '0.1', 'author': 'DuIslingr',
