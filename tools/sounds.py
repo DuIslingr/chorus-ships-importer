@@ -99,7 +99,9 @@ def write(src, dst, gain=1.0):
 def build(fmod_dir, mod, ship='forsaken'):
     """ships.json "sounds" for a ship (SHIPS) from <fmod_dir> (the exporter's fmod output); the files go to <mod>/audio/.
     Missing events or waves leave their slot out (the remake keeps the game's sound there); a slot the ship's table lacks
-    is the Forsaken's (its files shared)."""
+    is the Forsaken's (its files shared). A ship without a table (the player capital ship) keeps the game's sounds."""
+    if ship not in SHIPS:
+        return {}
     if not ffmpeg():
         print('  no ffmpeg on the PATH: the ships keep the game\'s sounds')
         return {}
