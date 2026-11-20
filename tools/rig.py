@@ -131,9 +131,16 @@ def load(folder):
     return out
 
 
-def save_rigged(path, src, prims, anims, name='hull', keep_materials=None):
-    """src's rigid parts on its skeleton with the clips (rig.load) -> path; keep_materials: only these materials' parts."""
+def save_rigged(path, src, prims, anims, name='hull', keep_materials=None, sockets=()):
+    """src's rigid parts on its skeleton with the clips (rig.load) -> path; keep_materials: only these materials' parts;
+    sockets [(name, bone, translation, rotation)]: empty nodes on those bones (glTF frame: the drift's effects, drift.py)."""
     nodes, roots, meshes = rigid_parts(src, glb.static_mesh(src, keep=tuple(prims)) if isinstance(prims, tuple) else prims)
+    by_name = {n['name']: i for i, n in enumerate(nodes)}
+    for sname, bone, t, q in sockets:
+        if bone not in by_name: continue
+        nodes.append({'name': sname, 'translation': [float(v) for v in t], 'rotation': [float(v) for v in q]})
+        parent = nodes[by_name[bone]]
+        parent['children'] = list(parent.get('children', [])) + [len(nodes) - 1]
     if keep_materials is not None:
         meshes = {n: [p for p in ps if p[0] in keep_materials] for n, ps in meshes.items()}
         meshes = {n: ps for n, ps in meshes.items() if ps}

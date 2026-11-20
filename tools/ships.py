@@ -144,16 +144,22 @@ FORSAKEN_MATERIALS = [
 ]
 
 
-def forsaken(export, mod, resolver=None, anims=None):
+def forsaken(export, mod, resolver=None, anims=None, work=None):
     """Builds models/forsaken.glb and maps/*, returns the ships.json entry. resolver: a tools/mi.Resolver (the glow
-    colours an instance inherits from its parents)."""
+    colours an instance inherits from its parents); work: the work folder (the drift's effects on the skeleton's
+    sockets, tools/drift.py: with the rig only)."""
     src = os.path.join(export, PHOENIX, 'skelmesh', 'SK_Phoenix.glb')
     prims = glb.static_mesh(src)
     lo, hi = glb.bounds(prims)
     length = float(hi[0] - lo[0])                       # along the nose (glTF X)
     os.makedirs(os.path.join(mod, 'models'), exist_ok=True); os.makedirs(os.path.join(mod, 'maps'), exist_ok=True)
+    drift_fx, drift_sockets = {}, []
+    if anims and resolver is not None and work:   # (its drift's effects on the skeleton's sockets: tools/drift.py)
+        from . import drift
+        drift_sockets = drift.sockets(work, resolver)
+        drift_fx = drift.build(export, mod, resolver, work) if drift_sockets else {}
     if anims:   # Chorus's drift: the parts on the skeleton, with its clips (tools/rig.py)
-        rig.save_rigged(os.path.join(mod, 'models', 'forsaken.glb'), src, prims, anims, 'forsaken')
+        rig.save_rigged(os.path.join(mod, 'models', 'forsaken.glb'), src, prims, anims, 'forsaken', sockets=drift_sockets)
     else:
         glb.save(os.path.join(mod, 'models', 'forsaken.glb'), prims, 'forsaken')
 
@@ -220,6 +226,7 @@ def forsaken(export, mod, resolver=None, anims=None):
         # --flight-style changes it ("player" leaves it to the player's option).
         'flightStyle': 'chorus',
         **({'animations': rig.ANIMATIONS} if anims else {}),
+        **({'driftFx': drift_fx} if drift_fx else {}),   # (Chorus's drift effects on its sockets: tools/drift.py)
     }
 
 

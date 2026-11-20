@@ -109,7 +109,7 @@ def main():
         run('anim', lst, anim_dir, capture=True)
     anims = rig.load(anim_dir)
     print('Converting the Forsaken...')
-    forsaken = ships.forsaken(export, a.out, resolver, anims)
+    forsaken = ships.forsaken(export, a.out, resolver, anims, a.work)
     print('Converting the Elder Buddy and the Argus...')
     elder = ships.elder_buddy(export, a.out, forsaken, resolver)
     argus = ships.argus(export, a.out, resolver)

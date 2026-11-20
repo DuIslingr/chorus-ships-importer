@@ -133,6 +133,12 @@ which the remake doesn't have, so each slot takes the waves that fit it. `--no-s
   roll, and its own dodge out of a drift. Each layered clip keys only the bones that differ from Chorus's idle (more
   than 1 cm or 0.003 in the quaternion), the bank's leave the root alone (the remake rolls the ship itself). The Elder
   Buddy and the supercharged Forsaken share the skeleton and the clips.
+- **Drift energy field** (`tools/drift.py`): the Forsaken's drift effects as Chorus switches them on (BP_Player_Ship_Phoenix:
+  P_Drift_L / _R and _L_Top / _R_Top on the skeleton's SCK_VFX_Drift sockets): the sockets as nodes on their bones in
+  models/forsaken.glb, ships.json `"driftFx"` a part per system on its socket: the dots, the sparks and the pulsing light
+  (`tools/explosions.py`'s reader with `cascade`: looping, local, their start points) and the energy-field shells
+  (SM_Drift_HalfSphere baked into the socket's frame, fx/drift/*.json, with M_Drift_MagnetField's five maps for the
+  remake's port of its shader). The refraction shock waves and the hull's drift glow are left out.
 - **Supercharged Forsaken:** its energy wings (Mi_SuperChargedShieldWings_Sheets, translucent) as an additive glow: the
   feather mask in the Main Color, its streaks brighter, kept under the remake's bloom (Chorus's HDR colours white it out
   at full strength); their scrolling noise shimmer and orange accent are left out.

@@ -68,7 +68,9 @@ class _Dist:
         o = objs(d.get('Distribution'))
         if o:
             p = o.get('Properties') or {}
-            if 'Constant' in p: self.const = p['Constant']
+            if isinstance(p.get('Constant'), dict):   # (a vector constant: DistributionVectorConstant)
+                c = p['Constant']; self.vals = np.array([c.get('X', 0.0), c.get('Y', 0.0), c.get('Z', 0.0)], np.float64); self.stride = 3
+            elif 'Constant' in p: self.const = p['Constant']
             elif 'Max' in p or 'Min' in p: self.vals = np.array([p.get('Min', 0.0), p.get('Max', 0.0)]); self.op, self.stride = 2, 2
             elif (p.get('ConstantCurve') or {}).get('Points'):   # (a curve object without its table: its points, linear)
                 pts = p['ConstantCurve']['Points']
@@ -240,10 +242,19 @@ def _debris(export, mod, resolver, mi_path):
     return rel
 
 
-def _emitters(export, mod, resolver, d, scale=1.0, pick=None, loop_for=None):
+def _ue_axes(v):
+    """A vector in an Unreal component's frame (x forward, y right, z up) -> the remake's effect frame (Unity's axes: x
+    right, y up, z forward) as the Forsaken's sockets come out of glTF ((x, z, y)) and glTFast (x negated)."""
+    return [-v[0], v[2], v[1]]
+
+
+def _emitters(export, mod, resolver, d, scale=1.0, pick=None, loop_for=None, cascade=False):
     """CustomFxEmitter entries of one Cascade system (its JSON 'd'). 'pick'(material name, path) -> (image, blend, tint) or
     None (left out) chooses an emitter's image instead of the explosions' rules (tools/rites.py); 'loop_for' seconds: an
-    emitter looping for ever (EmitterLoops 0) is repeated that long (its bursts every EmitterDuration, its rate throughout)."""
+    emitter looping for ever (EmitterLoops 0) is repeated that long (its bursts every EmitterDuration, its rate throughout).
+    'cascade' (tools/drift.py, an effect that runs until it is stopped): emitters switched off in the editor are left out,
+    one looping for ever (EmitterLoops 0, Unreal's default: absent from the JSON) gets "loop", bUseLocalSpace "local", its
+    Location module's start "at" (game units, the remake's effect frame: _ue_axes)."""
     def objs(ref):
         if not isinstance(ref, dict) or 'ObjectPath' not in ref: return None
         i = int(ref['ObjectPath'].rsplit('.', 1)[1]); return d[i] if i < len(d) else None
@@ -271,6 +282,7 @@ def _emitters(export, mod, resolver, d, scale=1.0, pick=None, loop_for=None):
         if not lod: continue
         lp = lod['Properties']
         req = (objs(lp.get('RequiredModule')) or {}).get('Properties', {})
+        if cascade and (lp.get('bEnabled', True) is False or req.get('bEnabled', True) is False): continue   # (off in the editor)
         spawn = (objs(lp.get('SpawnModule')) or {}).get('Properties', {})
         mods = {}
         for mr in lp.get('Modules', []):
@@ -331,6 +343,13 @@ def _emitters(export, mod, resolver, d, scale=1.0, pick=None, loop_for=None):
         rate = _Dist(spawn.get('Rate'), objs).range()
         if rate and rate[1] > 0: e['rate'] = rate[1]
         if loop_for and req.get('EmitterLoops', 1) == 0: e['duration'] = float(loop_for)
+        if cascade:
+            if not req.get('EmitterLoops'): e['loop'] = True
+            if req.get('bUseLocalSpace'): e['local'] = True
+            loc = mods.get('Location')
+            dl = _Dist(loc.get('StartLocation'), objs) if loc else None
+            xyz = [sum(dl.range(k) or (0.0, 0.0)) / 2 for k in range(3)] if dl else None
+            if xyz and any(abs(v) > 1e-3 for v in xyz): e['at'] = [round(v * CM * scale, 2) for v in _ue_axes(xyz)]
         lt = mods.get('Lifetime')
         if lt: e['life'] = [round(v, 3) for v in _Dist(lt.get('Lifetime'), objs).range()]
         sz = mods.get('Size')
@@ -408,6 +427,11 @@ def _emitters(export, mod, resolver, d, scale=1.0, pick=None, loop_for=None):
             lm = mods['Light']
             rs = (_Dist(lm.get('RadiusScale'), objs).range() or (1.0, 1.0))[1]
             br = (_Dist(lm.get('BrightnessOverLife'), objs).range() or (1e9, 1e9))[1]
+            bd = _Dist(lm.get('BrightnessOverLife'), objs) if cascade else None
+            bc = bd.curve() if bd else None
+            if bc and bd.peak() > 0:   # (a brightness over life: its peak, the curve as the light's fade; the drift's starts dark)
+                br = bd.peak()
+                e['alphaOverLife'] = [round(float(np.clip(v / br, 0, 1)), 4) for v in bc]
             size = e.pop('size', None)
             if not size: continue
             e['light'] = round(size[1] * rs, 1)

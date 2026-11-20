@@ -390,5 +390,71 @@ class MissionTests(unittest.TestCase):
         self.assertIn('"action": "jump"', ctext, 'the ship warps out after')
 
 
+
+class DriftTests(unittest.TestCase):
+    def test_unreal_rotators_turn_as_unreals(self):
+        from tools import drift
+        np.testing.assert_allclose([0, 0, 0, 1], drift.rotator_quat(0, 0, 0), atol=1e-9)
+        np.testing.assert_allclose([0, 0, np.sqrt(0.5), np.sqrt(0.5)], drift.rotator_quat(0, 90, 0), atol=1e-9)   # yaw about z
+        np.testing.assert_allclose([0, 1, 0], np.array([1.0, 0, 0]) @ drift.rotator_matrix(0, 90, 0), atol=1e-9)   # X -> Y
+        np.testing.assert_allclose([0, 0, 1], np.array([1.0, 0, 0]) @ drift.rotator_matrix(90, 0, 0), atol=1e-9)  # pitch up
+
+    def test_a_socket_becomes_a_node_on_its_bone_in_gltfs_frame(self):
+        from tools import drift
+        with tempfile.TemporaryDirectory() as work:
+            os.makedirs(os.path.join(work, 'drift'))
+            sk = [{'Type': 'SkeletalMeshSocket', 'Properties': {'SocketName': 'SCK_VFX_Drift_L2', 'BoneName': 'BONE_wing',
+                   'RelativeLocation': {'X': 100.0, 'Y': 20.0, 'Z': -5.0}, 'RelativeRotation': {'Pitch': 0.0, 'Yaw': 90.0, 'Roll': 0.0}}},
+                  {'Type': 'SkeletalMeshSocket', 'Properties': {'SocketName': 'SCK_Other', 'BoneName': 'BONE_wing'}}]
+            json.dump(sk, open(os.path.join(work, 'drift', drift.SKELETON + '.json'), 'w'))
+            out = drift.sockets(work, None)
+        self.assertEqual(1, len(out), "only the drift's")
+        name, bone, t, q = out[0]
+        self.assertEqual(('SCK_VFX_Drift_L2', 'BONE_wing'), (name, bone))
+        np.testing.assert_allclose([1.0, -0.05, 0.2], t, atol=1e-9)                       # (x, z, y) / 100, like rig._ue_t
+        np.testing.assert_allclose([0, np.sqrt(0.5), 0, -np.sqrt(0.5)], q, atol=1e-9)    # (x, z, y, -w), like rig._ue_q
+
+    def test_cascade_emitters_loop_stay_local_and_start_at_their_point(self):
+        from tools import explosions
+        ref = lambda i: {'ObjectPath': f'x.{i}'}
+        table = lambda v: {'Table': {'Values': v, 'Op': 1, 'EntryCount': 1, 'EntryStride': len(v)}}
+        d = [{'Type': 'ParticleSystem', 'Properties': {'Emitters': [ref(1), ref(6)]}},
+             {'Type': 'ParticleSpriteEmitter', 'Properties': {'EmitterName': 'Bot_Dot', 'LODLevels': [ref(2)]}},
+             {'Type': 'ParticleLODLevel', 'Name': 'ParticleLODLevel_0', 'Properties': {'RequiredModule': ref(3), 'SpawnModule': ref(4), 'Modules': [ref(5)]}},
+             {'Type': 'ParticleModuleRequired', 'Properties': {'bUseLocalSpace': True, 'Material': {'ObjectName': "M'MI_Drift_Dot'", 'ObjectPath': 'p/MI_Drift_Dot.0'}}},
+             {'Type': 'ParticleModuleSpawn', 'Properties': {'BurstList': [{'Count': 1, 'CountLow': -1, 'Time': 0.0}]}},
+             {'Type': 'ParticleModuleLocation', 'Properties': {'StartLocation': table([100.0, 0.0, 50.0])}},
+             {'Type': 'ParticleSpriteEmitter', 'Properties': {'EmitterName': 'off', 'LODLevels': [ref(7)]}},
+             {'Type': 'ParticleLODLevel', 'Name': 'ParticleLODLevel_0', 'Properties': {'bEnabled': False, 'RequiredModule': ref(8), 'SpawnModule': ref(4), 'Modules': []}},
+             {'Type': 'ParticleModuleRequired', 'Properties': {'bEnabled': False, 'Material': {'ObjectName': "M'x'", 'ObjectPath': 'p/x.0'}}}]
+        pick = lambda name, path: ('fx/glow.png', None, None)
+        ems = explosions._emitters('/nonexistent', '/nonexistent', None, d, pick=pick, cascade=True)
+        self.assertEqual(1, len(ems), 'the switched-off emitter left out')
+        e = ems[0]
+        self.assertTrue(e['loop'], "EmitterLoops absent: Unreal's 0, for ever")
+        self.assertTrue(e['local'])
+        np.testing.assert_allclose([-72.0, 36.0, 0.0], e['at'])   # (x, y, z) cm -> (-x, z, y) x 0.72
+        plain = explosions._emitters('/nonexistent', '/nonexistent', None, d, pick=pick)
+        self.assertEqual(2, len(plain), 'without cascade as before')
+        self.assertNotIn('loop', plain[0])
+
+    def test_a_shell_mesh_is_baked_into_its_sockets_frame(self):
+        from tools import drift
+        with tempfile.TemporaryDirectory() as tmp:
+            src = os.path.join(tmp, 'tri.glb')
+            pos = np.array([[0, 0, 0], [1, 0, 0], [0, 1, 0]], np.float32)
+            glb.save(src, [('m', {'POSITION': pos, 'NORMAL': np.array([[0, 0, 1]] * 3, np.float32),
+                                  'TEXCOORD_0': np.array([[0, 0], [1, 0], [0, 1]], np.float32)}, np.array([0, 1, 2], np.uint32))])
+            m = drift._mesh_json(src, {'size': [2.0, 1.0, 1.0], 'turn': [0.0, 0.0, 0.25], 'at': [10.0, 0.0, 0.0]})
+        p = np.array(m['positions']).reshape(-1, 3)
+        # glTF (1, 0, 0) m -> Unreal (100, 0, 0) cm, x Size 2, Yaw 90 (X -> Y): (0, 200, 0), + at: (10, 200, 0) -> (-10, 0, 200) x 0.72
+        np.testing.assert_allclose([-7.2, 0.0, 144.0], p[1], atol=1e-3)
+        np.testing.assert_allclose([-7.2, 0.0, 0.0], p[0], atol=1e-3)
+        self.assertEqual([0, 1, 2], m['triangles'])
+        self.assertEqual(6, len(m['uvs']))
+        n = np.array(m['normals']).reshape(-1, 3)
+        np.testing.assert_allclose([1.0, 0.0, 0.0], n[0], atol=1e-4)   # glTF z = Unreal y, yaw 90 -> Unreal -x -> the remake's +x
+
+
 if __name__ == '__main__':
     unittest.main()

@@ -16,6 +16,8 @@ Done:
     trim-sheet materials baked; names from their NPC blueprints; Sav's and Ree's layered coats, the Disruptor nose first;
   - the Forsaken's drift animation (its rigid skin as parts on the skeleton, Chorus's clips; the remake's ships.json
     `animations`), on the Elder Buddy and the supercharged Forsaken too; the supercharged Forsaken's energy wings;
+  - the Forsaken's drift energy field: Chorus's four drift systems on their sockets (ships.json `driftFx`; not yet seen
+    in Play mode);
   - its travel boost clips and its steering / thrust / brake flaps as poses by the input; the energy wings shimmer
     (the remake's shimmer layer with Chorus's soft noise);
   - the NPC hulls' exhausts at their Thruster sockets or their thruster glow's nozzles, the capital ships' turrets
